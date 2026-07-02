@@ -1,8 +1,6 @@
-import { drizzle, type NodePgDatabase } from 'drizzle-orm/node-postgres'
-import pg from 'pg'
-import * as schema from '../database/schema'
+import { createDbClient, type Db } from '../database/client'
 
-let db: NodePgDatabase<typeof schema> | null = null
+let db: Db | null = null
 
 export function useDb() {
   if (!db) {
@@ -10,8 +8,7 @@ export function useDb() {
     if (!databaseUrl) {
       throw new Error('NUXT_DATABASE_URL manquant')
     }
-    const pool = new pg.Pool({ connectionString: databaseUrl })
-    db = drizzle(pool, { schema })
+    db = createDbClient(databaseUrl)
   }
   return db
 }
