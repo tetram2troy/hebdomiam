@@ -1,0 +1,29 @@
+{
+  "app": {
+    "title": "Hebdomiam"
+  },
+  "home": {
+    "welcome": "Hello {name}!",
+    "pitch": "Plan your week's meals in 5 minutes: recipes, servings and grocery list."
+  },
+  "auth": {
+    "login": "Log in",
+    "register": "Sign up",
+    "logout": "Log out",
+    "loginTitle": "Log in",
+    "registerTitle": "Create an account",
+    "email": "Email",
+    "password": "Password",
+    "name": "Name",
+    "passwordHint": "At least 12 characters.",
+    "submitLogin": "Log in",
+    "submitRegister": "Sign up"
+  },
+  "errors": {
+    "invalidCredentials": "Invalid email or password.",
+    "emailTaken": "An account already exists with this email.",
+    "tooManyRequests": "Too many attempts, try again in a minute.",
+    "invalidInput": "Check the form fields.",
+    "unknown": "Something went wrong. Please try again."
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "app": {
+    "title": "Hebdomiam"
+  },
+  "home": {
+    "welcome": "Bonjour {name} !",
+    "pitch": "Planifie tes repas de la semaine en 5 minutes : recettes, portions et liste d'épicerie."
+  },
+  "auth": {
+    "login": "Connexion",
+    "register": "Inscription",
+    "logout": "Déconnexion",
+    "loginTitle": "Connexion",
+    "registerTitle": "Créer un compte",
+    "email": "Courriel",
+    "password": "Mot de passe",
+    "name": "Nom",
+    "passwordHint": "Au moins 12 caractères.",
+    "submitLogin": "Se connecter",
+    "submitRegister": "S'inscrire"
+  },
+  "errors": {
+    "invalidCredentials": "Courriel ou mot de passe invalide.",
+    "emailTaken": "Un compte existe déjà avec ce courriel.",
+    "tooManyRequests": "Trop de tentatives, réessaie dans une minute.",
+    "invalidInput": "Vérifie les champs du formulaire.",
+    "unknown": "Une erreur est survenue. Réessaie."
+  }
+}

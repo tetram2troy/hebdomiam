@@ -1,0 +1,21 @@
+# Dépendances et build
+node_modules
+.nuxt
+.output
+.data
+dist
+
+# Environnement — jamais de secrets versionnés
+.env
+.env.*
+!.env.example
+
+# Tests et couverture
+coverage
+test-results
+playwright-report
+
+# Divers
+logs
+*.log
+.DS_Store

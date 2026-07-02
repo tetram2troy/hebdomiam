@@ -1,0 +1,23 @@
+# Développement local : uniquement la base de données.
+# L'app tourne sur la machine avec `npm run dev`.
+#   docker compose -f docker-compose.dev.yml up -d
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: hebdomiam
+      POSTGRES_PASSWORD: hebdomiam
+      POSTGRES_DB: hebdomiam
+    volumes:
+      - hebdomiam-db-dev:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hebdomiam -d hebdomiam"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  hebdomiam-db-dev:
