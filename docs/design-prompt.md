@@ -74,4 +74,19 @@ Commence par me poser tes questions (max 5), puis propose 2 directions visuelles
 contrastées (moodboard décrit + palette) et attends mon choix avant de produire
 l'ensemble. Termine par une liste des décisions design à trancher plus tard.
 
+## Publication dans Claude Design
+
+Une fois les livrables produits et validés par moi, publie-les dans un projet
+**Claude Design** (claude.ai/design) nommé « Hebdomiam » via l'outil `DesignSync`
+(crée le projet s'il n'existe pas), pour que je puisse les consulter visuellement
+dans le panneau Design de l'app Claude :
+
+- Chaque aperçu HTML (wireframe de page, planche de tokens, inventaire de
+  composants) doit commencer par un marqueur de carte sur sa première ligne, ex. :
+  `<!-- @dsCard group="Wireframes" -->` — utilise les groupes « Wireframes »,
+  « Couleurs », « Type », « Composants » et « Brand ».
+- Les aperçus doivent être autonomes (CSS inline, aucune ressource externe).
+- Synchronise de façon incrémentale (jamais de remplacement en bloc) et donne-moi
+  le lien du projet à la fin.
+
 ---
