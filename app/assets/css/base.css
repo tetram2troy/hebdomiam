@@ -187,6 +187,9 @@ input[type='checkbox'] {
   border-color: var(--md-sys-color-outline);
   color: var(--md-sys-color-on-surface);
   cursor: pointer;
+  /* Chip interactive = cible tactile ≥ 44 px (WCAG, crucial en mode magasin) */
+  min-height: 44px;
+  padding: 10px 16px;
 }
 
 .chip-filter[aria-pressed='true'] {
