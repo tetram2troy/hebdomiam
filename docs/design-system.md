@@ -297,21 +297,35 @@ Rendu de référence : planche « Composants » du projet Claude Design.
 
 ---
 
-## 10. Décisions design à trancher plus tard
+## 10. Décisions design — tranchées le 2026-07-02 (révisables)
 
-1. **Icônes définitives** : Material Symbols Rounded proposé — valider le rendu à
-   l'usage face aux pictos culinaires au trait des placeholders (cohérence).
-2. **Bibliothèque de placeholders** : dessiner les ~10 pictogrammes culinaires
-   (mapping tag → picto) ; en attendant, picto générique casserole.
-3. **Photographie** : quand des photos existent, style de recadrage et traitement
-   (aucun filtre vs légère chaleur) — à trancher sur cas réels au jalon M1.
-4. **Composant date/semaine** : représentation de « Semaine du 6 juillet »
-   (sélecteur de semaine pour replanifier une semaine passée ?) — jalon M2.
-5. **Densité desktop de la grille de recettes** : 3 vs 4 colonnes à ≥ 1280 px —
-   décider avec de vraies données (longueur des titres réels).
-6. **Toast vs bandeau pour les erreurs d'import** (URL inaccessible, extraction
-   partielle) — tester les deux au jalon M4.
-7. **Icône PWA / favicon final** : décliner le picto coche-feuille en pixel-perfect
-   16/32 px (V1.5, avec la PWA).
-8. **Mode cuisine, très grands écrans** : affichage 2 recettes côte à côte sur
-   tablette paysage ? — observer l'usage réel d'abord.
+> Réponses proposées par le designer et appliquées telles quelles ; Fabrice corrige
+> plus tard si nécessaire.
+
+1. **Icônes définitives — ✅ Material Symbols Rounded, graisse 500.** Cohérent avec
+   les traits épais Primeur. Sous-ensemble auto-hébergé (~40 icônes en SVG inline via
+   composant, pas la fonte d'icônes entière — poids et CSP du home lab).
+2. **Bibliothèque de placeholders — ✅ 10 pictos au trait 2 px, SVG inline.**
+   Mapping premier tag → picto : mijoteuse→marmite, soupe→bol fumant, végé→feuille,
+   poisson→poisson, grill/BBQ→flamme, pâtes→fourchette-spaghetti, asiatique→bol-
+   baguettes, mexicain→taco, four→toque-four, défaut→casserole. Déterministe,
+   couleurs par tokens (`secondary-container` / `on-secondary-container`).
+3. **Photographie — ✅ traitement neutre.** Aucun filtre, recadrage centré 3:2,
+   coin `large`. La chaleur vient de la palette, pas de la retouche. À revalider
+   sur photos réelles pendant M1.
+4. **Composant date/semaine — ✅ affichage simple en V1.** « Semaine du 6 juillet »
+   = lundi de la semaine courante, calculé, non cliquable. Pas de sélecteur
+   rétroactif avant M2 (l'historique du plan suffira).
+5. **Densité grille recettes — ✅ 3 colonnes max à ≥ 1280 px.** Les titres FR réels
+   sont longs ; 4 colonnes provoquerait trop d'ellipses. Réévaluer si la collection
+   dépasse ~100 recettes.
+6. **Erreurs d'import — ✅ bandeau pour l'échec, toast pour le partiel.** Échec
+   total (URL inaccessible, aucune recette) : bandeau `error-container` dans la page,
+   persistant. Extraction partielle réussie : on ouvre le brouillon normalement,
+   les champs douteux surlignés citron portent l'information. À confirmer en M4.
+7. **Icône PWA / favicon — ✅ coche seule sur pastille basilic** (sans la feuille
+   sous 24 px, traits épaissis à 16 px, cf. planche Brand). Production pixel-perfect
+   des PNG en V1.5 avec la PWA ; en attendant, favicon SVG.
+8. **Mode cuisine tablette — ✅ une seule recette à la fois en V1.** Colonne 65 ch,
+   étapes 22 px. Le côte-à-côte attendra un signal d'usage réel (interruptions et
+   vapeur font préférer un seul focus).

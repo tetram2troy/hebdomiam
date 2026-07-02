@@ -114,8 +114,11 @@ Autres candidats écartés : Popote, Mijote, Tambouille, Semainier, Batchy.
 - Paramètres de session de planification :
   - **Nombre de plats différents** (défaut : 4)
   - **Nombre de personnes** (défaut : 1)
-  - Nombre de repas à couvrir dans la semaine (défaut : dîners + soupers, ajustable)
-  → l'app en déduit le **nombre de portions par recette** et met les quantités à l'échelle.
+  - **Nombre de jours à couvrir** (défaut : 7 — ex. 5 si on mange parfois à l'extérieur)
+  - Repas couverts (défaut : dîners + soupers, ajustable — décision D7)
+  → portions totales = jours × repas × personnes ; l'app en déduit le **nombre de
+  portions par recette** et met les quantités à l'échelle.
+  Chaque paramètre a une **valeur par défaut modifiable dans les réglages**.
 - L'app propose N recettes via la **rotation intelligente** :
   - exclut les recettes cuisinées dans les X dernières semaines (configurable, défaut 3) ;
   - maximise la variété de tags dans la même semaine (pas deux plats de pâtes) ;
@@ -166,7 +169,9 @@ Autres candidats écartés : Popote, Mijote, Tambouille, Semainier, Batchy.
 
 ```
 User          id, email, passwordHash, name, emailVerifiedAt, createdAt,
-              locale(fr|en), unitSystem(metric|imperial)
+              locale(fr|en), unitSystem(metric|imperial),
+              defaultDishCount(4), defaultPeopleCount(1), defaultDaysCount(7),
+              rotationWeeks(3)
               (V2 : householdId nullable → table Household)
 
 Recipe        id, userId (FK), title, description, imageUrl, baseServings,
@@ -180,7 +185,7 @@ RecipeIngredient  id, recipeId (FK), position, quantity(decimal), unit(enum|null
 
 Tag           id, userId (FK), name          — n-n avec Recipe via RecipeTag
 
-MealPlan      id, userId (FK), weekStartDate, peopleCount, dishCount,
+MealPlan      id, userId (FK), weekStartDate, peopleCount, dishCount, daysCount,
               totalServings, status(draft|validated|cooked), createdAt
 
 MealPlanRecipe    id, mealPlanId (FK), recipeId (FK), targetServings,
