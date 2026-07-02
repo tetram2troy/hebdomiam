@@ -1,0 +1,139 @@
+<!-- @dsCard group="Wireframes" -->
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Réglages du compte</title>
+<style>
+* { box-sizing:border-box; margin:0; }
+body { background:#e9ede7; color:#16221a; font:15px/1.5 "Segoe UI", system-ui, -apple-system, sans-serif; padding:32px 16px 64px; }
+.wf-head { max-width:760px; margin:0 auto 24px; }
+.wf-head .crumb { font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:#5c6b5e; font-weight:700; }
+.wf-head h1 { font-size:22px; margin:2px 0 4px; }
+.wf-head p { color:#4c5a4e; max-width:75ch; }
+.frame { background:#f7faf4; border:1px solid #b9c9b7; border-radius:12px; max-width:760px; margin:0 auto 12px; overflow:hidden; }
+.frame-cap { padding:7px 16px; font-size:11.5px; font-weight:700; color:#5c6b5e; background:#edf3e9; border-bottom:1px solid #cddac9; text-transform:uppercase; letter-spacing:.08em; }
+.pad { padding:20px 24px 28px; }
+.btn { display:inline-flex; align-items:center; justify-content:center; gap:8px; min-height:44px; padding:10px 20px; border-radius:999px; font:600 14px/1.2 inherit; cursor:pointer; border:2px solid transparent; background:#e5eddf; color:#16221a; }
+.btn.outline { background:transparent; border-color:#6f7f70; }
+.btn.danger { background:transparent; border-color:#b3382c; color:#b3382c; }
+.chip { display:inline-flex; align-items:center; padding:4px 10px; border-radius:999px; background:#dff0d9; color:#1e5b31; font-size:11px; font-weight:700; }
+.meta { font-size:12.5px; color:#5c6b5e; }
+.dot { display:inline-grid; place-items:center; width:18px; height:18px; border-radius:50%; background:#ee5f2e; color:#fff; font:700 11px/1 sans-serif; font-style:normal; }
+.notes { max-width:760px; margin:20px auto 36px; padding:12px 16px; border:1.5px dashed #ee5f2e; border-radius:10px; background:#fff7f3; font-size:13px; }
+.notes li { margin:4px 0 4px 4px; list-style:none; display:flex; gap:8px; }
+.panel { background:#fff; border:1px solid #cddac9; border-radius:16px; margin-bottom:16px; overflow:hidden; }
+.panel h3 { font-size:13px; letter-spacing:.08em; text-transform:uppercase; color:#40513f; padding:14px 20px 6px; }
+.srow { display:flex; align-items:center; gap:16px; padding:13px 20px; border-top:1px solid #eef3ea; min-height:56px; }
+.srow .lab { flex:1; }
+.srow .lab b { display:block; font-size:15px; }
+.srow .lab span { font-size:12.5px; color:#5c6b5e; }
+.seg { display:inline-flex; border:2px solid #6f7f70; border-radius:999px; overflow:hidden; }
+.seg span { padding:9px 16px; font-size:13px; font-weight:700; color:#40513f; min-height:42px; display:inline-flex; align-items:center; }
+.seg .on { background:#1e7a3d; color:#fff; }
+.stepper { display:inline-flex; align-items:center; gap:10px; }
+.stepper button { width:42px; height:42px; border-radius:999px; border:2px solid #6f7f70; background:#fff; font-size:17px; font-weight:700; cursor:pointer; }
+.stepper .val { font-size:17px; font-weight:800; min-width:26px; text-align:center; font-variant-numeric:tabular-nums; }
+</style>
+</head>
+<body>
+
+<div class="wf-head">
+  <p class="crumb">Hebdomiam · Wireframe 09</p>
+  <h1>Réglages du compte</h1>
+  <p>Une seule page, sections empilées. Chaque changement s'applique immédiatement
+  (toast de confirmation), pas de bouton « Sauvegarder » global.</p>
+</div>
+
+<div class="frame">
+  <div class="frame-cap">Réglages · desktop et mobile (même structure, 1 colonne)</div>
+  <div class="pad">
+
+    <div class="panel">
+      <h3>Profil</h3>
+      <div class="srow">
+        <span class="lab"><b>Nom</b><span>Affiché dans l'interface</span></span>
+        <span class="meta">Fabrice</span><button class="btn outline">Modifier</button>
+      </div>
+      <div class="srow">
+        <span class="lab"><b>Courriel</b><span>fabrice@exemple.ca</span></span>
+        <span class="chip">✓ vérifié</span><button class="btn outline">Modifier</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>Préférences</h3>
+      <div class="srow">
+        <span class="lab"><b>Langue</b><span>Interface et courriels</span></span>
+        <span class="seg"><span class="on">Français</span><span>English</span></span>
+      </div>
+      <div class="srow">
+        <span class="lab"><b>Unités</b><span>Affichage des quantités et de la liste d'épicerie <span class="dot">1</span></span></span>
+        <span class="seg"><span class="on">Métrique</span><span>Impérial / tasses</span></span>
+      </div>
+      <div class="srow">
+        <span class="lab"><b>Thème</b><span>« Système » suit ton appareil</span></span>
+        <span class="seg"><span class="on">Système</span><span>Clair</span><span>Sombre</span></span>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>Planification</h3>
+      <div class="srow">
+        <span class="lab"><b>Rotation : éviter les recettes cuisinées depuis</b><span>La rotation exclut ce qui est trop récent</span></span>
+        <span class="stepper"><button>−</button><span class="val">3</span><button>+</button></span>
+        <span class="meta">semaines</span>
+      </div>
+      <div class="srow">
+        <span class="lab"><b>Plats par défaut</b><span>Pré-rempli au lancement d'une planification</span></span>
+        <span class="stepper"><button>−</button><span class="val">4</span><button>+</button></span>
+      </div>
+      <div class="srow">
+        <span class="lab"><b>Personnes par défaut</b></span>
+        <span class="stepper"><button>−</button><span class="val">1</span><button>+</button></span>
+      </div>
+      <div class="srow">
+        <span class="lab"><b>Jours par défaut</b><span>Ex. : 5 si tu manges 2-3 fois à l'extérieur</span></span>
+        <span class="stepper"><button>−</button><span class="val">5</span><button>+</button></span>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>Sécurité</h3>
+      <div class="srow">
+        <span class="lab"><b>Mot de passe</b><span>Dernier changement : à la création du compte</span></span>
+        <button class="btn outline">Changer</button>
+      </div>
+      <div class="srow">
+        <span class="lab"><b>Double authentification (TOTP)</b><span>Prévue en V1.5 <span class="dot">2</span></span></span>
+        <button class="btn outline" disabled style="opacity:.38">Bientôt</button>
+      </div>
+      <div class="srow">
+        <span class="lab"><b>Se déconnecter</b><span>Sur cet appareil</span></span>
+        <button class="btn outline">Déconnexion</button>
+      </div>
+    </div>
+
+    <div class="panel" style="border-color:#b3382c">
+      <h3 style="color:#b3382c">Zone sensible</h3>
+      <div class="srow">
+        <span class="lab"><b>Supprimer mon compte</b><span>Recettes, plans et listes supprimés définitivement après 30 jours <span class="dot">3</span></span></span>
+        <button class="btn danger">Supprimer…</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<ul class="notes">
+  <li><span class="dot">1</span> Le changement d'unités reconvertit l'affichage partout
+  (fiches, épicerie) — les données restent stockées en valeurs d'origine.</li>
+  <li><span class="dot">2</span> La rangée 2FA est visible dès la V1 (annonce), désactivée —
+  elle documente la feuille de route sans mentir sur l'existant.</li>
+  <li><span class="dot">3</span> Suppression : confirmation par saisie du courriel + mention
+  du délai de grâce ; conforme à la suppression douce du modèle de données.</li>
+</ul>
+
+</body>
+</html>

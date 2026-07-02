@@ -1,0 +1,147 @@
+<!-- @dsCard group="Wireframes" -->
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Connexion et inscription</title>
+<style>
+* { box-sizing:border-box; margin:0; }
+body { background:#e9ede7; color:#16221a; font:15px/1.5 "Segoe UI", system-ui, -apple-system, sans-serif; padding:32px 16px 64px; }
+.wf-head { max-width:900px; margin:0 auto 24px; }
+.wf-head .crumb { font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:#5c6b5e; font-weight:700; }
+.wf-head h1 { font-size:22px; margin:2px 0 4px; }
+.wf-head p { color:#4c5a4e; max-width:75ch; }
+.row2 { display:flex; gap:24px; justify-content:center; flex-wrap:wrap; align-items:flex-start; }
+.frame { background:#f7faf4; border:1px solid #b9c9b7; border-radius:12px; width:430px; max-width:100%; overflow:hidden; }
+.frame-cap { padding:7px 16px; font-size:11.5px; font-weight:700; color:#5c6b5e; background:#edf3e9; border-bottom:1px solid #cddac9; text-transform:uppercase; letter-spacing:.08em; }
+.pad { padding:28px 28px 32px; }
+.btn { display:inline-flex; align-items:center; justify-content:center; gap:8px; min-height:48px; padding:10px 20px; border-radius:999px; font:600 15px/1.2 inherit; cursor:pointer; border:2px solid transparent; background:#e5eddf; color:#16221a; }
+.btn.primary { background:#1e7a3d; color:#fff; width:100%; }
+.btn.text { background:transparent; color:#1e7a3d; }
+.meta { font-size:12.5px; color:#5c6b5e; }
+.dot { display:inline-grid; place-items:center; width:18px; height:18px; border-radius:50%; background:#ee5f2e; color:#fff; font:700 11px/1 sans-serif; font-style:normal; }
+.notes { max-width:900px; margin:20px auto 36px; padding:12px 16px; border:1.5px dashed #ee5f2e; border-radius:10px; background:#fff7f3; font-size:13px; }
+.notes li { margin:4px 0 4px 4px; list-style:none; display:flex; gap:8px; }
+.field { display:flex; flex-direction:column; gap:5px; margin-bottom:16px; }
+.field label { font-size:13px; font-weight:700; }
+.field .in { border:2px solid #6f7f70; border-radius:8px; background:#fff; color:#5c6b5e; min-height:48px; padding:10px 12px; font-size:15px; display:flex; align-items:center; justify-content:space-between; }
+.field .help { font-size:12px; color:#5c6b5e; }
+.field.error .in { border-color:#b3382c; }
+.field.error .help { color:#b3382c; font-weight:600; }
+.logo { text-align:center; margin-bottom:18px; }
+.logo .mark { display:inline-grid; place-items:center; width:44px; height:44px; border-radius:50%; background:#1e7a3d; color:#fff; font-size:22px; font-weight:800; margin-bottom:6px; }
+.logo b { display:block; font-size:20px; color:#1e7a3d; }
+.logo span { font-size:12.5px; color:#5c6b5e; }
+.errband { background:#ffdad4; color:#561e14; border-radius:10px; padding:10px 14px; font-size:13.5px; font-weight:600; margin-bottom:16px; }
+.okband { background:#dff0d9; color:#17301f; border-radius:10px; padding:10px 14px; font-size:13.5px; font-weight:600; margin-bottom:16px; }
+.switch { text-align:center; margin-top:14px; font-size:13.5px; color:#5c6b5e; }
+</style>
+</head>
+<body>
+
+<div class="wf-head">
+  <p class="crumb">Hebdomiam · Wireframe 08</p>
+  <h1>Connexion / inscription</h1>
+  <p>Sobriété maximale : la marque, un formulaire, rien d'autre. Pas d'OAuth en V1.
+  Les messages d'erreur n'énumèrent jamais (« courriel ou mot de passe invalide »).</p>
+</div>
+
+<div class="row2">
+
+<div class="frame">
+  <div class="frame-cap">Connexion — avec erreur non énumérante</div>
+  <div class="pad">
+    <div class="logo">
+      <span class="mark">✓</span>
+      <b>Hebdomiam</b>
+      <span>Tes semaines de popote, planifiées en 5 minutes</span>
+    </div>
+    <div class="errband">Courriel ou mot de passe invalide. <span class="dot">1</span></div>
+    <div class="field">
+      <label>Courriel</label>
+      <div class="in">fabrice@exemple.ca</div>
+    </div>
+    <div class="field">
+      <label>Mot de passe</label>
+      <div class="in">••••••••••••<span class="meta">👁 afficher</span></div>
+    </div>
+    <button class="btn primary">Se connecter</button>
+    <div class="switch">
+      <button class="btn text" style="min-height:36px">Mot de passe oublié ?</button><br>
+      Pas de compte ? <b>S'inscrire</b>
+    </div>
+  </div>
+</div>
+
+<div class="frame">
+  <div class="frame-cap">Inscription — validation en direct</div>
+  <div class="pad">
+    <div class="logo">
+      <span class="mark">✓</span>
+      <b>Hebdomiam</b>
+      <span>Crée ton compte — gratuit, privé, à toi</span>
+    </div>
+    <div class="field">
+      <label>Nom (affichage)</label>
+      <div class="in">Fabrice</div>
+    </div>
+    <div class="field">
+      <label>Courriel</label>
+      <div class="in">fabrice@exemple.ca</div>
+    </div>
+    <div class="field error">
+      <label>Mot de passe</label>
+      <div class="in">••••••••<span class="meta">👁</span></div>
+      <span class="help">Au moins 12 caractères — il en manque 4. <span class="dot">2</span></span>
+    </div>
+    <button class="btn primary">Créer mon compte</button>
+    <div class="switch">Déjà un compte ? <b>Se connecter</b></div>
+  </div>
+</div>
+
+<div class="frame">
+  <div class="frame-cap">Après inscription — vérification du courriel</div>
+  <div class="pad">
+    <div class="logo">
+      <span class="mark">✓</span>
+      <b>Hebdomiam</b>
+    </div>
+    <div class="okband">Compte créé ! Un courriel de vérification vient de partir
+    vers <b>fabrice@exemple.ca</b>.</div>
+    <p style="font-size:14px;color:#40513f;margin-bottom:16px">Clique le lien dans le courriel
+    pour activer ton compte. Pense à vérifier tes indésirables.</p>
+    <button class="btn" style="width:100%">Renvoyer le courriel (55 s) <span class="dot">3</span></button>
+  </div>
+</div>
+
+<div class="frame">
+  <div class="frame-cap">Mot de passe oublié</div>
+  <div class="pad">
+    <div class="logo"><span class="mark">✓</span><b>Hebdomiam</b></div>
+    <p style="font-size:14px;color:#40513f;margin-bottom:16px">Entre ton courriel : si un
+    compte existe, tu recevras un lien de réinitialisation. <span class="dot">4</span></p>
+    <div class="field">
+      <label>Courriel</label>
+      <div class="in">fabrice@exemple.ca</div>
+    </div>
+    <button class="btn primary">Envoyer le lien</button>
+    <div class="switch"><b>← Retour à la connexion</b></div>
+  </div>
+</div>
+
+</div>
+
+<ul class="notes">
+  <li><span class="dot">1</span> Message identique que le courriel existe ou non
+  (anti-énumération) ; le rate limiting (applicatif + Traefik) est invisible ici, sauf
+  verrouillage temporaire : « Trop de tentatives — réessaie dans 15 minutes ».</li>
+  <li><span class="dot">2</span> Politique : longueur seule (≥ 12), pas de règles arbitraires ;
+  l'aide dit ce qui manque, pas « mot de passe invalide ».</li>
+  <li><span class="dot">3</span> Renvoi avec compte à rebours (anti-abus SMTP).</li>
+  <li><span class="dot">4</span> Réponse identique que le compte existe ou non.</li>
+  <li>Tous les messages sont des clés i18n — prévoir +30 % de longueur en anglais.</li>
+</ul>
+
+</body>
+</html>

@@ -1,0 +1,286 @@
+<!-- @dsCard group="Wireframes" -->
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Planifier ma semaine — flux complet</title>
+<style>
+* { box-sizing:border-box; margin:0; }
+body { background:#e9ede7; color:#16221a; font:15px/1.5 "Segoe UI", system-ui, -apple-system, sans-serif; padding:32px 16px 64px; }
+a { color:inherit; }
+.wf-head { max-width:1140px; margin:0 auto 24px; }
+.wf-head .crumb { font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:#5c6b5e; font-weight:700; }
+.wf-head h1 { font-size:22px; margin:2px 0 4px; }
+.wf-head p { color:#4c5a4e; max-width:75ch; }
+.frame { background:#f7faf4; border:1px solid #b9c9b7; border-radius:12px; max-width:1140px; margin:0 auto 12px; overflow:hidden; }
+.frame-cap { padding:7px 16px; font-size:11.5px; font-weight:700; color:#5c6b5e; background:#edf3e9; border-bottom:1px solid #cddac9; text-transform:uppercase; letter-spacing:.08em; }
+.pad { padding:20px 24px 28px; }
+.btn { display:inline-flex; align-items:center; justify-content:center; gap:8px; min-height:44px; padding:10px 20px; border-radius:999px; font:600 14px/1.2 inherit; cursor:pointer; border:2px solid transparent; background:#e5eddf; color:#16221a; }
+.btn.primary { background:#1e7a3d; color:#fff; }
+.btn.outline { background:transparent; border-color:#6f7f70; }
+.btn.text { background:transparent; color:#1e7a3d; }
+.btn.big { min-height:56px; font-size:16px; }
+.btn[disabled] { opacity:.38; cursor:default; }
+.card { background:#fff; border:1px solid #cddac9; border-radius:16px; overflow:hidden; }
+.ph { background:repeating-linear-gradient(45deg,#dfe8d9 0 8px,#eef3ea 8px 16px); display:grid; place-items:center; color:#5c6b5e; font-size:12px; font-weight:600; }
+.chip { display:inline-flex; align-items:center; gap:6px; padding:5px 12px; border-radius:999px; background:#dff0d9; color:#1e5b31; font-size:12px; font-weight:700; }
+.chip.filter { background:transparent; border:2px solid #6f7f70; color:#16221a; }
+.chip.filter.on { background:#dff0d9; border-color:#1e7a3d; color:#1e5b31; }
+.meta { font-size:12.5px; color:#5c6b5e; }
+.skel { border-radius:8px; background:linear-gradient(90deg,#e5eddf 25%,#eef3ea 50%,#e5eddf 75%); }
+.dot { display:inline-grid; place-items:center; width:18px; height:18px; border-radius:50%; background:#ee5f2e; color:#fff; font:700 11px/1 sans-serif; font-style:normal; }
+.notes { max-width:1140px; margin:0 auto 36px; padding:12px 16px; border:1.5px dashed #ee5f2e; border-radius:10px; background:#fff7f3; font-size:13px; }
+.notes li { margin:4px 0 4px 4px; list-style:none; display:flex; gap:8px; }
+
+/* Spécifique planification */
+.steps { display:flex; gap:8px; align-items:center; padding:14px 24px 0; font-size:12.5px; font-weight:700; color:#5c6b5e; }
+.steps .s { display:flex; align-items:center; gap:6px; }
+.steps .n { width:22px; height:22px; border-radius:50%; border:2px solid #6f7f70; display:grid; place-items:center; font-size:11px; }
+.steps .on { color:#1e5b31; }
+.steps .on .n { background:#1e7a3d; border-color:#1e7a3d; color:#fff; }
+.steps .sep { flex:0 0 28px; border-top:2px solid #cddac9; }
+.params { max-width:520px; margin:24px auto 8px; }
+.params h2 { font-size:24px; margin-bottom:16px; text-align:center; }
+.prow { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:14px 0; border-bottom:1px solid #cddac9; }
+.prow .lab b { display:block; font-size:15px; }
+.prow .lab span { font-size:12.5px; color:#5c6b5e; }
+.stepper { display:flex; align-items:center; gap:12px; }
+.stepper button { width:48px; height:48px; border-radius:999px; border:2px solid #6f7f70; background:#fff; font-size:20px; font-weight:700; cursor:pointer; }
+.stepper .val { font-size:24px; font-weight:800; min-width:36px; text-align:center; font-variant-numeric:tabular-nums; }
+.calc { text-align:center; padding:16px 0 4px; font-size:14px; color:#40513f; }
+.calc b { font-size:18px; }
+.sugg-head { display:flex; flex-wrap:wrap; align-items:center; gap:12px; margin-bottom:16px; }
+.sugg-head h2 { font-size:24px; flex:1; }
+.sugg-grid { display:grid; grid-template-columns:repeat(4, 1fr); gap:16px; margin-bottom:20px; }
+@media (max-width:900px) { .sugg-grid { grid-template-columns:repeat(2, 1fr); } }
+.sugg .ph, .sugg img { height:110px; width:100%; }
+.sugg .body { padding:12px 14px 14px; }
+.sugg h3 { font-size:16px; line-height:1.3; margin:6px 0 4px; }
+.sugg .acts { display:flex; flex-direction:column; gap:8px; margin-top:12px; }
+.sugg .acts .row { display:flex; gap:8px; }
+.sugg .acts .row .btn { flex:1; min-height:44px; padding:8px 6px; font-size:13.5px; }
+.sugg.ok { border:2px solid #1e7a3d; position:relative; }
+.sugg.ok .okbadge { position:absolute; top:10px; right:10px; background:#1e7a3d; color:#fff; border-radius:999px; padding:4px 12px; font-size:12px; font-weight:700; }
+.footer-bar { display:flex; align-items:center; gap:16px; padding:14px 20px; background:#fff; border:1px solid #cddac9; border-radius:16px; }
+.footer-bar .grow { flex:1; }
+.replace { border:2px solid #1e7a3d; border-radius:16px; background:#fff; padding:16px; max-width:560px; }
+.replace h3 { font-size:16px; margin-bottom:10px; }
+.search { border:2px solid #6f7f70; border-radius:8px; background:#fff; color:#5c6b5e; min-height:44px; padding:10px 12px; font-size:14px; display:flex; align-items:center; margin-bottom:10px; }
+.rrow { display:flex; align-items:center; gap:12px; padding:9px 6px; border-bottom:1px solid #e5eddf; }
+.rrow .ph { width:44px; height:44px; border-radius:10px; flex:none; }
+.rrow .grow { flex:1; }
+.rrow h4 { font-size:14px; }
+.recap { max-width:640px; margin:0 auto; text-align:center; }
+.recap h2 { font-size:24px; margin-bottom:4px; }
+.recap .mini { display:flex; gap:10px; justify-content:center; margin:18px 0; flex-wrap:wrap; }
+.recap .mini .card { width:130px; }
+.recap .mini .ph { height:60px; }
+.recap .mini .body { padding:8px; font-size:12px; font-weight:700; }
+</style>
+</head>
+<body>
+
+<div class="wf-head">
+  <p class="crumb">Hebdomiam · Wireframe 02 — l'écran le plus important</p>
+  <h1>Flux « Planifier ma semaine »</h1>
+  <p>Trois étapes : paramètres → suggestions (valider ✓ / échanger ↻ / remplacer) →
+  récapitulatif. Objectif : un plan validé en moins de 2 minutes.</p>
+</div>
+
+<!-- ============ ÉTAPE 1 : PARAMÈTRES ============ -->
+<div class="frame">
+  <div class="frame-cap">Étape 1 — paramètres</div>
+  <div class="steps">
+    <span class="s on"><span class="n">1</span> Paramètres</span><span class="sep"></span>
+    <span class="s"><span class="n">2</span> Suggestions</span><span class="sep"></span>
+    <span class="s"><span class="n">3</span> Épicerie</span>
+  </div>
+  <div class="pad">
+    <div class="params">
+      <h2>On planifie quoi cette semaine ?</h2>
+      <div class="prow">
+        <span class="lab"><b>Plats différents</b><span>3 à 4 recommandé pour le batch cooking</span></span>
+        <span class="stepper"><button>−</button><span class="val">4</span><button>+</button></span>
+      </div>
+      <div class="prow">
+        <span class="lab"><b>Personnes</b><span>Les quantités seront mises à l'échelle</span></span>
+        <span class="stepper"><button>−</button><span class="val">1</span><button>+</button></span>
+      </div>
+      <div class="prow">
+        <span class="lab"><b>Nombre de jours</b><span>Défaut : 7 · réduis pour planifier 2-3 jours seulement</span></span>
+        <span class="stepper"><button>−</button><span class="val">7</span><button>+</button></span>
+      </div>
+      <div class="prow" data-comment-anchor="255ed5f817-div">
+        <span class="lab"><b>Repas couverts</b><span>Défaut : dîners + soupers</span></span>
+        <span><span class="chip filter on">Dîners ✓</span> <span class="chip filter on">Soupers ✓</span></span>
+      </div>
+      <p class="calc">≈ <b>14 portions</b> à cuisiner · 7 jours × 2 repas × 1 personne <span class="dot">1</span></p>
+      <button class="btn primary big" style="width:100%">Proposer 4 recettes</button>
+    </div>
+  </div>
+</div>
+<ul class="notes">
+  <li><span class="dot">1</span> Le calcul est expliqué en langage clair, jamais une formule.
+  Les valeurs par défaut (4 plats, 1 personne) viennent des réglages ; l'écran est donc
+  souvent un simple « continuer ».</li>
+</ul>
+
+<!-- ============ ÉTAPE 2 : SUGGESTIONS ============ -->
+<div class="frame">
+  <div class="frame-cap">Étape 2 — suggestions (état mixte : 1 validée, 1 en échange, 2 proposées)</div>
+  <div class="steps">
+    <span class="s"><span class="n">✓</span> Paramètres</span><span class="sep"></span>
+    <span class="s on"><span class="n">2</span> Suggestions</span><span class="sep"></span>
+    <span class="s"><span class="n">3</span> Épicerie</span>
+  </div>
+  <div class="pad">
+    <div class="sugg-head">
+      <h2>Tes 4 plats de la semaine</h2>
+      <span class="chip">1 / 4 validée</span>
+    </div>
+    <div class="sugg-grid">
+
+      <div class="card sugg ok">
+        <span class="okbadge">✓ Validée</span>
+        <div class="ph">photo</div>
+        <div class="body">
+          <span class="chip">végé</span>
+          <h3>Chili de lentilles à la mijoteuse</h3>
+          <div class="meta">45 min · se congèle · 4 portions</div>
+          <div class="acts"><button class="btn text">Annuler la validation</button></div>
+        </div>
+      </div>
+
+      <div class="card sugg">
+        <div class="ph">placeholder illustré</div>
+        <div class="body">
+          <span class="chip">soupe</span>
+          <h3>Soupe-repas orge et légumes</h3>
+          <div class="meta">1 h 10 · se congèle · 4 portions</div>
+          <div class="acts">
+            <div class="row">
+              <button class="btn primary">✓ Valider</button>
+              <button class="btn outline">↻ Échanger</button>
+            </div>
+            <button class="btn text">Remplacer par une recette précise…</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card sugg">
+        <div class="skel" style="height:110px"></div>
+        <div class="body">
+          <div class="skel" style="height:14px;width:60%;margin:8px 0"></div>
+          <div class="skel" style="height:12px;width:40%;margin-bottom:14px"></div>
+          <div class="acts">
+            <div class="row">
+              <button class="btn primary" disabled>✓ Valider</button>
+              <button class="btn outline" disabled>↻ …</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card sugg">
+        <div class="ph">photo</div>
+        <div class="body">
+          <span class="chip">poulet</span>
+          <h3>Poulet au beurre express</h3>
+          <div class="meta">35 min · 3 portions</div>
+          <div class="acts">
+            <div class="row">
+              <button class="btn primary">✓ Valider</button>
+              <button class="btn outline">↻ Échanger</button>
+            </div>
+            <button class="btn text">Remplacer par une recette précise…</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer-bar">
+      <span class="grow meta"><span class="dot">2</span> L'échange (↻) remplace la carte par une
+      nouvelle suggestion — squelette pendant le calcul, jamais de page qui saute.</span>
+      <button class="btn text">Tout valider</button>
+      <button class="btn primary big" disabled>Générer la liste d'épicerie</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ PANNEAU REMPLACER ============ -->
+<div class="frame" style="max-width:640px">
+  <div class="frame-cap">Sous-flux — « Remplacer par une recette précise » (feuille modale)</div>
+  <div class="pad">
+    <div class="replace" data-comment-anchor="4d57380179-div">
+      <h3>Remplacer « Soupe-repas orge et légumes »</h3>
+      <div style="display:flex;gap:8px;margin-bottom:12px">
+        <span class="chip filter on">Chercher une recette précise ✓</span>
+        <span class="chip filter">Me suggérer autre chose</span>
+      </div>
+      <div class="search">🔍 Chercher dans mes recettes…</div>
+      <div style="margin-bottom:10px"><span class="chip filter on">Se congèle ✓</span> <span class="chip filter">− de 45 min</span> <span class="chip filter">végé</span></div>
+      <div class="rrow"><div class="ph">🍲</div><div class="grow"><h4>Dahl de lentilles corail</h4><div class="meta">30 min · végé · jamais cuisinée <span class="dot">3</span></div></div><button class="btn outline">Choisir</button></div>
+      <div class="rrow"><div class="ph">photo</div><div class="grow"><h4>Lasagne courge et épinards</h4><div class="meta">1 h 30 · se congèle · il y a 5 semaines</div></div><button class="btn outline">Choisir</button></div>
+      <div class="rrow" style="border:none"><div class="ph">🥘</div><div class="grow"><h4>Ragoût de boulettes</h4><div class="meta">2 h · se congèle · il y a 8 semaines</div></div><button class="btn outline">Choisir</button></div>
+    </div>
+  </div>
+</div>
+<!-- ============ PANNEAU REMPLACER — MODE SUGGESTIONS ============ -->
+<div class="frame" style="max-width:640px">
+  <div class="frame-cap">Sous-flux — même feuille, mode « Me suggérer autre chose »</div>
+  <div class="pad">
+    <div class="replace">
+      <h3>Remplacer « Soupe-repas orge et légumes »</h3>
+      <div style="display:flex;gap:8px;margin-bottom:12px">
+        <span class="chip filter">Chercher une recette précise</span>
+        <span class="chip filter on">Me suggérer autre chose ✓</span>
+      </div>
+      <p class="meta" style="margin-bottom:10px">3 suggestions selon ta rotation — choisis-en une <span class="dot">5</span></p>
+      <div class="rrow"><div class="ph">🍛</div><div class="grow"><h4>Curry de pois chiches</h4><div class="meta">40 min · végé · il y a 6 semaines</div></div><button class="btn outline">Choisir</button></div>
+      <div class="rrow"><div class="ph">photo</div><div class="grow"><h4>Pâté chinois aux lentilles</h4><div class="meta">1 h · se congèle · jamais cuisinée</div></div><button class="btn outline">Choisir</button></div>
+      <div class="rrow" style="border:none"><div class="ph">🍜</div><div class="grow"><h4>Soupe tonkinoise maison</h4><div class="meta">50 min · il y a 9 semaines</div></div><button class="btn outline">Choisir</button></div>
+      <button class="btn text" style="margin-top:8px">↻ D'autres suggestions</button>
+    </div>
+  </div>
+</div>
+<ul class="notes" style="max-width:640px">
+  <li><span class="dot">5</span> Contrairement à l'échange (↻) qui remplace direct, ce mode
+  propose un petit lot et laisse l'utilisateur trancher.</li>
+</ul>
+<ul class="notes" style="max-width:640px">
+  <li><span class="dot">3</span> Chaque résultat affiche la donnée de rotation
+  (« jamais cuisinée », « il y a 5 semaines ») : c'est l'argument de choix.</li>
+</ul>
+
+<!-- ============ ÉTAPE 3 : RÉCAP ============ -->
+<div class="frame">
+  <div class="frame-cap">Étape 3 — récapitulatif et génération</div>
+  <div class="steps">
+    <span class="s"><span class="n">✓</span> Paramètres</span><span class="sep"></span>
+    <span class="s"><span class="n">✓</span> Suggestions</span><span class="sep"></span>
+    <span class="s on"><span class="n">3</span> Épicerie</span>
+  </div>
+  <div class="pad">
+    <div class="recap">
+      <h2>Semaine du 6 juillet — 4 plats validés</h2>
+      <p class="meta">14 portions · 1 personne · dîners + soupers</p>
+      <div class="mini">
+        <div class="card"><div class="ph">photo</div><div class="body">Chili de lentilles</div></div>
+        <div class="card"><div class="ph">picto</div><div class="body">Dahl corail</div></div>
+        <div class="card"><div class="ph">photo</div><div class="body">Poulet au beurre</div></div>
+        <div class="card"><div class="ph">picto</div><div class="body">Tofu général Tao</div></div>
+      </div>
+      <button class="btn primary big" style="width:100%;max-width:420px">Générer la liste d'épicerie</button>
+      <p class="meta" style="margin-top:10px"><span class="dot">4</span> Redirige vers la liste
+      d'épicerie ; le plan est daté et historisé (alimente la rotation).</p>
+    </div>
+  </div>
+</div>
+<ul class="notes">
+  <li><span class="dot">4</span> Un plan validé reste modifiable (replanifier remplace le plan
+  et régénère la liste, avec confirmation si des articles sont déjà cochés).</li>
+</ul>
+
+</body>
+</html>

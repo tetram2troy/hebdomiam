@@ -1,0 +1,137 @@
+<!-- @dsCard group="Wireframes" -->
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fiche recette</title>
+<style>
+* { box-sizing:border-box; margin:0; }
+body { background:#e9ede7; color:#16221a; font:15px/1.5 "Segoe UI", system-ui, -apple-system, sans-serif; padding:32px 16px 64px; }
+a { color:inherit; }
+.wf-head { max-width:1140px; margin:0 auto 24px; }
+.wf-head .crumb { font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:#5c6b5e; font-weight:700; }
+.wf-head h1 { font-size:22px; margin:2px 0 4px; }
+.wf-head p { color:#4c5a4e; max-width:75ch; }
+.frame { background:#f7faf4; border:1px solid #b9c9b7; border-radius:12px; max-width:1140px; margin:0 auto 12px; overflow:hidden; }
+.frame-cap { padding:7px 16px; font-size:11.5px; font-weight:700; color:#5c6b5e; background:#edf3e9; border-bottom:1px solid #cddac9; text-transform:uppercase; letter-spacing:.08em; }
+.pad { padding:20px 24px 28px; }
+.btn { display:inline-flex; align-items:center; justify-content:center; gap:8px; min-height:44px; padding:10px 20px; border-radius:999px; font:600 14px/1.2 inherit; cursor:pointer; border:2px solid transparent; background:#e5eddf; color:#16221a; }
+.btn.primary { background:#1e7a3d; color:#fff; }
+.btn.outline { background:transparent; border-color:#6f7f70; }
+.btn.text { background:transparent; color:#1e7a3d; }
+.btn.danger { background:transparent; border-color:#b3382c; color:#b3382c; }
+.card { background:#fff; border:1px solid #cddac9; border-radius:16px; overflow:hidden; }
+.ph { background:repeating-linear-gradient(45deg,#dfe8d9 0 8px,#eef3ea 8px 16px); display:grid; place-items:center; color:#5c6b5e; font-size:12px; font-weight:600; }
+.chip { display:inline-flex; align-items:center; gap:6px; padding:5px 12px; border-radius:999px; background:#dff0d9; color:#1e5b31; font-size:12px; font-weight:700; }
+.meta { font-size:12.5px; color:#5c6b5e; }
+.dot { display:inline-grid; place-items:center; width:18px; height:18px; border-radius:50%; background:#ee5f2e; color:#fff; font:700 11px/1 sans-serif; font-style:normal; }
+.notes { max-width:1140px; margin:0 auto 36px; padding:12px 16px; border:1.5px dashed #ee5f2e; border-radius:10px; background:#fff7f3; font-size:13px; }
+.notes li { margin:4px 0 4px 4px; list-style:none; display:flex; gap:8px; }
+.stepper { display:inline-flex; align-items:center; gap:12px; }
+.stepper button { width:44px; height:44px; border-radius:999px; border:2px solid #6f7f70; background:#fff; font-size:18px; font-weight:700; cursor:pointer; }
+.stepper .val { font-size:20px; font-weight:800; min-width:32px; text-align:center; font-variant-numeric:tabular-nums; }
+
+/* Spécifique fiche */
+.rhead { display:grid; grid-template-columns:minmax(0,7fr) minmax(0,5fr); gap:24px; margin-bottom:22px; }
+@media (max-width:860px) { .rhead, .cols { grid-template-columns:1fr !important; } }
+.rhead .ph { height:220px; border-radius:16px; }
+.rhead h2 { font-size:28px; line-height:1.2; margin:8px 0 6px; }
+.metaline { display:flex; flex-wrap:wrap; gap:8px 18px; font-size:13.5px; color:#40513f; margin:10px 0; }
+.metaline b { font-weight:700; }
+.src { font-size:12.5px; color:#5c6b5e; }
+.src u { text-decoration-style:dotted; }
+.actrow { display:flex; flex-wrap:wrap; gap:10px; margin-top:14px; }
+.cols { display:grid; grid-template-columns:minmax(0,5fr) minmax(0,7fr); gap:24px; }
+.panel { background:#fff; border:1px solid #cddac9; border-radius:16px; padding:18px 20px; }
+.panel h3 { font-size:17px; margin-bottom:10px; }
+.ing { list-style:none; }
+.ing li { display:flex; gap:10px; padding:8px 0; border-bottom:1px solid #e5eddf; font-size:14.5px; }
+.ing li:last-child { border-bottom:none; }
+.ing .q { min-width:84px; font-weight:700; font-variant-numeric:tabular-nums; text-align:right; }
+.ing .aisle { margin-left:auto; }
+.stepslist { list-style:none; counter-reset:s; }
+.stepslist li { counter-increment:s; display:flex; gap:12px; padding:10px 0; border-bottom:1px solid #e5eddf; font-size:14.5px; }
+.stepslist li:last-child { border-bottom:none; }
+.stepslist li::before { content:counter(s); flex:none; width:26px; height:26px; border-radius:50%; background:#dff0d9; color:#1e5b31; display:grid; place-items:center; font-weight:800; font-size:13px; }
+.noteblock { background:#fffceb; border:1px solid #e8dfa8; border-radius:12px; padding:12px 16px; font-size:14px; margin-top:16px; }
+.hist { font-size:13px; color:#40513f; margin-top:16px; }
+</style>
+</head>
+<body>
+
+<div class="wf-head">
+  <p class="crumb">Hebdomiam · Wireframe 04</p>
+  <h1>Fiche recette</h1>
+  <p>Consultation d'une recette : le stepper de portions met toutes les quantités à
+  l'échelle en direct. Les actions d'édition restent secondaires.</p>
+</div>
+
+<div class="frame">
+  <div class="frame-cap">Desktop ≥ 1024 px (mobile : mêmes blocs empilés, image en tête)</div>
+  <div class="pad">
+    <p class="meta" style="margin-bottom:10px">← Mes recettes</p>
+    <div class="rhead">
+      <div>
+        <div style="display:flex;gap:6px"><span class="chip">végé</span><span class="chip">mijoteuse</span></div>
+        <h2>Chili de lentilles à la mijoteuse</h2>
+        <p style="color:#40513f;max-width:60ch">Un classique réconfortant qui embaume la
+        maison : les lentilles remplacent la viande sans que personne ne s'en plaigne.</p>
+        <div class="metaline">
+          <span>Préparation <b>15 min</b></span>
+          <span>Cuisson <b>30 min</b></span>
+          <span>Total <b>45 min</b></span>
+          <span style="color:#1e5b31;font-weight:700">❄ Se congèle</span>
+        </div>
+        <p class="src">Source : <u>ricardocuisine.com/chili-vegetarien</u> <span class="dot">1</span></p>
+        <div class="actrow">
+          <button class="btn primary">Planifier cette recette</button>
+          <button class="btn outline">✎ Modifier</button>
+          <button class="btn outline" style="min-width:44px" title="Plus d'actions">⋯</button>
+        </div>
+      </div>
+      <div class="ph">photo 3:2<br>(ou placeholder illustré)</div>
+    </div>
+
+    <div class="cols">
+      <div class="panel">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px">
+          <h3 style="margin:0">Ingrédients</h3>
+          <span class="stepper"><button>−</button><span class="val">4</span><button>+</button></span>
+        </div>
+        <p class="meta" style="margin-bottom:8px">Portions — les quantités s'ajustent <span class="dot">2</span></p>
+        <ul class="ing">
+          <li><span class="q">500 g</span> lentilles vertes sèches <span class="meta aisle">Produits secs</span></li>
+          <li><span class="q">800 ml</span> tomates en dés <span class="meta aisle">Conserves</span></li>
+          <li><span class="q">2</span> oignons jaunes <span class="meta aisle">Fruits et légumes</span></li>
+          <li><span class="q">3 gousses</span> ail <span class="meta aisle">Fruits et légumes</span></li>
+          <li><span class="q">2 c. à soupe</span> assaisonnement chili <span class="meta aisle">Épices</span></li>
+          <li><span class="q">750 ml</span> bouillon de légumes <span class="meta aisle">Conserves</span></li>
+        </ul>
+      </div>
+      <div class="panel">
+        <h3>Préparation</h3>
+        <ol class="stepslist">
+          <li>Hacher les oignons et l'ail ; les faire revenir 5 minutes à feu moyen.</li>
+          <li>Ajouter l'assaisonnement chili et cuire 1 minute en remuant.</li>
+          <li>Verser lentilles, tomates et bouillon dans la mijoteuse.</li>
+          <li>Cuire à intensité élevée 3 h (ou 6 h à basse intensité).</li>
+          <li>Rectifier l'assaisonnement ; servir avec yogourt et coriandre.</li>
+        </ol>
+        <div class="noteblock"><b>Mes notes :</b> doubler le chili en poudre — la famille
+        aime ça relevé. Encore meilleur réchauffé le lendemain. <span class="dot">3</span></div>
+        <p class="hist">Cuisinée <b>3 fois</b> · dernière fois : semaine du 14 juin <span class="dot">4</span></p>
+      </div>
+    </div>
+  </div>
+</div>
+<ul class="notes">
+  <li><span class="dot">1</span> URL source conservée pour les recettes importées (attribution) ; absente en saisie manuelle.</li>
+  <li><span class="dot">2</span> Le stepper agit sur l'affichage seulement (portions de base : 4) ; la mise à l'échelle réelle vient du plan hebdomadaire.</li>
+  <li><span class="dot">3</span> Notes personnelles : bloc distinct de la description, éditable en place.</li>
+  <li><span class="dot">4</span> L'historique vient de MealPlanRecipe (status=cooked) — la donnée qui nourrit la rotation.</li>
+  <li>Menu ⋯ : Dupliquer · Exporter · <span style="color:#b3382c;font-weight:700">Supprimer</span> (confirmation, suppression douce).</li>
+</ul>
+
+</body>
+</html>

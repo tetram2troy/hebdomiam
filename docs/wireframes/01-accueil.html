@@ -1,0 +1,207 @@
+<!-- @dsCard group="Wireframes" -->
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Accueil — tableau de bord</title>
+<style>
+* { box-sizing:border-box; margin:0; }
+body { background:#e9ede7; color:#16221a; font:15px/1.5 "Segoe UI", system-ui, -apple-system, sans-serif; padding:32px 16px 64px; }
+a { color:inherit; }
+.wf-head { max-width:1140px; margin:0 auto 24px; }
+.wf-head .crumb { font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:#5c6b5e; font-weight:700; }
+.wf-head h1 { font-size:22px; margin:2px 0 4px; }
+.wf-head p { color:#4c5a4e; max-width:75ch; }
+.frame { background:#f7faf4; border:1px solid #b9c9b7; border-radius:12px; max-width:1140px; margin:0 auto 12px; overflow:hidden; }
+.frame.phone { max-width:400px; }
+.frame-cap { padding:7px 16px; font-size:11.5px; font-weight:700; color:#5c6b5e; background:#edf3e9; border-bottom:1px solid #cddac9; text-transform:uppercase; letter-spacing:.08em; }
+.pad { padding:20px 24px 28px; }
+.topnav { display:flex; align-items:center; gap:22px; padding:12px 24px; background:#fff; border-bottom:1px solid #cddac9; }
+.topnav .logo { font-weight:800; font-size:17px; color:#1e7a3d; }
+.topnav nav { display:flex; gap:18px; font-size:14px; font-weight:600; color:#5c6b5e; }
+.topnav nav .on { color:#16221a; box-shadow:inset 0 -3px 0 #1e7a3d; padding-bottom:2px; }
+.topnav .push { margin-left:auto; display:flex; gap:12px; align-items:center; }
+.avatar { width:34px; height:34px; border-radius:50%; background:#dff0d9; color:#1e5b31; display:grid; place-items:center; font-weight:700; font-size:13px; }
+.tabbar { display:flex; border-top:2px solid #cddac9; background:#fff; }
+.tabbar a { flex:1; text-align:center; padding:8px 4px 10px; font-size:11px; font-weight:600; color:#5c6b5e; text-decoration:none; }
+.tabbar a .ic { display:block; font-size:18px; font-style:normal; }
+.tabbar a.on { color:#1e5b31; }
+.tabbar a.on .ic { background:#dff0d9; border-radius:999px; padding:1px 14px; }
+.btn { display:inline-flex; align-items:center; justify-content:center; gap:8px; min-height:44px; padding:10px 20px; border-radius:999px; font:600 14px/1.2 inherit; cursor:pointer; border:2px solid transparent; background:#e5eddf; color:#16221a; }
+.btn.primary { background:#1e7a3d; color:#fff; }
+.btn.outline { background:transparent; border-color:#6f7f70; }
+.btn.text { background:transparent; color:#1e7a3d; }
+.btn.big { min-height:56px; font-size:16px; }
+.card { background:#fff; border:1px solid #cddac9; border-radius:16px; overflow:hidden; }
+.ph { background:repeating-linear-gradient(45deg,#dfe8d9 0 8px,#eef3ea 8px 16px); display:grid; place-items:center; color:#5c6b5e; font-size:12px; font-weight:600; }
+.chip { display:inline-flex; align-items:center; gap:6px; padding:5px 12px; border-radius:999px; background:#dff0d9; color:#1e5b31; font-size:12px; font-weight:700; }
+.badge { display:inline-block; padding:2px 10px; border-radius:999px; font-size:11px; font-weight:700; }
+.meta { font-size:12.5px; color:#5c6b5e; }
+.dot { display:inline-grid; place-items:center; width:18px; height:18px; border-radius:50%; background:#ee5f2e; color:#fff; font:700 11px/1 sans-serif; font-style:normal; }
+.notes { max-width:1140px; margin:0 auto 36px; padding:12px 16px; border:1.5px dashed #ee5f2e; border-radius:10px; background:#fff7f3; font-size:13px; }
+.notes li { margin:4px 0 4px 4px; list-style:none; display:flex; gap:8px; }
+
+/* Spécifique accueil */
+.empty { text-align:center; padding:48px 24px 56px; max-width:520px; margin:0 auto; }
+.empty .illus { width:120px; height:120px; border-radius:50%; margin:0 auto 20px; }
+.empty h2 { font-size:24px; margin-bottom:6px; }
+.empty p { color:#5c6b5e; margin-bottom:20px; }
+.week-head { display:flex; flex-wrap:wrap; align-items:center; gap:10px 16px; margin-bottom:18px; }
+.week-head h2 { font-size:26px; }
+.plan-grid { display:grid; grid-template-columns:repeat(4, 1fr); gap:16px; margin-bottom:20px; }
+.plan-grid .card .ph, .plan-grid .card img { height:90px; width:100%; }
+.plan-grid .card .body { padding:10px 12px 12px; }
+.plan-grid .card h3 { font-size:14.5px; line-height:1.3; margin:4px 0 6px; }
+.next { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+.next .card { padding:16px; display:flex; align-items:center; gap:14px; }
+.next .card .grow { flex:1; }
+.next .card h3 { font-size:16px; margin-bottom:2px; }
+@media (max-width:760px) { .plan-grid { grid-template-columns:1fr 1fr; } .next { grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+
+<div class="wf-head">
+  <p class="crumb">Hebdomiam · Wireframe 01</p>
+  <h1>Accueil / tableau de bord</h1>
+  <p>Deux états : rien de prévu (première visite ou nouvelle semaine) et semaine planifiée.
+  L'accueil répond à une seule question : « où en suis-je dans mon rituel ? »</p>
+</div>
+
+<!-- ============ ÉTAT A : RIEN DE PRÉVU ============ -->
+<div class="frame">
+  <div class="frame-cap">État A — rien de prévu · desktop ≥ 1024 px</div>
+  <div class="topnav">
+    <span class="logo">✓ Hebdomiam</span>
+    <nav><span class="on">Accueil</span><span>Recettes</span><span>Épicerie</span></nav>
+    <span class="push"><button class="btn primary">Planifier ma semaine</button><span class="avatar">FL</span></span>
+  </div>
+  <div class="pad">
+    <div class="empty">
+      <div class="ph illus">illustration<br>au trait</div>
+      <h2>Rien de prévu cette semaine</h2>
+      <p>C'est vendredi ? Lance la planification : 4 plats proposés selon tes envies
+      et ce que tu n'as pas cuisiné récemment. <span class="dot">1</span></p>
+      <button class="btn primary big">Planifier ma semaine</button>
+      <div style="margin-top:12px"><button class="btn text">Parcourir mes recettes (23)</button></div>
+    </div>
+  </div>
+</div>
+<ul class="notes">
+  <li><span class="dot">1</span> Si la collection compte &lt; 4 recettes, le CTA devient
+  « Ajouter des recettes » et explique le minimum requis pour la rotation.</li>
+</ul>
+
+<!-- ============ ÉTAT B : SEMAINE PLANIFIÉE ============ -->
+<div class="frame">
+  <div class="frame-cap">État B — semaine planifiée · desktop ≥ 1024 px</div>
+  <div class="topnav">
+    <span class="logo">✓ Hebdomiam</span>
+    <nav><span class="on">Accueil</span><span>Recettes</span><span>Épicerie</span></nav>
+    <span class="push"><button class="btn outline">Replanifier</button><span class="avatar">FL</span></span>
+  </div>
+  <div class="pad">
+    <div class="week-head">
+      <h2>Semaine du 6 juillet</h2>
+      <span class="chip">2 cuisinées / 4</span>
+      <span class="meta">14 portions · 1 personne</span>
+    </div>
+
+    <div class="plan-grid">
+      <div class="card">
+        <div class="ph">photo</div>
+        <div class="body">
+          <span class="badge" style="background:#dff0d9;color:#1e5b31">✓ Cuisinée</span>
+          <h3>Chili de lentilles à la mijoteuse</h3>
+          <div class="meta">4 portions</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="ph">placeholder illustré</div>
+        <div class="body">
+          <span class="badge" style="background:#dff0d9;color:#1e5b31">✓ Cuisinée</span>
+          <h3>Soupe-repas orge et légumes</h3>
+          <div class="meta">4 portions</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="ph">photo</div>
+        <div class="body">
+          <span class="badge" style="background:#ffdbcb;color:#5c2410">À cuisiner</span>
+          <h3>Poulet au beurre express</h3>
+          <div class="meta">3 portions</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="ph">placeholder illustré</div>
+        <div class="body">
+          <span class="badge" style="background:#ffdbcb;color:#5c2410">À cuisiner</span>
+          <h3>Tofu général Tao</h3>
+          <div class="meta">3 portions</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="next">
+      <div class="card">
+        <div class="ph" style="width:52px;height:52px;border-radius:12px">🛒</div>
+        <div class="grow">
+          <h3>Liste d'épicerie</h3>
+          <div class="meta">9 articles restants sur 23 <span class="dot">2</span></div>
+        </div>
+        <button class="btn outline">Ouvrir</button>
+      </div>
+      <div class="card">
+        <div class="ph" style="width:52px;height:52px;border-radius:12px">🍳</div>
+        <div class="grow">
+          <h3>Mode cuisine</h3>
+          <div class="meta">2 plats à cuisiner · quantités à l'échelle</div>
+        </div>
+        <button class="btn primary">C'est parti</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ ÉTAT B MOBILE ============ -->
+<div class="frame phone">
+  <div class="frame-cap">État B · mobile &lt; 768 px</div>
+  <div class="pad" style="padding:16px">
+    <p class="crumb" style="color:#1e7a3d">Semaine du 6 juillet</p>
+    <h2 style="font-size:22px;margin:2px 0 10px">2 plats cuisinés sur 4</h2>
+    <div class="card" style="display:flex;gap:12px;align-items:center;padding:14px;margin-bottom:10px">
+      <div class="grow" style="flex:1">
+        <h3 style="font-size:15px">Liste d'épicerie</h3>
+        <div class="meta">9 articles restants</div>
+      </div>
+      <button class="btn primary">Ouvrir</button>
+    </div>
+    <div class="card" style="display:flex;gap:12px;align-items:center;padding:14px;margin-bottom:16px">
+      <div class="grow" style="flex:1">
+        <h3 style="font-size:15px">Mode cuisine</h3>
+        <div class="meta">Poulet au beurre · Tofu Tao</div>
+      </div>
+      <button class="btn outline">Lancer</button>
+    </div>
+    <div class="plan-grid" style="grid-template-columns:1fr 1fr;gap:10px">
+      <div class="card"><div class="ph" style="height:64px">photo</div><div class="body"><h3 style="font-size:13px">Chili de lentilles</h3><div class="meta">✓ cuisinée</div></div></div>
+      <div class="card"><div class="ph" style="height:64px">picto</div><div class="body"><h3 style="font-size:13px">Soupe orge-légumes</h3><div class="meta">✓ cuisinée</div></div></div>
+    </div>
+  </div>
+  <div class="tabbar">
+    <a class="on" href="#"><i class="ic">⌂</i>Accueil</a>
+    <a href="#"><i class="ic">▤</i>Recettes</a>
+    <a href="#"><i class="ic">🛒</i>Épicerie</a>
+    <a href="#"><i class="ic">⚙</i>Réglages</a>
+  </div>
+</div>
+<ul class="notes" style="max-width:400px">
+  <li><span class="dot">2</span> Les compteurs (articles restants, plats cuisinés) sont les
+  seuls chiffres de la page : l'accueil oriente, il ne détaille pas.</li>
+  <li><span class="dot">3</span> Barre d'onglets : 4 destinations ; « Planifier » n'y figure
+  pas — c'est l'action de l'accueil, pas un lieu.</li>
+</ul>
+
+</body>
+</html>

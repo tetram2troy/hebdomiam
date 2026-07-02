@@ -1,0 +1,194 @@
+<!-- @dsCard group="Wireframes" -->
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Formulaire recette — saisie, imports, relecture</title>
+<style>
+* { box-sizing:border-box; margin:0; }
+body { background:#e9ede7; color:#16221a; font:15px/1.5 "Segoe UI", system-ui, -apple-system, sans-serif; padding:32px 16px 64px; }
+a { color:inherit; }
+.wf-head { max-width:1140px; margin:0 auto 24px; }
+.wf-head .crumb { font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:#5c6b5e; font-weight:700; }
+.wf-head h1 { font-size:22px; margin:2px 0 4px; }
+.wf-head p { color:#4c5a4e; max-width:75ch; }
+.frame { background:#f7faf4; border:1px solid #b9c9b7; border-radius:12px; max-width:1140px; margin:0 auto 12px; overflow:hidden; }
+.frame-cap { padding:7px 16px; font-size:11.5px; font-weight:700; color:#5c6b5e; background:#edf3e9; border-bottom:1px solid #cddac9; text-transform:uppercase; letter-spacing:.08em; }
+.pad { padding:20px 24px 28px; }
+.btn { display:inline-flex; align-items:center; justify-content:center; gap:8px; min-height:44px; padding:10px 20px; border-radius:999px; font:600 14px/1.2 inherit; cursor:pointer; border:2px solid transparent; background:#e5eddf; color:#16221a; }
+.btn.primary { background:#1e7a3d; color:#fff; }
+.btn.outline { background:transparent; border-color:#6f7f70; }
+.btn.text { background:transparent; color:#1e7a3d; }
+.chip { display:inline-flex; align-items:center; gap:6px; padding:5px 12px; border-radius:999px; background:#dff0d9; color:#1e5b31; font-size:12px; font-weight:700; }
+.meta { font-size:12.5px; color:#5c6b5e; }
+.skel { border-radius:8px; background:linear-gradient(90deg,#e5eddf 25%,#eef3ea 50%,#e5eddf 75%); }
+.dot { display:inline-grid; place-items:center; width:18px; height:18px; border-radius:50%; background:#ee5f2e; color:#fff; font:700 11px/1 sans-serif; font-style:normal; }
+.notes { max-width:1140px; margin:0 auto 36px; padding:12px 16px; border:1.5px dashed #ee5f2e; border-radius:10px; background:#fff7f3; font-size:13px; }
+.notes li { margin:4px 0 4px 4px; list-style:none; display:flex; gap:8px; }
+.field { display:flex; flex-direction:column; gap:5px; margin-bottom:14px; }
+.field label { font-size:13px; font-weight:700; }
+.field .in { border:2px solid #6f7f70; border-radius:8px; background:#fff; color:#5c6b5e; min-height:44px; padding:10px 12px; font-size:14px; display:flex; align-items:center; gap:8px; }
+.field .help { font-size:12px; color:#5c6b5e; }
+.field.error .in { border-color:#b3382c; }
+.field.error .help { color:#b3382c; font-weight:600; }
+
+/* Spécifique formulaire */
+.mode-tabs { display:flex; gap:6px; padding:14px 24px 0; }
+.mode-tabs span { padding:10px 18px; border-radius:999px 999px 0 0; font-size:13.5px; font-weight:700; color:#5c6b5e; border:2px solid transparent; }
+.mode-tabs .on { background:#fff; color:#16221a; border:2px solid #cddac9; border-bottom-color:#fff; }
+.formgrid { display:grid; grid-template-columns:minmax(0,7fr) minmax(0,5fr); gap:24px; }
+@media (max-width:860px) { .formgrid { grid-template-columns:1fr; } }
+.panel { background:#fff; border:1px solid #cddac9; border-radius:16px; padding:18px 20px; margin-bottom:16px; }
+.panel h3 { font-size:16px; margin-bottom:12px; }
+.irow { display:grid; grid-template-columns:80px 110px 1fr 130px 40px; gap:8px; margin-bottom:8px; align-items:center; }
+.irow .in { border:2px solid #6f7f70; border-radius:8px; background:#fff; color:#5c6b5e; min-height:42px; padding:8px 10px; font-size:13px; display:flex; align-items:center; }
+.irow .x { text-align:center; font-weight:700; color:#b3382c; }
+.srow { display:flex; gap:10px; align-items:flex-start; margin-bottom:8px; }
+.srow .grip { flex:none; padding-top:12px; color:#6f7f70; cursor:grab; }
+.srow .in { flex:1; border:2px solid #6f7f70; border-radius:8px; background:#fff; color:#5c6b5e; min-height:56px; padding:10px 12px; font-size:13.5px; }
+.drop { border:2px dashed #6f7f70; border-radius:12px; padding:26px 16px; text-align:center; color:#5c6b5e; font-size:13.5px; background:#fff; }
+.stickybar { display:flex; justify-content:flex-end; gap:10px; padding:14px 24px; background:#fff; border-top:1px solid #cddac9; }
+.draftbar { display:flex; gap:10px; align-items:center; background:#ffdbcb; color:#5c2410; padding:12px 18px; font-size:13.5px; font-weight:600; }
+.hl { outline:3px solid #f2c53d; outline-offset:2px; border-radius:8px; }
+.toggle { display:inline-flex; align-items:center; gap:10px; font-size:14px; font-weight:600; }
+.toggle .tk { width:46px; height:26px; border-radius:999px; background:#1e7a3d; position:relative; }
+.toggle .tk::after { content:""; position:absolute; right:3px; top:3px; width:20px; height:20px; border-radius:50%; background:#fff; }
+</style>
+</head>
+<body>
+
+<div class="wf-head">
+  <p class="crumb">Hebdomiam · Wireframe 05</p>
+  <h1>Formulaire recette — saisie manuelle, import URL/photo, relecture du brouillon</h1>
+  <p>Trois portes d'entrée, un seul formulaire. L'extraction (URL ou photo) ne sauvegarde
+  jamais directement : elle pré-remplit ce même formulaire en mode « brouillon à relire ».</p>
+</div>
+
+<!-- ============ SAISIE MANUELLE ============ -->
+<div class="frame">
+  <div class="frame-cap">Mode 1 — saisie manuelle · desktop</div>
+  <div class="mode-tabs">
+    <span class="on">✎ Saisie manuelle</span><span>🔗 Import URL</span><span>📷 Import photo</span>
+  </div>
+  <div class="pad" style="background:#fff;border-top:2px solid #cddac9">
+    <div class="formgrid">
+      <div>
+        <div class="field"><label>Titre *</label><div class="in">Chili de lentilles à la mijoteuse</div></div>
+        <div class="field"><label>Description</label><div class="in" style="min-height:64px">Un classique réconfortant…</div></div>
+        <div class="panel" style="border-color:#cddac9">
+          <h3>Ingrédients * <span class="meta">(quantité · unité · nom · rayon)</span> <span class="dot">1</span></h3>
+          <div class="irow"><div class="in">500</div><div class="in">g ▾</div><div class="in">lentilles vertes sèches</div><div class="in">Produits secs ▾</div><span class="x">✕</span></div>
+          <div class="irow"><div class="in">800</div><div class="in">ml ▾</div><div class="in">tomates en dés</div><div class="in">Conserves ▾</div><span class="x">✕</span></div>
+          <div class="irow"><div class="in">2</div><div class="in">unité ▾</div><div class="in">oignons jaunes</div><div class="in">Fruits et lég. ▾</div><span class="x">✕</span></div>
+          <button class="btn text">+ Ajouter un ingrédient</button>
+        </div>
+        <div class="panel">
+          <h3>Étapes * <span class="meta">(glisser ⋮⋮ pour réordonner)</span></h3>
+          <div class="srow"><span class="grip">⋮⋮</span><div class="in">Hacher les oignons et l'ail ; faire revenir 5 minutes.</div></div>
+          <div class="srow"><span class="grip">⋮⋮</span><div class="in">Ajouter l'assaisonnement chili, cuire 1 minute.</div></div>
+          <button class="btn text">+ Ajouter une étape</button>
+        </div>
+      </div>
+      <div>
+        <div class="field"><label>Photo</label><div class="drop">Glisser une image ici<br>ou <u>parcourir</u><br><span class="meta">JPEG, PNG, WebP, HEIC · 10 Mo max</span></div></div>
+        <div class="field"><label>Portions de base *</label><div class="in" style="max-width:120px">4</div></div>
+        <div style="display:flex;gap:12px">
+          <div class="field" style="flex:1"><label>Préparation (min)</label><div class="in">15</div></div>
+          <div class="field" style="flex:1"><label>Cuisson (min)</label><div class="in">30</div></div>
+        </div>
+        <div class="field"><label>Tags</label><div class="in" style="flex-wrap:wrap;gap:6px"><span class="chip">végé ✕</span><span class="chip">mijoteuse ✕</span><span style="color:#5c6b5e">ajouter…</span></div></div>
+        <div class="field"><label>Conservation</label><span class="toggle"><span class="tk"></span> Se congèle / se conserve bien</span></div>
+        <div class="field"><label>Notes personnelles</label><div class="in" style="min-height:56px">Doubler le chili en poudre…</div></div>
+      </div>
+    </div>
+  </div>
+  <div class="stickybar">
+    <button class="btn text">Annuler</button>
+    <button class="btn primary">Enregistrer la recette</button>
+  </div>
+</div>
+<ul class="notes">
+  <li><span class="dot">1</span> Ingrédients structurés obligatoires (mise à l'échelle +
+  agrégation). Le rayon est proposé automatiquement dès que le nom est saisi, corrigeable.</li>
+  <li>Sur mobile, chaque rangée d'ingrédient s'empile (quantité+unité sur une ligne, nom
+  dessous) ; la barre Annuler/Enregistrer est collante en bas.</li>
+</ul>
+
+<!-- ============ IMPORT URL ============ -->
+<div class="frame" style="max-width:720px">
+  <div class="frame-cap">Mode 2 — import URL (3 états)</div>
+  <div class="pad">
+    <div class="field">
+      <label>Adresse de la recette</label>
+      <div class="in" style="justify-content:space-between">https://www.ricardocuisine.com/recettes/…<button class="btn primary" style="min-height:38px">Extraire</button></div>
+      <span class="help">Fonctionne avec la plupart des sites de recettes. <span class="dot">2</span></span>
+    </div>
+    <div class="panel" style="margin-top:8px">
+      <h3>En cours d'extraction…</h3>
+      <div class="skel" style="height:12px;width:80%;margin-bottom:8px"></div>
+      <div class="skel" style="height:12px;width:60%;margin-bottom:8px"></div>
+      <p class="meta">Lecture de la page → données structurées trouvées → construction du brouillon</p>
+    </div>
+    <div class="field error" style="margin-top:8px">
+      <label>Adresse de la recette — erreur</label>
+      <div class="in">https://exemple.com/page-sans-recette</div>
+      <span class="help">Aucune recette détectée sur cette page. Vérifie l'adresse, ou saisis la recette manuellement.</span>
+    </div>
+  </div>
+</div>
+<ul class="notes" style="max-width:720px">
+  <li><span class="dot">2</span> Techniquement : parsing schema.org d'abord, repli IA sinon —
+  invisible pour l'utilisateur, une seule étiquette « extraction ».</li>
+</ul>
+
+<!-- ============ IMPORT PHOTO ============ -->
+<div class="frame" style="max-width:720px">
+  <div class="frame-cap">Mode 3 — import photo</div>
+  <div class="pad">
+    <div class="drop" style="padding:36px 16px">📷 Glisser une ou plusieurs photos<br>ou <u>prendre une photo</u> / <u>parcourir</u><br>
+    <span class="meta">Livre de cuisine, fiche manuscrite, capture d'écran · JPEG, PNG, WebP, HEIC · 10 Mo max chacune</span></div>
+    <div style="display:flex;gap:10px;margin-top:12px">
+      <div class="skel" style="width:72px;height:72px"></div>
+      <div class="skel" style="width:72px;height:72px"></div>
+      <div style="align-self:center" class="meta">2 photos ajoutées (recto/verso) — <b>Extraire la recette</b></div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ RELECTURE DU BROUILLON ============ -->
+<div class="frame">
+  <div class="frame-cap">Relecture du brouillon extrait — même formulaire, mode brouillon</div>
+  <div class="draftbar">⚠ Brouillon extrait de <u>ricardocuisine.com</u> — relis et corrige avant d'enregistrer. Rien n'est sauvegardé pour l'instant. <span class="dot">3</span></div>
+  <div class="pad" style="background:#fff">
+    <div class="formgrid">
+      <div>
+        <div class="field"><label>Titre *</label><div class="in" style="color:#16221a">Chili végétarien aux lentilles</div></div>
+        <div class="panel">
+          <h3>Ingrédients — 6 extraits, 1 à vérifier</h3>
+          <div class="irow"><div class="in" style="color:#16221a">500</div><div class="in" style="color:#16221a">g</div><div class="in" style="color:#16221a">lentilles vertes</div><div class="in">Produits secs ▾</div><span class="x">✕</span></div>
+          <div class="irow"><div class="in hl">1½ ?</div><div class="in hl">tasse ?</div><div class="in" style="color:#16221a">bouillon de légumes</div><div class="in">Conserves ▾</div><span class="x">✕</span></div>
+          <p class="meta" style="margin-top:6px">⚠ Quantité incertaine (photo floue) — champs surlignés à confirmer <span class="dot">4</span></p>
+        </div>
+      </div>
+      <div>
+        <div class="field"><label>Portions de base *</label><div class="in" style="max-width:120px;color:#16221a">6</div></div>
+        <div class="field"><label>Tags proposés</label><div class="in" style="gap:6px"><span class="chip">végé ✕</span><span class="chip">mijoteuse ✕</span></div></div>
+        <div class="field"><label>Source</label><div class="in">ricardocuisine.com/… (conservée)</div></div>
+      </div>
+    </div>
+  </div>
+  <div class="stickybar">
+    <button class="btn text">Abandonner le brouillon</button>
+    <button class="btn primary">Enregistrer la recette</button>
+  </div>
+</div>
+<ul class="notes">
+  <li><span class="dot">3</span> Le bandeau mandarine (tertiary-container) est l'identité
+  visuelle du « pas encore à toi » : il disparaît à l'enregistrement.</li>
+  <li><span class="dot">4</span> Les champs douteux de l'extraction sont surlignés citron ;
+  l'enregistrement est possible sans les corriger (l'utilisateur reste maître).</li>
+</ul>
+
+</body>
+</html>

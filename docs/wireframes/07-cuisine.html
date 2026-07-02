@@ -1,0 +1,141 @@
+<!-- @dsCard group="Wireframes" -->
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mode cuisine — le samedi</title>
+<style>
+* { box-sizing:border-box; margin:0; }
+body { background:#e9ede7; color:#16221a; font:15px/1.5 "Segoe UI", system-ui, -apple-system, sans-serif; padding:32px 16px 64px; }
+.wf-head { max-width:840px; margin:0 auto 24px; }
+.wf-head .crumb { font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:#5c6b5e; font-weight:700; }
+.wf-head h1 { font-size:22px; margin:2px 0 4px; }
+.wf-head p { color:#4c5a4e; max-width:75ch; }
+.row2 { display:flex; gap:24px; justify-content:center; flex-wrap:wrap; align-items:flex-start; }
+.frame { background:#f7faf4; border:1px solid #b9c9b7; border-radius:12px; width:400px; max-width:100%; overflow:hidden; }
+.frame-cap { padding:7px 16px; font-size:11.5px; font-weight:700; color:#5c6b5e; background:#edf3e9; border-bottom:1px solid #cddac9; text-transform:uppercase; letter-spacing:.08em; }
+.btn { display:inline-flex; align-items:center; justify-content:center; gap:8px; min-height:44px; padding:10px 20px; border-radius:999px; font:600 14px/1.2 inherit; cursor:pointer; border:2px solid transparent; background:#e5eddf; color:#16221a; }
+.btn.primary { background:#1e7a3d; color:#fff; }
+.btn.big { min-height:56px; font-size:16px; width:100%; }
+.chip { display:inline-flex; align-items:center; gap:6px; padding:5px 12px; border-radius:999px; background:#dff0d9; color:#1e5b31; font-size:12px; font-weight:700; }
+.meta { font-size:12.5px; color:#5c6b5e; }
+.dot { display:inline-grid; place-items:center; width:18px; height:18px; border-radius:50%; background:#ee5f2e; color:#fff; font:700 11px/1 sans-serif; font-style:normal; }
+.notes { max-width:840px; margin:20px auto 36px; padding:12px 16px; border:1.5px dashed #ee5f2e; border-radius:10px; background:#fff7f3; font-size:13px; }
+.notes li { margin:4px 0 4px 4px; list-style:none; display:flex; gap:8px; }
+
+/* Spécifique mode cuisine */
+.khead { padding:12px 16px; background:#fff; border-bottom:1px solid #cddac9; }
+.khead .top { display:flex; align-items:center; gap:10px; }
+.khead h2 { font-size:17px; flex:1; }
+.wake { display:inline-flex; align-items:center; gap:6px; margin-top:8px; padding:4px 12px; border-radius:999px; background:#dff0d9; color:#1e5b31; font-size:12px; font-weight:700; }
+.rtabs { display:flex; gap:8px; padding:12px 16px; overflow-x:auto; background:#f1f6ec; border-bottom:1px solid #cddac9; }
+.rtabs span { flex:none; padding:9px 16px; border-radius:999px; border:2px solid #6f7f70; font-size:13px; font-weight:700; color:#40513f; background:#fff; }
+.rtabs .done { border-color:#1e7a3d; color:#1e5b31; background:#dff0d9; }
+.rtabs .on { border-color:#1e7a3d; background:#1e7a3d; color:#fff; }
+.scale { display:flex; align-items:baseline; gap:12px; padding:16px; background:#fff; border-bottom:1px solid #cddac9; }
+.scale .big { font-size:34px; font-weight:800; color:#1e7a3d; font-variant-numeric:tabular-nums; }
+.scale .exp { font-size:13px; color:#40513f; }
+.ingfold { padding:12px 16px; background:#f1f6ec; border-bottom:1px solid #cddac9; font-size:14px; font-weight:700; color:#40513f; display:flex; justify-content:space-between; }
+.kstep { display:flex; gap:14px; padding:16px; background:#fff; border-bottom:1px solid #eef3ea; }
+.kstep .box { flex:none; width:32px; height:32px; border-radius:10px; border:2.5px solid #6f7f70; display:grid; place-items:center; color:#fff; font-weight:800; font-size:17px; margin-top:2px; }
+.kstep p { font-size:19px; line-height:1.5; }
+.kstep.done .box { background:#1e7a3d; border-color:#1e7a3d; }
+.kstep.done p { opacity:.45; text-decoration:line-through; }
+.kstep .timer { display:inline-block; margin-left:8px; padding:2px 10px; border-radius:999px; background:#ffdbcb; color:#5c2410; font-size:13px; font-weight:700; white-space:nowrap; }
+.kfoot { padding:16px; background:#f7faf4; }
+</style>
+</head>
+<body>
+
+<div class="wf-head">
+  <p class="crumb">Hebdomiam · Wireframe 07 — mains sales, écran à distance</p>
+  <h1>Mode cuisine</h1>
+  <p>Samedi après-midi : l'écran est posé sur le comptoir, les mains sont dans la farine.
+  Étapes en 19 px minimum lisibles à un mètre, cases géantes, écran maintenu allumé.</p>
+</div>
+
+<div class="row2">
+
+<div class="frame">
+  <div class="frame-cap">Recette en cours · &lt; 768 px</div>
+  <div class="khead">
+    <div class="top"><span>←</span><h2>Cuisine — semaine du 6 juillet</h2></div>
+    <span class="wake">☀ Écran maintenu allumé <span class="dot">1</span></span>
+  </div>
+  <div class="rtabs">
+    <span class="done">✓ Chili</span>
+    <span class="on">Poulet au beurre</span>
+    <span>Tofu Tao</span>
+    <span class="done">✓ Soupe orge</span>
+  </div>
+  <div class="scale">
+    <span class="big">3 portions</span>
+    <span class="exp">recette de base : 4 → quantités ×0,75 déjà appliquées <span class="dot">2</span></span>
+  </div>
+  <div class="ingfold">Ingrédients (7) — tout est prêt ? <span>▾</span></div>
+
+  <div class="kstep done">
+    <span class="box">✓</span>
+    <p>Couper le poulet en cubes de 3 cm ; saler et poivrer.</p>
+  </div>
+  <div class="kstep done">
+    <span class="box">✓</span>
+    <p>Chauffer le beurre et saisir le poulet 5 minutes.<span class="timer">⏱ 5 min</span></p>
+  </div>
+  <div class="kstep">
+    <span class="box"></span>
+    <p>Ajouter la pâte de cari, l'ail et le gingembre ; cuire 2 minutes en remuant.<span class="timer">⏱ 2 min</span></p>
+  </div>
+  <div class="kstep">
+    <span class="box"></span>
+    <p>Verser la sauce tomate et la crème (350 ml) ; mijoter 15 minutes à feu doux.<span class="timer">⏱ 15 min</span></p>
+  </div>
+  <div class="kfoot">
+    <button class="btn primary big">Cuisinée ✓ <span class="dot">3</span></button>
+    <p class="meta" style="text-align:center;margin-top:8px">2 / 4 étapes faites — le bouton
+    s'active sans exiger toutes les cases</p>
+  </div>
+</div>
+
+<div class="frame">
+  <div class="frame-cap">Vue d'ensemble du plan (entrée du mode cuisine)</div>
+  <div class="khead">
+    <div class="top"><span>←</span><h2>À cuisiner aujourd'hui</h2></div>
+  </div>
+  <div style="padding:16px;display:flex;flex-direction:column;gap:10px">
+    <div style="background:#fff;border:1px solid #cddac9;border-radius:16px;padding:14px;display:flex;gap:12px;align-items:center;opacity:.55">
+      <span style="font-size:22px">✓</span>
+      <div style="flex:1"><b>Chili de lentilles</b><div class="meta">4 portions · cuisinée à 13 h 40</div></div>
+    </div>
+    <div style="background:#fff;border:2px solid #1e7a3d;border-radius:16px;padding:14px;display:flex;gap:12px;align-items:center">
+      <span style="font-size:22px">🍳</span>
+      <div style="flex:1"><b>Poulet au beurre express</b><div class="meta">3 portions · en cours — étape 2/4</div></div>
+      <button class="btn primary">Reprendre</button>
+    </div>
+    <div style="background:#fff;border:1px solid #cddac9;border-radius:16px;padding:14px;display:flex;gap:12px;align-items:center">
+      <span style="font-size:22px">🥘</span>
+      <div style="flex:1"><b>Tofu général Tao</b><div class="meta">3 portions · à faire</div></div>
+      <button class="btn">Commencer</button>
+    </div>
+    <p class="meta" style="margin-top:6px"><span class="dot">4</span> L'ordre est libre —
+    l'app suggère de commencer par la plus longue cuisson passive (mijoteuse d'abord).</p>
+  </div>
+</div>
+
+</div>
+
+<ul class="notes">
+  <li><span class="dot">1</span> Wake Lock demandé à l'entrée du mode (après geste utilisateur),
+  état visible et désactivable ; libéré à la sortie.</li>
+  <li><span class="dot">2</span> Les quantités affichées sont déjà à l'échelle du plan
+  (targetServings) — l'utilisateur ne fait aucun calcul.</li>
+  <li><span class="dot">3</span> « Cuisinée ✓ » horodate MealPlanRecipe (status=cooked) et
+  nourrit la rotation intelligente. Annulable 10 s via toast.</li>
+  <li><span class="dot">4</span> Les cases d'étapes sont persistées : on peut quitter et
+  reprendre (interruptions fréquentes en cuisine).</li>
+  <li>Sur tablette paysage : mêmes blocs, étapes sur une colonne de 65 ch max, police 22 px.</li>
+</ul>
+
+</body>
+</html>
