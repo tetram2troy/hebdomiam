@@ -1,4 +1,8 @@
 /* ============================================================================
+   ⚠ COPIE DE RÉFÉRENCE (livrable design). La source de vérité intégrée à l'app
+   est app/assets/css/tokens.css — modifier là-bas d'abord, refléter ici ensuite.
+   ============================================================================
+
    Hebdomiam — Design tokens (direction « Primeur »)
    Architecture : Material Design 3 (m3.material.io) — tokens ref → sys.
    Framework-agnostique : variables CSS pures, prêtes pour Nuxt

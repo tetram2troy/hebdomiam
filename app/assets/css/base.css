@@ -1,0 +1,255 @@
+/* Styles de base Hebdomiam — direction « Primeur », consomme uniquement les tokens
+   (voir tokens.css et docs/design-system.md). Vanilla CSS, mobile-first. */
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font: var(--md-sys-typescale-body-large);
+  background: var(--md-sys-color-surface);
+  color: var(--md-sys-color-on-surface);
+}
+
+h1, h2, h3 {
+  font-family: var(--md-sys-typescale-font-brand);
+  line-height: 1.25;
+  margin: 0 0 var(--hb-space-3);
+  text-wrap: balance;
+}
+
+h1 { font: var(--md-sys-typescale-headline-large); }
+h2 { font: var(--md-sys-typescale-headline-small); }
+h3 { font: var(--md-sys-typescale-title-large); }
+
+p { margin: 0 0 var(--hb-space-3); }
+
+a {
+  color: var(--md-sys-color-primary);
+  text-underline-offset: 3px;
+}
+
+/* Focus visible partout — jamais supprimé (WCAG) */
+:focus-visible {
+  outline: none;
+  box-shadow: var(--hb-sys-focus-ring);
+  border-radius: var(--md-sys-shape-corner-extra-small);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  a, button, input, select, textarea {
+    transition: background-color var(--md-sys-motion-duration-short) var(--md-sys-motion-easing-standard),
+      border-color var(--md-sys-motion-duration-short) var(--md-sys-motion-easing-standard),
+      box-shadow var(--md-sys-motion-duration-short) var(--md-sys-motion-easing-standard);
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Boutons — défaut = rempli (primary) ; variantes par classe
+   -------------------------------------------------------------------------- */
+button, .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--hb-space-2);
+  min-height: 44px;
+  padding: 10px 22px;
+  border-radius: var(--md-sys-shape-corner-full);
+  border: var(--hb-sys-border-interactive) solid transparent;
+  font: var(--md-sys-typescale-label-large);
+  cursor: pointer;
+  background: var(--md-sys-color-primary);
+  color: var(--md-sys-color-on-primary);
+  text-decoration: none;
+}
+
+button:hover, .btn:hover {
+  background: color-mix(in srgb, var(--md-sys-color-on-primary) calc(100% * var(--md-sys-state-hover-state-layer-opacity)), var(--md-sys-color-primary));
+}
+
+button:disabled, .btn[aria-disabled='true'] {
+  opacity: var(--md-sys-state-disabled-content-opacity);
+  cursor: default;
+}
+
+.btn-outline {
+  background: transparent;
+  border-color: var(--md-sys-color-outline);
+  color: var(--md-sys-color-on-surface);
+}
+
+.btn-outline:hover {
+  background: color-mix(in srgb, var(--md-sys-color-on-surface) calc(100% * var(--md-sys-state-hover-state-layer-opacity)), transparent);
+}
+
+.btn-text {
+  background: transparent;
+  color: var(--md-sys-color-primary);
+}
+
+.btn-text:hover {
+  background: color-mix(in srgb, var(--md-sys-color-primary) calc(100% * var(--md-sys-state-hover-state-layer-opacity)), transparent);
+}
+
+.btn-tonal {
+  background: var(--md-sys-color-secondary-container);
+  color: var(--md-sys-color-on-secondary-container);
+}
+
+.btn-tonal:hover {
+  background: color-mix(in srgb, var(--md-sys-color-on-secondary-container) calc(100% * var(--md-sys-state-hover-state-layer-opacity)), var(--md-sys-color-secondary-container));
+}
+
+.btn-danger {
+  background: transparent;
+  border-color: var(--md-sys-color-error);
+  color: var(--md-sys-color-error);
+}
+
+.btn-danger:hover {
+  background: color-mix(in srgb, var(--md-sys-color-error) calc(100% * var(--md-sys-state-hover-state-layer-opacity)), transparent);
+}
+
+/* ---------------------------------------------------------------------------
+   Formulaires — étiquette au-dessus, contour 2 px, erreurs sous le champ
+   -------------------------------------------------------------------------- */
+form {
+  display: grid;
+  gap: var(--hb-space-4);
+}
+
+label {
+  display: grid;
+  gap: var(--hb-space-1);
+  font: var(--md-sys-typescale-title-small);
+}
+
+input, select, textarea {
+  min-height: 44px;
+  padding: 10px 12px;
+  border: var(--hb-sys-border-interactive) solid var(--md-sys-color-outline);
+  border-radius: var(--md-sys-shape-corner-small);
+  background: var(--md-sys-color-surface-container-lowest);
+  color: var(--md-sys-color-on-surface);
+  font: var(--md-sys-typescale-body-large);
+  width: 100%;
+}
+
+input:focus-visible, select:focus-visible, textarea:focus-visible {
+  border-color: var(--md-sys-color-primary);
+}
+
+input[aria-invalid='true'], select[aria-invalid='true'], textarea[aria-invalid='true'] {
+  border-color: var(--md-sys-color-error);
+}
+
+textarea {
+  resize: vertical;
+  min-height: 72px;
+}
+
+input[type='checkbox'] {
+  width: 24px;
+  min-height: 24px;
+  height: 24px;
+  accent-color: var(--md-sys-color-primary);
+}
+
+.error {
+  color: var(--md-sys-color-error);
+  font: var(--md-sys-typescale-body-medium);
+  font-weight: 600;
+}
+
+.hint {
+  font: var(--md-sys-typescale-body-small);
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+/* ---------------------------------------------------------------------------
+   Chips — tag et filtre
+   -------------------------------------------------------------------------- */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--hb-space-1);
+  padding: 6px 14px;
+  border-radius: var(--md-sys-shape-corner-full);
+  background: var(--md-sys-color-secondary-container);
+  color: var(--md-sys-color-on-secondary-container);
+  font: var(--md-sys-typescale-label-large);
+  border: var(--hb-sys-border-interactive) solid transparent;
+}
+
+.chip-filter {
+  background: transparent;
+  border-color: var(--md-sys-color-outline);
+  color: var(--md-sys-color-on-surface);
+  cursor: pointer;
+}
+
+.chip-filter[aria-pressed='true'] {
+  background: var(--md-sys-color-secondary-container);
+  border-color: var(--md-sys-color-primary);
+  color: var(--md-sys-color-on-secondary-container);
+}
+
+/* ---------------------------------------------------------------------------
+   Cartes, squelettes, méta
+   -------------------------------------------------------------------------- */
+.card {
+  background: var(--md-sys-color-surface-container-lowest);
+  border: 1px solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-sys-shape-corner-large);
+  overflow: hidden;
+  box-shadow: var(--md-sys-elevation-level1);
+}
+
+.meta {
+  font: var(--md-sys-typescale-body-medium);
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.skel {
+  border-radius: var(--md-sys-shape-corner-small);
+  background: linear-gradient(90deg,
+    var(--md-sys-color-surface-container-high) 25%,
+    var(--md-sys-color-surface-container) 50%,
+    var(--md-sys-color-surface-container-high) 75%);
+  background-size: 200% 100%;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .skel {
+    animation: skel-sweep 1.5s linear infinite;
+  }
+}
+
+@keyframes skel-sweep {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+
+/* ---------------------------------------------------------------------------
+   Mise en page
+   -------------------------------------------------------------------------- */
+.layout {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+.main {
+  flex: 1;
+  width: 100%;
+  max-width: var(--hb-content-max);
+  margin: 0 auto;
+  padding: var(--hb-space-6) var(--hb-space-4) var(--hb-space-16);
+}
+
+@media (min-width: 1024px) {
+  .main {
+    padding-inline: var(--hb-space-6);
+  }
+}

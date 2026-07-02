@@ -11,18 +11,28 @@ async function logout() {
 
 <template>
   <div class="layout">
-    <header class="header">
-      <NuxtLink :to="localePath('/')" class="brand">{{ $t('app.title') }}</NuxtLink>
-      <nav class="nav">
+    <header class="topnav">
+      <NuxtLink :to="localePath('/')" class="brand">
+        <svg class="brand-mark" width="26" height="26" viewBox="0 0 34 34" fill="none" aria-hidden="true">
+          <rect x="2" y="2" width="30" height="30" rx="15" fill="var(--md-sys-color-primary)" />
+          <path d="M10.5 17.5 l5 5 L24.5 12.5" stroke="var(--md-sys-color-on-primary)" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round" fill="none" />
+        </svg>
+        {{ $t('app.title') }}
+      </NuxtLink>
+      <nav v-if="loggedIn" class="nav" :aria-label="$t('nav.main')">
+        <NuxtLink :to="localePath('/')" class="nav-link">{{ $t('nav.home') }}</NuxtLink>
+        <NuxtLink :to="localePath('/recettes')" class="nav-link">{{ $t('nav.recipes') }}</NuxtLink>
+      </nav>
+      <div class="topnav-end">
         <template v-if="loggedIn">
-          <span>{{ user?.name }}</span>
-          <button type="button" @click="logout">{{ $t('auth.logout') }}</button>
+          <span class="meta">{{ user?.name }}</span>
+          <button type="button" class="btn-outline topnav-btn" @click="logout">{{ $t('auth.logout') }}</button>
         </template>
         <template v-else>
-          <NuxtLink :to="localePath('/login')">{{ $t('auth.login') }}</NuxtLink>
-          <NuxtLink :to="localePath('/register')">{{ $t('auth.register') }}</NuxtLink>
+          <NuxtLink :to="localePath('/login')" class="nav-link">{{ $t('auth.login') }}</NuxtLink>
+          <NuxtLink :to="localePath('/register')" class="nav-link">{{ $t('auth.register') }}</NuxtLink>
         </template>
-      </nav>
+      </div>
     </header>
     <main class="main">
       <NuxtPage />
@@ -31,77 +41,59 @@ async function logout() {
 </template>
 
 <style>
-/* Style volontairement minimal : le design system arrive après M0. */
-* {
-  box-sizing: border-box;
-}
-
-body {
-  margin: 0;
-  font-family: system-ui, sans-serif;
-  color: #1a1a1a;
-}
-
-.layout {
-  max-width: 40rem;
-  margin: 0 auto;
-  padding: 1rem;
-}
-
-.header {
+.topnav {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  padding-block: 0.5rem;
-  border-bottom: 1px solid #ddd;
+  gap: var(--hb-space-5);
+  padding: var(--hb-space-3) var(--hb-space-4);
+  background: var(--md-sys-color-surface-container-lowest);
+  border-bottom: 1px solid var(--md-sys-color-outline-variant);
+  flex-wrap: wrap;
 }
 
 .brand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--hb-space-2);
+  font: var(--md-sys-typescale-title-large);
   font-weight: 700;
+  letter-spacing: -0.015em;
+  color: var(--md-sys-color-primary);
   text-decoration: none;
-  color: inherit;
 }
 
-.nav {
+.brand-mark {
+  flex: none;
+}
+
+.nav, .topnav-end {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: var(--hb-space-4);
 }
 
-.main {
-  padding-block: 1.5rem;
+.topnav-end {
+  margin-left: auto;
 }
 
-form {
-  display: grid;
-  gap: 0.75rem;
-  max-width: 22rem;
+.nav-link {
+  color: var(--md-sys-color-on-surface-variant);
+  font: var(--md-sys-typescale-label-large);
+  text-decoration: none;
+  padding: var(--hb-space-2) 0;
 }
 
-label {
-  display: grid;
-  gap: 0.25rem;
-  font-size: 0.9rem;
+.nav-link:hover {
+  color: var(--md-sys-color-on-surface);
 }
 
-input {
-  padding: 0.5rem;
-  font: inherit;
+.nav-link.router-link-active {
+  color: var(--md-sys-color-on-surface);
+  box-shadow: inset 0 -3px 0 var(--md-sys-color-primary);
 }
 
-button {
-  padding: 0.5rem 1rem;
-  font: inherit;
-  cursor: pointer;
-}
-
-.error {
-  color: #b00020;
-}
-
-.hint {
-  font-size: 0.8rem;
-  color: #555;
+.topnav-btn {
+  min-height: 40px;
+  padding: 6px 16px;
 }
 </style>

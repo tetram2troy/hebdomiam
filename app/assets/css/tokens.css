@@ -1,0 +1,326 @@
+/* ============================================================================
+   Hebdomiam — Design tokens (direction « Primeur »)
+   Architecture : Material Design 3 (m3.material.io) — tokens ref → sys.
+   Framework-agnostique : variables CSS pures, prêtes pour Nuxt
+   (à importer dans app/assets/css/ et référencer via nuxt.config).
+
+   Thèmes : clair par défaut, sombre via [data-theme="dark"] (bascule manuelle)
+   ou via prefers-color-scheme quand [data-theme="auto"|absent].
+   ========================================================================== */
+
+/* ----------------------------------------------------------------------------
+   1. REF — palettes tonales (tons réellement utilisés uniquement)
+   Rôle purement documentaire : le code applicatif consomme les tokens SYS.
+   -------------------------------------------------------------------------- */
+:root {
+  /* Basilic (primary) */
+  --md-ref-palette-primary10: #072812;
+  --md-ref-palette-primary20: #0c3d1e;
+  --md-ref-palette-primary30: #145a2d;
+  --md-ref-palette-primary40: #1e7a3d;
+  --md-ref-palette-primary60: #52c273;
+  --md-ref-palette-primary80: #96e3ab;
+  --md-ref-palette-primary90: #cdefd2;
+
+  /* Sauge (secondary — soutien discret : chips, filtres) */
+  --md-ref-palette-secondary20: #17301f;
+  --md-ref-palette-secondary40: #4e6b57;
+  --md-ref-palette-secondary80: #a9c4ae;
+  --md-ref-palette-secondary90: #dff0d9;
+
+  /* Mandarine (tertiary — énergie : badges, accents) */
+  --md-ref-palette-tertiary20: #5c2410;
+  --md-ref-palette-tertiary40: #a6431c;
+  --md-ref-palette-tertiary60: #ee5f2e;
+  --md-ref-palette-tertiary80: #ff9c73;
+  --md-ref-palette-tertiary90: #ffdbcb;
+
+  /* Tomate (error) */
+  --md-ref-palette-error20: #561e14;
+  --md-ref-palette-error40: #b3382c;
+  --md-ref-palette-error80: #ffb4a6;
+  --md-ref-palette-error90: #ffdad4;
+
+  /* Neutre (teinté vert — jamais de gris pur) */
+  --md-ref-palette-neutral0: #000000;
+  --md-ref-palette-neutral4: #0b120d;
+  --md-ref-palette-neutral6: #101812;
+  --md-ref-palette-neutral10: #16221a;
+  --md-ref-palette-neutral20: #2b342c;
+  --md-ref-palette-neutral30: #40513f;
+  --md-ref-palette-neutral50: #6f7f70;
+  --md-ref-palette-neutral60: #8a9a8a;
+  --md-ref-palette-neutral80: #c0cfbe;
+  --md-ref-palette-neutral90: #dfe8d9;
+  --md-ref-palette-neutral95: #eef4ea;
+  --md-ref-palette-neutral98: #f7faf4;
+  --md-ref-palette-neutral100: #ffffff;
+
+  /* Citron — couleur personnalisée (hors rôles MD3) : pastille « nouveau »,
+     étoile, touches illustratives. Jamais porteuse de texte. */
+  --hb-ref-citron60: #f2c53d;
+  --hb-ref-citron80: #f5ce55;
+}
+
+/* ----------------------------------------------------------------------------
+   2. SYS — rôles de couleur (thème CLAIR, défaut)
+   -------------------------------------------------------------------------- */
+:root {
+  --md-sys-color-primary: var(--md-ref-palette-primary40);
+  --md-sys-color-on-primary: #ffffff;
+  --md-sys-color-primary-container: var(--md-ref-palette-primary90);
+  --md-sys-color-on-primary-container: var(--md-ref-palette-primary20);
+
+  --md-sys-color-secondary: var(--md-ref-palette-secondary40);
+  --md-sys-color-on-secondary: #ffffff;
+  --md-sys-color-secondary-container: var(--md-ref-palette-secondary90);
+  --md-sys-color-on-secondary-container: var(--md-ref-palette-secondary20);
+
+  --md-sys-color-tertiary: var(--md-ref-palette-tertiary40);
+  --md-sys-color-on-tertiary: #ffffff;
+  --md-sys-color-tertiary-container: var(--md-ref-palette-tertiary90);
+  --md-sys-color-on-tertiary-container: var(--md-ref-palette-tertiary20);
+
+  --md-sys-color-error: var(--md-ref-palette-error40);
+  --md-sys-color-on-error: #ffffff;
+  --md-sys-color-error-container: var(--md-ref-palette-error90);
+  --md-sys-color-on-error-container: var(--md-ref-palette-error20);
+
+  --md-sys-color-surface: var(--md-ref-palette-neutral98);
+  --md-sys-color-on-surface: var(--md-ref-palette-neutral10);
+  --md-sys-color-surface-variant: var(--md-ref-palette-neutral90);
+  --md-sys-color-on-surface-variant: var(--md-ref-palette-neutral30);
+
+  --md-sys-color-surface-container-lowest: var(--md-ref-palette-neutral100);
+  --md-sys-color-surface-container-low: #f1f6ec;
+  --md-sys-color-surface-container: #ebf2e5;
+  --md-sys-color-surface-container-high: #e5eddf;
+  --md-sys-color-surface-container-highest: var(--md-ref-palette-neutral90);
+
+  --md-sys-color-outline: var(--md-ref-palette-neutral50);
+  --md-sys-color-outline-variant: var(--md-ref-palette-neutral80);
+
+  --md-sys-color-inverse-surface: var(--md-ref-palette-neutral20);
+  --md-sys-color-inverse-on-surface: var(--md-ref-palette-neutral95);
+  --md-sys-color-inverse-primary: var(--md-ref-palette-primary80);
+
+  --md-sys-color-scrim: rgb(0 0 0 / 0.45);
+  --md-sys-color-shadow: #16221a;
+
+  --hb-sys-color-citron: var(--hb-ref-citron60);
+}
+
+/* ----------------------------------------------------------------------------
+   2bis. SYS — rôles de couleur (thème SOMBRE)
+   -------------------------------------------------------------------------- */
+[data-theme="dark"] {
+  --md-sys-color-primary: var(--md-ref-palette-primary60);
+  --md-sys-color-on-primary: #06301a;
+  --md-sys-color-primary-container: var(--md-ref-palette-primary30);
+  --md-sys-color-on-primary-container: var(--md-ref-palette-primary90);
+
+  --md-sys-color-secondary: var(--md-ref-palette-secondary80);
+  --md-sys-color-on-secondary: var(--md-ref-palette-secondary20);
+  --md-sys-color-secondary-container: #33473a;
+  --md-sys-color-on-secondary-container: var(--md-ref-palette-secondary90);
+
+  --md-sys-color-tertiary: var(--md-ref-palette-tertiary80);
+  --md-sys-color-on-tertiary: var(--md-ref-palette-tertiary20);
+  --md-sys-color-tertiary-container: #7a3517;
+  --md-sys-color-on-tertiary-container: var(--md-ref-palette-tertiary90);
+
+  --md-sys-color-error: var(--md-ref-palette-error80);
+  --md-sys-color-on-error: var(--md-ref-palette-error20);
+  --md-sys-color-error-container: #8c2f22;
+  --md-sys-color-on-error-container: var(--md-ref-palette-error90);
+
+  --md-sys-color-surface: var(--md-ref-palette-neutral6);
+  --md-sys-color-on-surface: #e0eadc;
+  --md-sys-color-surface-variant: var(--md-ref-palette-neutral30);
+  --md-sys-color-on-surface-variant: var(--md-ref-palette-neutral80);
+
+  --md-sys-color-surface-container-lowest: var(--md-ref-palette-neutral4);
+  --md-sys-color-surface-container-low: #171f18;
+  --md-sys-color-surface-container: #1b241c;
+  --md-sys-color-surface-container-high: #253026;
+  --md-sys-color-surface-container-highest: #303b31;
+
+  --md-sys-color-outline: var(--md-ref-palette-neutral60);
+  --md-sys-color-outline-variant: var(--md-ref-palette-neutral30);
+
+  --md-sys-color-inverse-surface: #e0eadc;
+  --md-sys-color-inverse-on-surface: var(--md-ref-palette-neutral20);
+  --md-sys-color-inverse-primary: var(--md-ref-palette-primary40);
+
+  --md-sys-color-scrim: rgb(0 0 0 / 0.6);
+
+  --hb-sys-color-citron: var(--hb-ref-citron80);
+}
+
+/* Suivi de l'OS quand aucune bascule manuelle n'est posée. Dupliqué de 2bis :
+   garder les deux blocs synchronisés (ou générer via préprocesseur). */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]):not([data-theme="dark"]) {
+    --md-sys-color-primary: var(--md-ref-palette-primary60);
+    --md-sys-color-on-primary: #06301a;
+    --md-sys-color-primary-container: var(--md-ref-palette-primary30);
+    --md-sys-color-on-primary-container: var(--md-ref-palette-primary90);
+    --md-sys-color-secondary: var(--md-ref-palette-secondary80);
+    --md-sys-color-on-secondary: var(--md-ref-palette-secondary20);
+    --md-sys-color-secondary-container: #33473a;
+    --md-sys-color-on-secondary-container: var(--md-ref-palette-secondary90);
+    --md-sys-color-tertiary: var(--md-ref-palette-tertiary80);
+    --md-sys-color-on-tertiary: var(--md-ref-palette-tertiary20);
+    --md-sys-color-tertiary-container: #7a3517;
+    --md-sys-color-on-tertiary-container: var(--md-ref-palette-tertiary90);
+    --md-sys-color-error: var(--md-ref-palette-error80);
+    --md-sys-color-on-error: var(--md-ref-palette-error20);
+    --md-sys-color-error-container: #8c2f22;
+    --md-sys-color-on-error-container: var(--md-ref-palette-error90);
+    --md-sys-color-surface: var(--md-ref-palette-neutral6);
+    --md-sys-color-on-surface: #e0eadc;
+    --md-sys-color-surface-variant: var(--md-ref-palette-neutral30);
+    --md-sys-color-on-surface-variant: var(--md-ref-palette-neutral80);
+    --md-sys-color-surface-container-lowest: var(--md-ref-palette-neutral4);
+    --md-sys-color-surface-container-low: #171f18;
+    --md-sys-color-surface-container: #1b241c;
+    --md-sys-color-surface-container-high: #253026;
+    --md-sys-color-surface-container-highest: #303b31;
+    --md-sys-color-outline: var(--md-ref-palette-neutral60);
+    --md-sys-color-outline-variant: var(--md-ref-palette-neutral30);
+    --md-sys-color-inverse-surface: #e0eadc;
+    --md-sys-color-inverse-on-surface: var(--md-ref-palette-neutral20);
+    --md-sys-color-inverse-primary: var(--md-ref-palette-primary40);
+    --md-sys-color-scrim: rgb(0 0 0 / 0.6);
+    --hb-sys-color-citron: var(--hb-ref-citron80);
+  }
+}
+
+/* ----------------------------------------------------------------------------
+   3. SYS — typographie (type scale MD3, familles Primeur)
+   Titres : Bricolage Grotesque (500/700) · Texte : Figtree (400/600)
+   Fontes auto-hébergées (OFL) — aucun CDN.
+   -------------------------------------------------------------------------- */
+:root {
+  --md-sys-typescale-font-brand: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --md-sys-typescale-font-plain: "Figtree", "Segoe UI", system-ui, sans-serif;
+
+  /* display — écrans d'accueil, gros chiffres (portions, minuteries) */
+  --md-sys-typescale-display-large: 700 3.5rem/1.15 var(--md-sys-typescale-font-brand);
+  --md-sys-typescale-display-small: 700 2.25rem/1.2 var(--md-sys-typescale-font-brand);
+
+  /* headline — titres de page et de section */
+  --md-sys-typescale-headline-large: 700 2rem/1.25 var(--md-sys-typescale-font-brand);
+  --md-sys-typescale-headline-medium: 700 1.75rem/1.28 var(--md-sys-typescale-font-brand);
+  --md-sys-typescale-headline-small: 700 1.5rem/1.33 var(--md-sys-typescale-font-brand);
+
+  /* title — titres de carte, de dialogue, de rayon d'épicerie */
+  --md-sys-typescale-title-large: 500 1.375rem/1.27 var(--md-sys-typescale-font-brand);
+  --md-sys-typescale-title-medium: 600 1rem/1.5 var(--md-sys-typescale-font-plain);
+  --md-sys-typescale-title-small: 600 0.875rem/1.43 var(--md-sys-typescale-font-plain);
+
+  /* body — texte courant, ingrédients, étapes */
+  --md-sys-typescale-body-large: 400 1rem/1.5 var(--md-sys-typescale-font-plain);
+  --md-sys-typescale-body-medium: 400 0.875rem/1.43 var(--md-sys-typescale-font-plain);
+  --md-sys-typescale-body-small: 400 0.75rem/1.33 var(--md-sys-typescale-font-plain);
+
+  /* label — boutons, chips, légendes, onglets */
+  --md-sys-typescale-label-large: 600 0.875rem/1.43 var(--md-sys-typescale-font-plain);
+  --md-sys-typescale-label-medium: 600 0.75rem/1.33 var(--md-sys-typescale-font-plain);
+  --md-sys-typescale-label-small: 600 0.6875rem/1.45 var(--md-sys-typescale-font-plain);
+
+  /* Mode cuisine : étapes lisibles à distance de bras */
+  --hb-sys-typescale-kitchen-step: 400 1.375rem/1.5 var(--md-sys-typescale-font-plain);
+}
+
+/* ----------------------------------------------------------------------------
+   4. SYS — forme (shape scale MD3)
+   Primeur : pastilles franches pour l'actionnable, angles doux pour les surfaces.
+   -------------------------------------------------------------------------- */
+:root {
+  --md-sys-shape-corner-none: 0;
+  --md-sys-shape-corner-extra-small: 4px;   /* tooltips, surlignages */
+  --md-sys-shape-corner-small: 8px;         /* champs de formulaire */
+  --md-sys-shape-corner-medium: 12px;       /* items de liste, vignettes */
+  --md-sys-shape-corner-large: 16px;        /* cartes recette / suggestion */
+  --md-sys-shape-corner-extra-large: 28px;  /* dialogues, feuilles */
+  --md-sys-shape-corner-full: 9999px;       /* boutons, chips, badges */
+}
+
+/* ----------------------------------------------------------------------------
+   5. SYS — élévation
+   Primeur est plat : la hiérarchie vient des surface-containers et des contours
+   (2 px). Trois niveaux d'ombre seulement (MD3 en définit 6 — 0 à 5 ;
+   les niveaux 4–5 sont volontairement non utilisés).
+   -------------------------------------------------------------------------- */
+:root {
+  --md-sys-elevation-level0: none;
+  --md-sys-elevation-level1: 0 1px 2px rgb(22 34 26 / 0.08);            /* carte au repos */
+  --md-sys-elevation-level2: 0 2px 8px rgb(22 34 26 / 0.10);            /* carte soulevée, barre collante */
+  --md-sys-elevation-level3: 0 8px 24px rgb(22 34 26 / 0.14);           /* dialogues, menus */
+  --hb-sys-border-interactive: 2px;                                     /* contour épais Primeur */
+}
+[data-theme="dark"] {
+  --md-sys-elevation-level1: 0 1px 2px rgb(0 0 0 / 0.35);
+  --md-sys-elevation-level2: 0 2px 8px rgb(0 0 0 / 0.4);
+  --md-sys-elevation-level3: 0 8px 24px rgb(0 0 0 / 0.5);
+}
+
+/* ----------------------------------------------------------------------------
+   6. SYS — états (state layers MD3)
+   Calque de la couleur de contenu, posé sur le composant à l'opacité ci-dessous.
+   Disabled : contenu à 38 %, conteneur à 12 % (jamais de gris figé).
+   -------------------------------------------------------------------------- */
+:root {
+  --md-sys-state-hover-state-layer-opacity: 0.08;
+  --md-sys-state-focus-state-layer-opacity: 0.10;
+  --md-sys-state-pressed-state-layer-opacity: 0.10;
+  --md-sys-state-dragged-state-layer-opacity: 0.16;
+  --md-sys-state-disabled-content-opacity: 0.38;
+  --md-sys-state-disabled-container-opacity: 0.12;
+
+  /* Focus visible : anneau 2 px décollé de 2 px, jamais supprimé */
+  --hb-sys-focus-ring: 0 0 0 2px var(--md-sys-color-surface),
+                       0 0 0 4px var(--md-sys-color-primary);
+}
+
+/* ----------------------------------------------------------------------------
+   7. Espacement, cibles tactiles, mise en page
+   Grille de 4 px (convention MD).
+   -------------------------------------------------------------------------- */
+:root {
+  --hb-space-1: 4px;
+  --hb-space-2: 8px;
+  --hb-space-3: 12px;
+  --hb-space-4: 16px;
+  --hb-space-5: 20px;
+  --hb-space-6: 24px;
+  --hb-space-8: 32px;
+  --hb-space-10: 40px;
+  --hb-space-12: 48px;
+  --hb-space-16: 64px;
+
+  --hb-touch-target: 48px;        /* minimum absolu ; épicerie & cuisine : 56px */
+  --hb-touch-target-store: 56px;
+
+  --hb-content-max: 1120px;       /* largeur max desktop */
+  --hb-reading-max: 65ch;         /* texte courant */
+  --hb-breakpoint-md: 768px;      /* mobile → tablette (2 colonnes) */
+  --hb-breakpoint-lg: 1024px;     /* tablette → desktop (nav haute) */
+}
+
+/* ----------------------------------------------------------------------------
+   8. Mouvement
+   -------------------------------------------------------------------------- */
+:root {
+  --md-sys-motion-duration-short: 150ms;
+  --md-sys-motion-duration-medium: 300ms;
+  --md-sys-motion-easing-standard: cubic-bezier(0.2, 0, 0, 1);
+  --md-sys-motion-easing-emphasized: cubic-bezier(0.3, 0, 0, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --md-sys-motion-duration-short: 0ms;
+    --md-sys-motion-duration-medium: 0ms;
+  }
+}
