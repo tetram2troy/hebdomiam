@@ -1,0 +1,37 @@
+<!doctype html>
+<!-- Fixture E2E : page de recette minimale avec JSON-LD schema.org/Recipe.
+     Servie par l'app elle-même et importée via le pipeline complet. -->
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Rago&ucirc;t de boulettes de grand-maman</title>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Recipe",
+  "name": "Rago&ucirc;t de boulettes de grand-maman",
+  "description": "Le classique des f&ecirc;tes, version simplifi&eacute;e pour la semaine.",
+  "recipeYield": "6 portions",
+  "prepTime": "PT25M",
+  "cookTime": "PT1H",
+  "recipeIngredient": [
+    "700 g de porc hach&eacute; maigre",
+    "1 oignon jaune hach&eacute; finement",
+    "1/2 c. &agrave; th&eacute; de cannelle moulue",
+    "4 tasses de bouillon de poulet",
+    "Farine grill&eacute;e au go&ucirc;t"
+  ],
+  "recipeInstructions": [
+    {"@type": "HowToStep", "text": "Fa&ccedil;onner les boulettes avec le porc, l'oignon et la cannelle."},
+    {"@type": "HowToStep", "text": "Faire mijoter les boulettes dans le bouillon 45 minutes."},
+    {"@type": "HowToStep", "text": "&Eacute;paissir avec la farine grill&eacute;e d&eacute;lay&eacute;e et mijoter 15 minutes."}
+  ],
+  "keywords": "porc, mijoteuse, des f&ecirc;tes"
+}
+</script>
+</head>
+<body>
+<h1>Ragoût de boulettes de grand-maman</h1>
+<p>Page fixture pour les tests d'import.</p>
+</body>
+</html>
