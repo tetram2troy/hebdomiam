@@ -1,5 +1,5 @@
 import { relations } from 'drizzle-orm'
-import { boolean, date, index, integer, numeric, pgEnum, pgTable, primaryKey, text, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core'
+import { boolean, date, index, integer, jsonb, numeric, pgEnum, pgTable, primaryKey, text, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core'
 
 export const localeEnum = pgEnum('locale', ['fr', 'en'])
 export const unitSystemEnum = pgEnum('unit_system', ['metric', 'imperial'])
@@ -113,10 +113,50 @@ export const mealPlanRecipes = pgTable('meal_plan_recipes', {
   index('meal_plan_recipes_recipe_id_idx').on(table.recipeId),
 ])
 
+export const groceryLists = pgTable('grocery_lists', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  mealPlanId: uuid('meal_plan_id').notNull().unique().references(() => mealPlans.id, { onDelete: 'cascade' }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
+/** Contribution d'un ingrédient de recette à un article agrégé (instantané figé
+    à la génération — quantités déjà mises à l'échelle, unité d'origine). */
+export interface GroceryItemSource {
+  ingredientId: string
+  recipeTitle: string
+  quantity: number
+  unit: string | null
+}
+
+export const groceryItems = pgTable('grocery_items', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  groceryListId: uuid('grocery_list_id').notNull().references(() => groceryLists.id, { onDelete: 'cascade' }),
+  label: text('label').notNull(),
+  // Quantité stockée en unité de BASE (g pour la masse, ml pour le volume) ;
+  // l'affichage convertit selon la préférence utilisateur (unitSystem, D6).
+  quantity: numeric('quantity', { precision: 12, scale: 2 }),
+  unit: unitEnum('unit'),
+  aisle: aisleEnum('aisle').notNull().default('other'),
+  checked: boolean('checked').notNull().default(false),
+  isManual: boolean('is_manual').notNull().default(false),
+  sources: jsonb('sources').$type<GroceryItemSource[]>(),
+}, table => [
+  index('grocery_items_grocery_list_id_idx').on(table.groceryListId),
+])
+
 export const recipesRelations = relations(recipes, ({ many }) => ({
   steps: many(recipeSteps),
   ingredients: many(recipeIngredients),
   recipeTags: many(recipeTags),
+}))
+
+export const groceryListsRelations = relations(groceryLists, ({ one, many }) => ({
+  mealPlan: one(mealPlans, { fields: [groceryLists.mealPlanId], references: [mealPlans.id] }),
+  items: many(groceryItems),
+}))
+
+export const groceryItemsRelations = relations(groceryItems, ({ one }) => ({
+  groceryList: one(groceryLists, { fields: [groceryItems.groceryListId], references: [groceryLists.id] }),
 }))
 
 export const mealPlansRelations = relations(mealPlans, ({ many }) => ({

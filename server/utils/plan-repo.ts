@@ -3,6 +3,7 @@ import type { MealPlanDto, PlanDefaults, PlanRecipeDto, ReplacementOption } from
 import { and, count, eq, isNull, max } from 'drizzle-orm'
 import type { Db } from '../database/client'
 import { mealPlanRecipes, mealPlans, recipes, users } from '../database/schema'
+import { generateGroceryList } from './grocery-repo'
 import { listRecipes, toRecipeSummary } from './recipe-repo'
 import { computePortions, mondayOf, pickSuggestions, type RotationCandidate } from './rotation'
 
@@ -282,6 +283,8 @@ export async function validatePlan(db: Db, userId: string, planId: string): Prom
       .set({ status: 'accepted' })
       .where(and(eq(mealPlanRecipes.mealPlanId, planId), eq(mealPlanRecipes.status, 'suggested')))
     await tx.update(mealPlans).set({ status: 'validated' }).where(eq(mealPlans.id, planId))
+    // La liste d'épicerie naît avec la validation (PRD F6) — même transaction.
+    await generateGroceryList(tx, planId)
   })
 
   return { plan: (await getPlan(db, userId, planId))! }
