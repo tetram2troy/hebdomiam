@@ -27,7 +27,26 @@
     "allCooked": "Tout est cuisiné — belle semaine !",
     "groceryTitle": "Liste d'épicerie",
     "groceryRemaining": "{n} article restant | {n} articles restants",
-    "groceryOpen": "Ouvrir"
+    "groceryOpen": "Ouvrir",
+    "cookingTitle": "Mode cuisine",
+    "cookingSubtitle": "{n} plat à cuisiner · quantités à l'échelle | {n} plats à cuisiner · quantités à l'échelle",
+    "cookingOpen": "C'est parti"
+  },
+  "cooking": {
+    "title": "Cuisine",
+    "wakeOn": "☀ Écran maintenu allumé",
+    "wakeOff": "Écran non verrouillé indisponible",
+    "scale": "recette de base : {base} → quantités ×{factor} déjà appliquées",
+    "servingsBig": "{n} portion | {n} portions",
+    "ingredientsFold": "Ingrédients ({n}) — tout est prêt ?",
+    "stepLabel": "Étape {n}",
+    "markCooked": "Cuisinée ✓",
+    "cookedAt": "cuisinée",
+    "progress": "{done} / {total} étapes faites — le bouton s'active sans exiger toutes les cases",
+    "emptyTitle": "Rien à cuisiner",
+    "emptyBody": "Valide d'abord une semaine planifiée, puis reviens ici le samedi.",
+    "goPlan": "Planifier ma semaine",
+    "allDone": "Tout est cuisiné — belle semaine !"
   },
   "grocery": {
     "title": "Épicerie",

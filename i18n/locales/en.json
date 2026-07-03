@@ -27,7 +27,26 @@
     "allCooked": "Everything's cooked — great week!",
     "groceryTitle": "Grocery list",
     "groceryRemaining": "{n} item left | {n} items left",
-    "groceryOpen": "Open"
+    "groceryOpen": "Open",
+    "cookingTitle": "Cooking mode",
+    "cookingSubtitle": "{n} dish to cook · scaled quantities | {n} dishes to cook · scaled quantities",
+    "cookingOpen": "Let's go"
+  },
+  "cooking": {
+    "title": "Cooking",
+    "wakeOn": "☀ Screen kept awake",
+    "wakeOff": "Wake lock unavailable",
+    "scale": "base recipe: {base} → quantities ×{factor} already applied",
+    "servingsBig": "{n} serving | {n} servings",
+    "ingredientsFold": "Ingredients ({n}) — everything ready?",
+    "stepLabel": "Step {n}",
+    "markCooked": "Cooked ✓",
+    "cookedAt": "cooked",
+    "progress": "{done} / {total} steps done — the button works without checking them all",
+    "emptyTitle": "Nothing to cook",
+    "emptyBody": "Confirm a planned week first, then come back on Saturday.",
+    "goPlan": "Plan my week",
+    "allDone": "Everything's cooked — great week!"
   },
   "grocery": {
     "title": "Groceries",

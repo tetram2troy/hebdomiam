@@ -95,19 +95,34 @@ async function replan() {
         <p v-if="error" class="error" role="alert">{{ error }}</p>
         <p v-if="allCooked" class="all-cooked" data-testid="all-cooked">{{ $t('home.allCooked') }}</p>
 
-        <NuxtLink
-          v-if="groceryRemaining !== null"
-          :to="localePath('/epicerie')"
-          class="card grocery-card"
-          data-testid="grocery-card"
-        >
-          <span class="grocery-icon" aria-hidden="true">🛒</span>
-          <span class="grow">
-            <b>{{ $t('home.groceryTitle') }}</b>
-            <span class="meta block">{{ $t('home.groceryRemaining', { n: groceryRemaining }, groceryRemaining) }}</span>
-          </span>
-          <span class="btn btn-outline open-btn">{{ $t('home.groceryOpen') }}</span>
-        </NuxtLink>
+        <div v-if="plan.status !== 'draft'" class="next-cards">
+          <NuxtLink
+            v-if="groceryRemaining !== null"
+            :to="localePath('/epicerie')"
+            class="card grocery-card"
+            data-testid="grocery-card"
+          >
+            <span class="grocery-icon" aria-hidden="true">🛒</span>
+            <span class="grow">
+              <b>{{ $t('home.groceryTitle') }}</b>
+              <span class="meta block">{{ $t('home.groceryRemaining', { n: groceryRemaining }, groceryRemaining) }}</span>
+            </span>
+            <span class="btn btn-outline open-btn">{{ $t('home.groceryOpen') }}</span>
+          </NuxtLink>
+          <NuxtLink
+            v-if="!allCooked"
+            :to="localePath('/cuisine')"
+            class="card grocery-card"
+            data-testid="cooking-card"
+          >
+            <span class="grocery-icon" aria-hidden="true">🍳</span>
+            <span class="grow">
+              <b>{{ $t('home.cookingTitle') }}</b>
+              <span class="meta block">{{ $t('home.cookingSubtitle', { n: plan.recipes.length - cookedCount }, plan.recipes.length - cookedCount) }}</span>
+            </span>
+            <span class="btn open-btn">{{ $t('home.cookingOpen') }}</span>
+          </NuxtLink>
+        </div>
 
         <div class="plan-grid">
           <article v-for="item in plan.recipes" :key="item.id" class="card plan-card" data-testid="plan-card">
@@ -278,15 +293,21 @@ async function replan() {
   gap: var(--hb-space-3);
 }
 
+.next-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: var(--hb-space-4);
+  margin-bottom: var(--hb-space-5);
+  max-width: 900px;
+}
+
 .grocery-card {
   display: flex;
   align-items: center;
   gap: var(--hb-space-4);
   padding: var(--hb-space-4);
-  margin-bottom: var(--hb-space-5);
   color: inherit;
   text-decoration: none;
-  max-width: 520px;
 }
 
 .grocery-icon {
