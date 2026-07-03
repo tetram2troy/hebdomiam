@@ -11,6 +11,9 @@ test.use({ extraHTTPHeaders: { 'x-forwarded-for': '203.0.113.11' } })
 async function registerFreshUser(page: Page) {
   const email = `m1-${Date.now()}-${Math.floor(Math.random() * 1e6)}@example.com`
   await page.goto('/register')
+  // Attendre l'hydratation : un clic trop tôt déclenche la soumission native du
+  // formulaire SSR (rechargement à vide) au lieu du gestionnaire Vue.
+  await page.waitForLoadState('networkidle')
   await page.getByLabel('Nom').fill('Testeuse M1')
   await page.getByLabel('Courriel').fill(email)
   await page.getByLabel('Mot de passe').fill('mot-de-passe-tres-long-123')
@@ -22,7 +25,7 @@ test('cycle de vie complet d\'une recette', async ({ page }) => {
   await registerFreshUser(page)
 
   // Collection vide
-  await page.getByRole('link', { name: 'Recettes' }).click()
+  await page.getByRole('link', { name: 'Recettes', exact: true }).click()
   await expect(page.getByTestId('empty-collection')).toBeVisible()
 
   // Création

@@ -22,6 +22,7 @@ function style(locator: Locator, property: string) {
 async function registerFreshUser(page: Page) {
   const email = `design-${Date.now()}-${Math.floor(Math.random() * 1e6)}@example.com`
   await page.goto('/register')
+  await page.waitForLoadState('networkidle')
   await page.getByLabel('Nom').fill('Design QA')
   await page.getByLabel('Courriel').fill(email)
   await page.getByLabel('Mot de passe').fill('mot-de-passe-tres-long-123')
