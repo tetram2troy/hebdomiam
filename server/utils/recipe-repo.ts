@@ -104,6 +104,7 @@ export async function createRecipe(db: Db, userId: string, input: RecipeInput): 
       userId,
       title: input.title,
       description: input.description ?? null,
+      imageUrl: input.imageUrl ?? null,
       baseServings: input.baseServings,
       prepMinutes: input.prepMinutes ?? null,
       cookMinutes: input.cookMinutes ?? null,
@@ -124,6 +125,7 @@ export async function updateRecipe(db: Db, userId: string, recipeId: string, inp
     const [recipe] = await tx.update(recipes).set({
       title: input.title,
       description: input.description ?? null,
+      imageUrl: input.imageUrl ?? null,
       baseServings: input.baseServings,
       prepMinutes: input.prepMinutes ?? null,
       cookMinutes: input.cookMinutes ?? null,
