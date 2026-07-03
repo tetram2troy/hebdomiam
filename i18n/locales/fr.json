@@ -116,9 +116,27 @@
     "increase": "Augmenter : {label}",
     "decrease": "Diminuer : {label}"
   },
+  "import": {
+    "title": "Importer une recette",
+    "tabUrl": "Depuis une URL",
+    "tabPhoto": "Depuis des photos",
+    "urlLabel": "Adresse de la recette",
+    "urlPlaceholder": "https://www.ricardocuisine.com/…",
+    "urlHint": "Fonctionne avec la plupart des sites de recettes ; repli IA sinon.",
+    "extract": "Extraire la recette",
+    "extracting": "Extraction en cours…",
+    "photoLabel": "Photos de la recette",
+    "photoHint": "Livre, fiche manuscrite ou capture d'écran — JPEG, PNG ou WebP, 10 Mo et 3 photos max.",
+    "photoUnavailable": "L'import par photo demande une clé API Claude côté serveur (ANTHROPIC_API_KEY).",
+    "draftBanner": "Brouillon extrait — relis et corrige avant d'enregistrer. Rien n'est sauvegardé pour l'instant.",
+    "draftSource": "Source : {url}",
+    "warningsTitle": "À vérifier :",
+    "manual": "Ou saisis-la à la main"
+  },
   "recipes": {
     "listTitle": "Mes recettes",
     "new": "Nouvelle recette",
+    "importCta": "Importer",
     "searchLabel": "Chercher une recette",
     "searchPlaceholder": "Titre ou ingrédient…",
     "filters": "Filtres",
@@ -208,6 +226,12 @@
     "tooManyRequests": "Trop de tentatives, réessaie dans une minute.",
     "invalidInput": "Vérifie les champs du formulaire.",
     "notFound": "Introuvable — l'élément a peut-être été supprimé.",
+    "importUnreachable": "Impossible d'atteindre cette adresse. Vérifie l'URL.",
+    "importFailed": "Aucune recette détectée. Essaie une autre adresse, ou saisis-la à la main.",
+    "importUnavailable": "L'import par photo n'est pas configuré sur ce serveur (clé API manquante).",
+    "importProviderError": "L'extraction a échoué côté fournisseur. Réessaie dans un moment.",
+    "fileTooLarge": "Photo trop lourde (10 Mo max).",
+    "invalidImage": "Format d'image non pris en charge (JPEG, PNG ou WebP).",
     "unknown": "Une erreur est survenue. Réessaie."
   }
 }

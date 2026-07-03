@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import { AISLES, UNITS, type Aisle, type Unit } from '#shared/schemas/recipe'
+import type { ImportDraft } from '#shared/types/import'
 import type { RecipeDetail } from '#shared/types/recipe'
 
 const props = defineProps<{
   mode: 'create' | 'edit'
   recipe?: RecipeDetail
+  /** Brouillon d'import (URL/photo) : pré-remplit sans rien sauvegarder. */
+  draft?: ImportDraft | null
 }>()
 
 const { t } = useI18n()
@@ -21,22 +24,36 @@ function emptyIngredient(): IngredientDraft {
   return { quantity: '', unit: '', name: '', aisle: 'other' }
 }
 
+const seed = props.draft
+  ? {
+      ...props.draft,
+      notes: null,
+      steps: props.draft.steps,
+      ingredients: props.draft.ingredients,
+    }
+  : props.recipe
+    ? {
+        ...props.recipe,
+        steps: props.recipe.steps.map(s => s.text),
+      }
+    : null
+
 const form = reactive({
-  title: props.recipe?.title ?? '',
-  description: props.recipe?.description ?? '',
-  baseServings: props.recipe?.baseServings ?? 4,
-  prepMinutes: props.recipe?.prepMinutes?.toString() ?? '',
-  cookMinutes: props.recipe?.cookMinutes?.toString() ?? '',
-  freezable: props.recipe?.freezable ?? false,
-  notes: props.recipe?.notes ?? '',
-  ingredients: props.recipe?.ingredients.map(i => ({
+  title: seed?.title ?? '',
+  description: seed?.description ?? '',
+  baseServings: seed?.baseServings ?? 4,
+  prepMinutes: seed?.prepMinutes?.toString() ?? '',
+  cookMinutes: seed?.cookMinutes?.toString() ?? '',
+  freezable: seed?.freezable ?? false,
+  notes: seed?.notes ?? '',
+  ingredients: seed?.ingredients.map(i => ({
     quantity: String(i.quantity),
     unit: i.unit ?? '' as const,
     name: i.name,
     aisle: i.aisle,
   })) ?? [emptyIngredient()],
-  steps: props.recipe?.steps.map(s => s.text) ?? [''],
-  tags: [...(props.recipe?.tags ?? [])],
+  steps: seed?.steps ?? [''],
+  tags: [...(seed?.tags ?? [])],
 })
 
 const tagInput = ref('')
@@ -82,6 +99,9 @@ function toPayload() {
   return {
     title: form.title,
     description: form.description.trim() || null,
+    // Conservés à travers l'édition ; renseignés par l'import.
+    sourceUrl: props.draft?.sourceUrl ?? props.recipe?.sourceUrl ?? null,
+    imageUrl: props.draft?.imageUrl ?? props.recipe?.imageUrl ?? null,
     baseServings: form.baseServings,
     prepMinutes: form.prepMinutes === '' ? null : Number(form.prepMinutes),
     cookMinutes: form.cookMinutes === '' ? null : Number(form.cookMinutes),

@@ -14,6 +14,9 @@ const props = defineProps<{
 
 const localePath = useLocalePath()
 
+// Photo distante bloquée (hotlink) ou morte → placeholder illustré.
+const imageFailed = ref(false)
+
 const totalMinutes = computed(() => {
   const total = (props.recipe.prepMinutes ?? 0) + (props.recipe.cookMinutes ?? 0)
   return total > 0 ? total : null
@@ -26,7 +29,7 @@ const extraTags = computed(() => props.recipe.tags.length - 2)
 <template>
   <NuxtLink :to="localePath(`/recettes/${recipe.id}`)" class="card recipe-card" data-testid="recipe-card">
     <div class="thumb">
-      <img v-if="recipe.imageUrl" :src="recipe.imageUrl" alt="" loading="lazy">
+      <img v-if="recipe.imageUrl && !imageFailed" :src="recipe.imageUrl" alt="" loading="lazy" @error="imageFailed = true">
       <RecipePlaceholder v-else :tags="recipe.tags" />
     </div>
     <div class="body">

@@ -116,9 +116,27 @@
     "increase": "Increase: {label}",
     "decrease": "Decrease: {label}"
   },
+  "import": {
+    "title": "Import a recipe",
+    "tabUrl": "From a URL",
+    "tabPhoto": "From photos",
+    "urlLabel": "Recipe address",
+    "urlPlaceholder": "https://www.allrecipes.com/…",
+    "urlHint": "Works with most recipe sites; AI fallback otherwise.",
+    "extract": "Extract the recipe",
+    "extracting": "Extracting…",
+    "photoLabel": "Recipe photos",
+    "photoHint": "Cookbook, handwritten card or screenshot — JPEG, PNG or WebP, 10 MB and 3 photos max.",
+    "photoUnavailable": "Photo import needs a Claude API key on the server (ANTHROPIC_API_KEY).",
+    "draftBanner": "Extracted draft — review and correct before saving. Nothing is saved yet.",
+    "draftSource": "Source: {url}",
+    "warningsTitle": "To double-check:",
+    "manual": "Or type it in manually"
+  },
   "recipes": {
     "listTitle": "My recipes",
     "new": "New recipe",
+    "importCta": "Import",
     "searchLabel": "Search recipes",
     "searchPlaceholder": "Title or ingredient…",
     "filters": "Filters",
@@ -208,6 +226,12 @@
     "tooManyRequests": "Too many attempts, try again in a minute.",
     "invalidInput": "Check the form fields.",
     "notFound": "Not found — it may have been deleted.",
+    "importUnreachable": "Couldn't reach that address. Check the URL.",
+    "importFailed": "No recipe detected. Try another address, or type it in manually.",
+    "importUnavailable": "Photo import isn't configured on this server (missing API key).",
+    "importProviderError": "Extraction failed on the provider side. Try again in a moment.",
+    "fileTooLarge": "Photo too large (10 MB max).",
+    "invalidImage": "Unsupported image format (JPEG, PNG or WebP).",
     "unknown": "Something went wrong. Please try again."
   }
 }

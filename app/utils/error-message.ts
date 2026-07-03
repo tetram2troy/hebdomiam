@@ -9,6 +9,12 @@ const KNOWN_KEYS = new Set([
   'errors.notEnoughRecipes',
   'errors.noMoreSuggestions',
   'errors.invalidState',
+  'errors.importUnreachable',
+  'errors.importFailed',
+  'errors.importUnavailable',
+  'errors.importProviderError',
+  'errors.fileTooLarge',
+  'errors.invalidImage',
 ])
 
 export function errorMessage(err: unknown, t: (key: string) => string): string {

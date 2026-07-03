@@ -12,6 +12,7 @@ const { data: recipe, error: fetchError } = await useFetch<RecipeDetail>(`/api/r
 const servings = ref(recipe.value?.baseServings ?? 4)
 const deleteError = ref('')
 const deleting = ref(false)
+const imageFailed = ref(false)
 
 const totalMinutes = computed(() => {
   if (!recipe.value) return 0
@@ -85,7 +86,7 @@ async function removeRecipe() {
         <p v-if="deleteError" class="error" role="alert">{{ deleteError }}</p>
       </div>
       <div class="photo">
-        <img v-if="recipe.imageUrl" :src="recipe.imageUrl" alt="">
+        <img v-if="recipe.imageUrl && !imageFailed" :src="recipe.imageUrl" alt="" @error="imageFailed = true">
         <RecipePlaceholder v-else :tags="recipe.tags" />
       </div>
     </header>

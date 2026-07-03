@@ -42,9 +42,14 @@ function clearFilters() {
   <div>
     <div class="page-head">
       <h1>{{ $t('recipes.listTitle') }}</h1>
-      <NuxtLink :to="localePath('/recettes/nouvelle')" class="btn" data-testid="new-recipe">
-        + {{ $t('recipes.new') }}
-      </NuxtLink>
+      <div class="head-actions">
+        <NuxtLink :to="localePath('/recettes/importer')" class="btn btn-outline" data-testid="import-recipe">
+          {{ $t('recipes.importCta') }}
+        </NuxtLink>
+        <NuxtLink :to="localePath('/recettes/nouvelle')" class="btn" data-testid="new-recipe">
+          + {{ $t('recipes.new') }}
+        </NuxtLink>
+      </div>
     </div>
 
     <div class="toolbar">
@@ -123,6 +128,11 @@ function clearFilters() {
 
 .page-head h1 {
   margin: 0;
+}
+
+.head-actions {
+  display: flex;
+  gap: var(--hb-space-3);
 }
 
 .toolbar {
