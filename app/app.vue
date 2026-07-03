@@ -22,6 +22,7 @@ async function logout() {
       <nav v-if="loggedIn" class="nav" :aria-label="$t('nav.main')">
         <NuxtLink :to="localePath('/')" class="nav-link">{{ $t('nav.home') }}</NuxtLink>
         <NuxtLink :to="localePath('/recettes')" class="nav-link">{{ $t('nav.recipes') }}</NuxtLink>
+        <NuxtLink :to="localePath('/epicerie')" class="nav-link">{{ $t('nav.grocery') }}</NuxtLink>
       </nav>
       <div class="topnav-end">
         <template v-if="loggedIn">

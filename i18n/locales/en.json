@@ -6,6 +6,7 @@
     "main": "Main navigation",
     "home": "Home",
     "recipes": "Recipes",
+    "grocery": "Groceries",
     "plan": "Plan my week"
   },
   "home": {
@@ -23,7 +24,30 @@
     "statusCooked": "✓ Cooked",
     "statusTodo": "To cook",
     "markCooked": "Cooked ✓",
-    "allCooked": "Everything's cooked — great week!"
+    "allCooked": "Everything's cooked — great week!",
+    "groceryTitle": "Grocery list",
+    "groceryRemaining": "{n} item left | {n} items left",
+    "groceryOpen": "Open"
+  },
+  "grocery": {
+    "title": "Groceries",
+    "progress": "{checked} / {total} in the cart",
+    "addLabel": "Add an item",
+    "addPlaceholder": "+ Add an item (paper towels…)",
+    "remaining": "{n} left | {n} left",
+    "inCart": "In the cart ({n})",
+    "checkLabel": "Check {label}",
+    "uncheckLabel": "Uncheck {label}",
+    "editLabel": "Edit {label}",
+    "aisleLabel": "Aisle",
+    "remove": "Remove from list",
+    "manualBadge": "manual",
+    "sources": "Combined from:",
+    "close": "Close",
+    "allDone": "Everything's in the cart!",
+    "emptyTitle": "No list this week",
+    "emptyBody": "Confirm a planned week first — the grocery list generates itself.",
+    "goPlan": "Plan my week"
   },
   "plan": {
     "title": "Plan my week",
@@ -65,7 +89,8 @@
     "close": "Close",
     "noOptions": "Nothing to offer — your whole collection is already in the plan.",
     "validatedTitle": "Week confirmed!",
-    "validatedBody": "Your plan is ready. The grocery list is coming soon — meanwhile everything is on the home page.",
+    "validatedBody": "Your plan is ready and the grocery list is generated.",
+    "seeGrocery": "See the grocery list",
     "backHome": "See my week"
   },
   "auth": {

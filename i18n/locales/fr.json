@@ -6,6 +6,7 @@
     "main": "Navigation principale",
     "home": "Accueil",
     "recipes": "Recettes",
+    "grocery": "Épicerie",
     "plan": "Planifier ma semaine"
   },
   "home": {
@@ -23,7 +24,30 @@
     "statusCooked": "✓ Cuisinée",
     "statusTodo": "À cuisiner",
     "markCooked": "Cuisinée ✓",
-    "allCooked": "Tout est cuisiné — belle semaine !"
+    "allCooked": "Tout est cuisiné — belle semaine !",
+    "groceryTitle": "Liste d'épicerie",
+    "groceryRemaining": "{n} article restant | {n} articles restants",
+    "groceryOpen": "Ouvrir"
+  },
+  "grocery": {
+    "title": "Épicerie",
+    "progress": "{checked} / {total} dans le panier",
+    "addLabel": "Ajouter un article",
+    "addPlaceholder": "+ Ajouter un article (essuie-tout…)",
+    "remaining": "{n} restant | {n} restants",
+    "inCart": "Dans le panier ({n})",
+    "checkLabel": "Cocher {label}",
+    "uncheckLabel": "Décocher {label}",
+    "editLabel": "Modifier {label}",
+    "aisleLabel": "Rayon",
+    "remove": "Retirer de la liste",
+    "manualBadge": "libre",
+    "sources": "Agrégé de :",
+    "close": "Fermer",
+    "allDone": "Tout est dans le panier !",
+    "emptyTitle": "Pas de liste cette semaine",
+    "emptyBody": "Valide d'abord une semaine planifiée : la liste d'épicerie se génère toute seule.",
+    "goPlan": "Planifier ma semaine"
   },
   "plan": {
     "title": "Planifier ma semaine",
@@ -65,7 +89,8 @@
     "close": "Fermer",
     "noOptions": "Rien à proposer — toute ta collection est déjà au plan.",
     "validatedTitle": "Semaine validée !",
-    "validatedBody": "Ton plan est prêt. La liste d'épicerie arrive bientôt — d'ici là, tout est sur l'accueil.",
+    "validatedBody": "Ton plan est prêt et la liste d'épicerie est générée.",
+    "seeGrocery": "Voir la liste d'épicerie",
     "backHome": "Voir ma semaine"
   },
   "auth": {

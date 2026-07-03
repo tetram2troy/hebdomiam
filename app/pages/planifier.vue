@@ -321,7 +321,8 @@ function totalMinutes(item: PlanRecipeDto): number {
           <p class="mini-title">{{ item.recipe.title }}</p>
         </div>
       </div>
-      <NuxtLink :to="localePath('/')" class="btn big-cta" data-testid="back-home">{{ $t('plan.backHome') }}</NuxtLink>
+      <NuxtLink :to="localePath('/epicerie')" class="btn big-cta" data-testid="see-grocery">{{ $t('plan.seeGrocery') }}</NuxtLink>
+      <NuxtLink :to="localePath('/')" class="btn btn-text" data-testid="back-home">{{ $t('plan.backHome') }}</NuxtLink>
     </section>
   </div>
 </template>

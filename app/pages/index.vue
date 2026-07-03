@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { GroceryListDto } from '#shared/types/grocery'
 import type { MealPlanDto, PlanDefaults } from '#shared/types/plan'
 
 const { loggedIn, user } = useUserSession()
@@ -9,6 +10,16 @@ const { data: bundle } = await useFetch<{ plan: MealPlanDto | null, defaults: Pl
   '/api/plans/current',
   { immediate: loggedIn.value, watch: false },
 )
+
+const { data: groceryData } = await useFetch<{ list: GroceryListDto | null }>(
+  '/api/grocery-list/current',
+  { immediate: loggedIn.value, watch: false },
+)
+
+const groceryRemaining = computed(() => {
+  const list = groceryData.value?.list
+  return list ? list.totalCount - list.checkedCount : null
+})
 
 const plan = computed(() => bundle.value?.plan ?? null)
 const error = ref('')
@@ -83,6 +94,20 @@ async function replan() {
 
         <p v-if="error" class="error" role="alert">{{ error }}</p>
         <p v-if="allCooked" class="all-cooked" data-testid="all-cooked">{{ $t('home.allCooked') }}</p>
+
+        <NuxtLink
+          v-if="groceryRemaining !== null"
+          :to="localePath('/epicerie')"
+          class="card grocery-card"
+          data-testid="grocery-card"
+        >
+          <span class="grocery-icon" aria-hidden="true">🛒</span>
+          <span class="grow">
+            <b>{{ $t('home.groceryTitle') }}</b>
+            <span class="meta block">{{ $t('home.groceryRemaining', { n: groceryRemaining }, groceryRemaining) }}</span>
+          </span>
+          <span class="btn btn-outline open-btn">{{ $t('home.groceryOpen') }}</span>
+        </NuxtLink>
 
         <div class="plan-grid">
           <article v-for="item in plan.recipes" :key="item.id" class="card plan-card" data-testid="plan-card">
@@ -251,5 +276,33 @@ async function replan() {
 .week-actions {
   display: flex;
   gap: var(--hb-space-3);
+}
+
+.grocery-card {
+  display: flex;
+  align-items: center;
+  gap: var(--hb-space-4);
+  padding: var(--hb-space-4);
+  margin-bottom: var(--hb-space-5);
+  color: inherit;
+  text-decoration: none;
+  max-width: 520px;
+}
+
+.grocery-icon {
+  font-size: 26px;
+}
+
+.grocery-card .grow {
+  flex: 1;
+}
+
+.grocery-card .block {
+  display: block;
+}
+
+.open-btn {
+  min-height: 40px;
+  padding: 6px 18px;
 }
 </style>
