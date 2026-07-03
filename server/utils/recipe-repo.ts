@@ -18,7 +18,7 @@ type RecipeRow = typeof recipes.$inferSelect & {
   recipeTags: Array<{ tag: { name: string } }>
 }
 
-function toSummary(row: RecipeRow): RecipeSummary {
+export function toRecipeSummary(row: RecipeRow): RecipeSummary {
   return {
     id: row.id,
     title: row.title,
@@ -65,7 +65,7 @@ export async function listRecipes(db: Db, userId: string, query: RecipeListQuery
     limit: LIST_LIMIT,
   })
 
-  return rows.map(toSummary)
+  return rows.map(toRecipeSummary)
 }
 
 export async function getRecipe(db: Db, userId: string, recipeId: string): Promise<RecipeDetail | null> {
@@ -80,7 +80,7 @@ export async function getRecipe(db: Db, userId: string, recipeId: string): Promi
   if (!row) return null
 
   return {
-    ...toSummary(row),
+    ...toRecipeSummary(row),
     description: row.description,
     sourceUrl: row.sourceUrl,
     notes: row.notes,

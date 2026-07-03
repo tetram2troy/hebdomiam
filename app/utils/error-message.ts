@@ -5,6 +5,10 @@ const KNOWN_KEYS = new Set([
   'errors.emailTaken',
   'errors.tooManyRequests',
   'errors.notFound',
+  'errors.planExists',
+  'errors.notEnoughRecipes',
+  'errors.noMoreSuggestions',
+  'errors.invalidState',
 ])
 
 export function errorMessage(err: unknown, t: (key: string) => string): string {

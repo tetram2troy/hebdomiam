@@ -1,8 +1,10 @@
 import { relations } from 'drizzle-orm'
-import { boolean, index, integer, numeric, pgEnum, pgTable, primaryKey, text, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core'
+import { boolean, date, index, integer, numeric, pgEnum, pgTable, primaryKey, text, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core'
 
 export const localeEnum = pgEnum('locale', ['fr', 'en'])
 export const unitSystemEnum = pgEnum('unit_system', ['metric', 'imperial'])
+export const mealPlanStatusEnum = pgEnum('meal_plan_status', ['draft', 'validated', 'cooked'])
+export const mealPlanRecipeStatusEnum = pgEnum('meal_plan_recipe_status', ['suggested', 'accepted', 'swapped', 'cooked'])
 
 // Enums partagés avec shared/schemas/recipe.ts (UNITS / AISLES) — garder synchronisés.
 export const unitEnum = pgEnum('unit', ['g', 'kg', 'ml', 'l', 'oz', 'lb', 'cup', 'tbsp', 'tsp', 'unit', 'pinch'])
@@ -16,6 +18,11 @@ export const users = pgTable('users', {
   emailVerifiedAt: timestamp('email_verified_at', { withTimezone: true }),
   locale: localeEnum('locale').notNull().default('fr'),
   unitSystem: unitSystemEnum('unit_system').notNull().default('metric'),
+  // Valeurs par défaut de planification (modifiables dans les réglages, PRD F5)
+  defaultDishCount: integer('default_dish_count').notNull().default(4),
+  defaultPeopleCount: integer('default_people_count').notNull().default(1),
+  defaultDaysCount: integer('default_days_count').notNull().default(7),
+  rotationWeeks: integer('rotation_weeks').notNull().default(3),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 })
 
@@ -76,10 +83,49 @@ export const recipeTags = pgTable('recipe_tags', {
   primaryKey({ columns: [table.recipeId, table.tagId] }),
 ])
 
+export const mealPlans = pgTable('meal_plans', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  weekStartDate: date('week_start_date').notNull(),
+  peopleCount: integer('people_count').notNull(),
+  dishCount: integer('dish_count').notNull(),
+  daysCount: integer('days_count').notNull(),
+  totalServings: integer('total_servings').notNull(),
+  status: mealPlanStatusEnum('status').notNull().default('draft'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, table => [
+  // Un seul plan par semaine et par utilisateur (« Replanifier » remplace).
+  uniqueIndex('meal_plans_user_id_week_idx').on(table.userId, table.weekStartDate),
+])
+
+export const mealPlanRecipes = pgTable('meal_plan_recipes', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  mealPlanId: uuid('meal_plan_id').notNull().references(() => mealPlans.id, { onDelete: 'cascade' }),
+  recipeId: uuid('recipe_id').notNull().references(() => recipes.id, { onDelete: 'cascade' }),
+  position: integer('position').notNull(),
+  targetServings: integer('target_servings').notNull(),
+  // « swapped » reste en base : mémoire des suggestions écartées pour ne pas les
+  // reproposer ; « cooked » alimente la rotation (historique).
+  status: mealPlanRecipeStatusEnum('status').notNull().default('suggested'),
+  cookedAt: timestamp('cooked_at', { withTimezone: true }),
+}, table => [
+  index('meal_plan_recipes_meal_plan_id_idx').on(table.mealPlanId),
+  index('meal_plan_recipes_recipe_id_idx').on(table.recipeId),
+])
+
 export const recipesRelations = relations(recipes, ({ many }) => ({
   steps: many(recipeSteps),
   ingredients: many(recipeIngredients),
   recipeTags: many(recipeTags),
+}))
+
+export const mealPlansRelations = relations(mealPlans, ({ many }) => ({
+  planRecipes: many(mealPlanRecipes),
+}))
+
+export const mealPlanRecipesRelations = relations(mealPlanRecipes, ({ one }) => ({
+  mealPlan: one(mealPlans, { fields: [mealPlanRecipes.mealPlanId], references: [mealPlans.id] }),
+  recipe: one(recipes, { fields: [mealPlanRecipes.recipeId], references: [recipes.id] }),
 }))
 
 export const recipeStepsRelations = relations(recipeSteps, ({ one }) => ({
