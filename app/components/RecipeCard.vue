@@ -64,8 +64,7 @@ const extraTags = computed(() => props.recipe.tags.length - 2)
 }
 
 .thumb {
-  aspect-ratio: 3 / 2;
-  max-height: 160px;
+  height: 150px;
   width: 100%;
   overflow: hidden;
 }

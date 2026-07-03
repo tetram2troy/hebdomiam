@@ -25,6 +25,7 @@ async function logout() {
       </nav>
       <div class="topnav-end">
         <template v-if="loggedIn">
+          <NuxtLink :to="localePath('/planifier')" class="btn topnav-btn" data-testid="nav-plan">{{ $t('nav.plan') }}</NuxtLink>
           <span class="meta">{{ user?.name }}</span>
           <button type="button" class="btn-outline topnav-btn" @click="logout">{{ $t('auth.logout') }}</button>
         </template>
