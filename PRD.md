@@ -2,8 +2,10 @@
 
 Application de planification de repas hebdomadaire.
 
-> Version : 0.2 — 2026-07-02
-> Statut : décisions structurantes validées ; prêt pour le jalon M0
+> Version : 0.3 — 2026-07-04
+> Statut : M0–M4 livrés. M5 en cours — livrés : vérification du courriel,
+> réinitialisation de mot de passe, 2FA TOTP, réglages du compte,
+> journalisation structurée ; restent : PWA, sauvegardes, revue de sécurité.
 
 ---
 
@@ -306,7 +308,7 @@ si un middleware Traefik saute ou si elle est déployée ailleurs un jour).
 - **Rate limiting** sur login/inscription/reset (par IP et par compte) + délai progressif.
 - Verrouillage temporaire après échecs répétés ; messages d'erreur non énumérants
   (« courriel ou mot de passe invalide »).
-- 2FA TOTP en option (V1.5).
+- 2FA TOTP en option — ✅ livrée (M5), avec code de secours à usage unique.
 
 ### Application (OWASP Top 10)
 - Validation Zod systématique de **toute** entrée (body, query, params) côté serveur.

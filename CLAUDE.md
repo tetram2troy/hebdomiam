@@ -13,6 +13,7 @@ toute chaîne visible passe par i18n (`i18n/locales/*.json`), jamais en dur.
 
 - `npm run dev` — développement (DB : `docker compose -f docker-compose.dev.yml up -d`)
 - `npm run lint` / `npm run typecheck` / `npm test` — à faire passer avant tout commit
+- `npm run test:integration` — Vitest + DB éphémère (nécessite la DB de dev démarrée)
 - `npm run test:e2e` — Playwright (nécessite DB migrée + `npm run build`)
 - `npm run db:generate` — nouvelle migration après modification de `server/database/schema.ts`
 
@@ -31,6 +32,9 @@ toute chaîne visible passe par i18n (`i18n/locales/*.json`), jamais en dur.
 - Quantités en `decimal` Drizzle, jamais en `float`.
 - Routes d'auth : rate limiting applicatif (`assertRateLimit`) + `rate-limit-auth@file`
   côté Traefik en prod.
+- **Journalisation** : toute action critique (mutation, événement de sécurité) passe par
+  `logEvent`/`logWarn`/`logError` (`server/utils/logger.ts`) — une ligne JSON nommée
+  `domaine.action` ; jamais de secret ni de contenu utilisateur, PII minimale (userId).
 - Commits : Conventional Commits (`feat:`, `fix:`, `chore:`…), messages en français.
 - Le compose de prod cible le home lab (réseau Traefik externe `proxy`) — ne pas y
   ajouter de reverse proxy ni publier de ports.

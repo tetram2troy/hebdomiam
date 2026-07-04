@@ -28,6 +28,7 @@ npm run dev                     # http://localhost:3000
 | `npm run build` | Build de production |
 | `npm run lint` / `npm run typecheck` | Qualité statique |
 | `npm test` | Tests unitaires (Vitest) |
+| `npm run test:integration` | Tests d'intégration (Vitest + DB éphémère `hebdomiam_test`) |
 | `npm run test:e2e` | Tests E2E (Playwright — nécessite la DB et un build) |
 | `npm run db:generate` | Génère une migration depuis `server/database/schema.ts` |
 | `npm run db:migrate` | Applique les migrations |
@@ -51,9 +52,11 @@ docker compose up -d --build
 app/               Pages, composants, utilitaires client
 server/api/        Routes API (Nitro)
 server/database/   Schéma Drizzle + migrations
-server/utils/      DB, mots de passe (Argon2id), rate limiting
+server/utils/      DB, mots de passe (Argon2id), rate limiting, 2FA, courriels,
+                   journalisation structurée (logger.ts)
 shared/schemas/    Schémas Zod partagés client/serveur
 i18n/locales/      Traductions FR/EN
 tests/unit/        Tests unitaires
+tests/integration/ Tests d'intégration (DB réelle, IDOR)
 e2e/               Tests Playwright
 ```
