@@ -318,7 +318,7 @@
     "invalidInput": "Check the form fields.",
     "notFound": "Not found — it may have been deleted.",
     "importUnreachable": "Couldn't reach that address. Check the URL.",
-    "importFailed": "No recipe detected. Try another address, or type it in manually.",
+    "importFailed": "No recipe detected on this page. Paste the address of a specific recipe (not a home or listing page), or type it in manually.",
     "importUnavailable": "Photo import isn't configured on this server (missing API key).",
     "importProviderError": "Extraction failed on the provider side. Try again in a moment.",
     "fileTooLarge": "Photo too large (10 MB max).",

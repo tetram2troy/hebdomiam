@@ -318,7 +318,7 @@
     "invalidInput": "Vérifie les champs du formulaire.",
     "notFound": "Introuvable — l'élément a peut-être été supprimé.",
     "importUnreachable": "Impossible d'atteindre cette adresse. Vérifie l'URL.",
-    "importFailed": "Aucune recette détectée. Essaie une autre adresse, ou saisis-la à la main.",
+    "importFailed": "Aucune recette détectée sur cette page. Colle l'adresse d'une recette précise (pas une page d'accueil ou de liste), ou saisis-la à la main.",
     "importUnavailable": "L'import par photo n'est pas configuré sur ce serveur (clé API manquante).",
     "importProviderError": "L'extraction a échoué côté fournisseur. Réessaie dans un moment.",
     "fileTooLarge": "Photo trop lourde (10 Mo max).",
