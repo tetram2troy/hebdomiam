@@ -4,6 +4,11 @@ declare module '#auth-utils' {
     email: string
     name: string
   }
+
+  interface UserSession {
+    /** Mot de passe validé, code TOTP attendu — pas encore connecté. */
+    pendingTotpUserId?: string
+  }
 }
 
 export {}

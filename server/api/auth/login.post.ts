@@ -22,6 +22,13 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 401, message: 'errors.invalidCredentials' })
   }
 
+  // 2FA active : mot de passe validé mais session incomplète tant que le code
+  // TOTP n'est pas fourni (POST /api/auth/2fa).
+  if (user.totpEnabledAt) {
+    await replaceUserSession(event, { pendingTotpUserId: user.id })
+    return { requires2fa: true as const }
+  }
+
   const publicUser = { id: user.id, email: user.email, name: user.name }
   await setUserSession(event, { user: publicUser })
   return { user: publicUser }
