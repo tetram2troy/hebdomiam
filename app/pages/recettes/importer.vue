@@ -125,7 +125,8 @@ function importPhotos() {
 
 <style scoped>
 .import-page {
-  max-width: 640px;
+  /* Assez large pour lire une URL de recette entière. */
+  max-width: 860px;
   display: grid;
   gap: var(--hb-space-4);
   justify-items: start;
