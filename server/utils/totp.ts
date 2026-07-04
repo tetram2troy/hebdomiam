@@ -61,21 +61,23 @@ export async function disableTotp(db: Db, userId: string, password: string): Pro
   return 'ok'
 }
 
-/** Vérifie un code TOTP (ou le code de secours, consommé à l'usage) au login. */
-export async function verifyTotpLogin(db: Db, userId: string, code: string): Promise<boolean> {
+/** Vérifie un code TOTP (ou le code de secours, consommé à l'usage) au login.
+    Retourne la méthode acceptée — l'usage du code de secours mérite d'être
+    journalisé (authenticateur perdu… ou compromis). */
+export async function verifyTotpLogin(db: Db, userId: string, code: string): Promise<'totp' | 'backup' | null> {
   const user = await db.query.users.findFirst({
     where: eq(users.id, userId),
     columns: { totpSecret: true, totpEnabledAt: true, totpBackupHash: true },
   })
-  if (!user?.totpSecret || !user.totpEnabledAt) return false
+  if (!user?.totpSecret || !user.totpEnabledAt) return null
 
-  if (verifyCode(user.totpSecret, code)) return true
+  if (verifyCode(user.totpSecret, code)) return 'totp'
 
   if (user.totpBackupHash && user.totpBackupHash === hashBackupCode(code.trim())) {
     await db.update(users).set({ totpBackupHash: null }).where(eq(users.id, userId))
-    return true
+    return 'backup'
   }
-  return false
+  return null
 }
 
 export async function isTotpEnabled(db: Db, userId: string): Promise<boolean> {

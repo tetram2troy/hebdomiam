@@ -1,4 +1,5 @@
 import type { H3Event } from 'h3'
+import { logWarn } from './logger'
 
 export interface RateLimitOptions {
   max: number
@@ -36,6 +37,7 @@ export function assertRateLimit(event: H3Event, bucket: string, options: RateLim
   }
   const ip = getRequestIP(event, { xForwardedFor: true }) ?? 'unknown'
   if (!limiter.check(ip)) {
+    logWarn('security.rate_limited', { bucket, ip })
     throw createError({ statusCode: 429, message: 'errors.tooManyRequests' })
   }
 }

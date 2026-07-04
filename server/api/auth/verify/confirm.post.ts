@@ -8,8 +8,10 @@ export default defineEventHandler(async (event) => {
 
   const userId = await consumeEmailToken(useDb(), 'verify', token)
   if (!userId) {
+    logWarn('auth.verify_invalid_token', { ip: clientIp(event) })
     throw createError({ statusCode: 400, message: 'errors.invalidToken' })
   }
   await useDb().update(users).set({ emailVerifiedAt: new Date() }).where(eq(users.id, userId))
+  logEvent('auth.email_verified', { userId })
   return { ok: true }
 })

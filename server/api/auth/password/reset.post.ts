@@ -8,10 +8,12 @@ export default defineEventHandler(async (event) => {
 
   const userId = await consumeEmailToken(useDb(), 'reset', token)
   if (!userId) {
+    logWarn('auth.reset_invalid_token', { ip: clientIp(event) })
     throw createError({ statusCode: 400, message: 'errors.invalidToken' })
   }
   await useDb().update(users)
     .set({ passwordHash: await hashUserPassword(password) })
     .where(eq(users.id, userId))
+  logEvent('auth.password_reset', { userId, ip: clientIp(event) })
   return { ok: true }
 })

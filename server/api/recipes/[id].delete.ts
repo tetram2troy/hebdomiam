@@ -7,5 +7,6 @@ export default defineEventHandler(async (event) => {
   if (!deleted) {
     throw createError({ statusCode: 404, message: 'errors.notFound' })
   }
+  logEvent('recipe.deleted', { userId: user.id, recipeId: id })
   return { ok: true }
 })

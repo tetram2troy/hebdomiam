@@ -7,5 +7,6 @@ export default defineEventHandler(async (event) => {
   if ('error' in result) {
     throw createError({ statusCode: PLAN_ERROR_STATUS[result.error], message: `errors.${result.error}` })
   }
+  logEvent('plan.validated', { userId: user.id, planId: id })
   return result.plan
 })

@@ -11,5 +11,6 @@ export default defineEventHandler(async (event) => {
   const token = await createEmailToken(useDb(), user.id, 'verify', 24 * 60)
   const link = `${appBaseUrl(getRequestURL(event).origin)}/verifier-courriel?token=${token}`
   await sendMail(verifyEmailMail(row.email, row.locale, link))
+  logEvent('auth.verify_resent', { userId: user.id })
   return { ok: true }
 })

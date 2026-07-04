@@ -19,6 +19,8 @@ export default defineEventHandler(async (event) => {
   const valid = await verifyUserPassword(user?.passwordHash ?? dummyHash, body.password)
 
   if (!user || !valid) {
+    // Le courriel visé (pas le mot de passe !) : détecte le brute-force ciblé.
+    logWarn('auth.login_failed', { email: body.email, ip: clientIp(event) })
     throw createError({ statusCode: 401, message: 'errors.invalidCredentials' })
   }
 
@@ -26,10 +28,12 @@ export default defineEventHandler(async (event) => {
   // TOTP n'est pas fourni (POST /api/auth/2fa).
   if (user.totpEnabledAt) {
     await replaceUserSession(event, { pendingTotpUserId: user.id })
+    logEvent('auth.login_2fa_pending', { userId: user.id, ip: clientIp(event) })
     return { requires2fa: true as const }
   }
 
   const publicUser = { id: user.id, email: user.email, name: user.name }
   await setUserSession(event, { user: publicUser })
+  logEvent('auth.login', { userId: user.id, ip: clientIp(event) })
   return { user: publicUser }
 })

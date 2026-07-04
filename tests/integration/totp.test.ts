@@ -88,30 +88,31 @@ describe('activateTotp', () => {
 })
 
 describe('verifyTotpLogin', () => {
-  it('accepte le code courant et refuse un mauvais code', async () => {
+  it('accepte le code courant (méthode totp) et refuse un mauvais code', async () => {
     const user = await createTestUser(db)
     const { secret } = await setupAndActivate(user.id, user.email)
 
-    expect(await verifyTotpLogin(db, user.id, generateSync({ secret }))).toBe(true)
-    expect(await verifyTotpLogin(db, user.id, '000000')).toBe(false)
+    expect(await verifyTotpLogin(db, user.id, generateSync({ secret }))).toBe('totp')
+    expect(await verifyTotpLogin(db, user.id, '000000')).toBeNull()
   })
 
   it('refuse tout code tant que la 2FA n\'est pas activée', async () => {
     const user = await createTestUser(db)
     const { secret } = await startTotpSetup(db, user.id, user.email)
 
-    expect(await verifyTotpLogin(db, user.id, generateSync({ secret }))).toBe(false)
+    expect(await verifyTotpLogin(db, user.id, generateSync({ secret }))).toBeNull()
   })
 
   it('accepte le code de secours une seule fois, le TOTP restant valide', async () => {
     const user = await createTestUser(db)
     const { secret, backupCode } = await setupAndActivate(user.id, user.email)
 
-    expect(await verifyTotpLogin(db, user.id, backupCode)).toBe(true)
+    // La méthode « backup » est distinguée : elle est journalisée au login.
+    expect(await verifyTotpLogin(db, user.id, backupCode)).toBe('backup')
     // Consommé : un second essai échoue.
-    expect(await verifyTotpLogin(db, user.id, backupCode)).toBe(false)
+    expect(await verifyTotpLogin(db, user.id, backupCode)).toBeNull()
     // Mais l'authenticateur fonctionne toujours.
-    expect(await verifyTotpLogin(db, user.id, generateSync({ secret }))).toBe(true)
+    expect(await verifyTotpLogin(db, user.id, generateSync({ secret }))).toBe('totp')
   })
 })
 
@@ -139,7 +140,7 @@ describe('disableTotp', () => {
 
     expect(await disableTotp(db, user.id, PASSWORD)).toBe('ok')
     expect(await isTotpEnabled(db, user.id)).toBe(false)
-    expect(await verifyTotpLogin(db, user.id, backupCode)).toBe(false)
+    expect(await verifyTotpLogin(db, user.id, backupCode)).toBeNull()
 
     const row = await db.query.users.findFirst({ where: eq(users.id, user.id) })
     expect(row!.totpSecret).toBeNull()

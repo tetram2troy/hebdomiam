@@ -8,5 +8,6 @@ export default defineEventHandler(async (event) => {
   if (!recipe) {
     throw createError({ statusCode: 404, message: 'errors.notFound' })
   }
+  logEvent('recipe.updated', { userId: user.id, recipeId: id })
   return recipe
 })

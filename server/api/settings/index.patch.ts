@@ -10,5 +10,7 @@ export default defineEventHandler(async (event) => {
   if (patch.name) {
     await setUserSession(event, { user: { ...user, name: patch.name } })
   }
+  // Les clés modifiées suffisent — les valeurs n'apportent rien à l'audit.
+  logEvent('settings.updated', { userId: user.id, fields: Object.keys(patch) })
   return profile
 })

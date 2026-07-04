@@ -7,6 +7,7 @@ export default defineEventHandler(async (event) => {
   if ('error' in result) {
     throw createError({ statusCode: PLAN_ERROR_STATUS[result.error], message: `errors.${result.error}` })
   }
+  logEvent('plan.created', { userId: user.id, planId: result.plan.id, weekStartDate: result.plan.weekStartDate })
   setResponseStatus(event, 201)
   return result.plan
 })

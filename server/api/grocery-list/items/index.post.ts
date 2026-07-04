@@ -7,6 +7,7 @@ export default defineEventHandler(async (event) => {
   if (!list) {
     throw createError({ statusCode: 404, message: 'errors.notFound' })
   }
+  logEvent('grocery.item_added', { userId: user.id, listId: list.id })
   setResponseStatus(event, 201)
   return { list }
 })

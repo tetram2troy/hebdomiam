@@ -12,7 +12,9 @@ export default defineEventHandler(async (event) => {
   }
 
   const { code } = await readValidatedBody(event, data => totpCodeSchema.parse(data))
-  if (!(await verifyTotpLogin(useDb(), pendingUserId, code))) {
+  const method = await verifyTotpLogin(useDb(), pendingUserId, code)
+  if (!method) {
+    logWarn('auth.2fa_failed', { userId: pendingUserId, ip: clientIp(event) })
     throw createError({ statusCode: 401, message: 'errors.invalidCode' })
   }
 
@@ -23,5 +25,7 @@ export default defineEventHandler(async (event) => {
 
   const publicUser = { id: user.id, email: user.email, name: user.name }
   await replaceUserSession(event, { user: publicUser })
+  // method=backup : authenticateur perdu — ou compromis. À surveiller.
+  logEvent('auth.login', { userId: user.id, ip: clientIp(event), twoFactor: method })
   return { user: publicUser }
 })

@@ -14,8 +14,10 @@ export default defineEventHandler(async (event) => {
     .returning({ id: users.id, email: users.email, name: users.name })
 
   if (!user) {
+    logWarn('auth.register_email_taken', { ip: clientIp(event) })
     throw createError({ statusCode: 409, message: 'errors.emailTaken' })
   }
+  logEvent('auth.register', { userId: user.id, ip: clientIp(event) })
 
   // Courriel de vérification — l'inscription n'échoue jamais sur un souci SMTP.
   try {
@@ -25,7 +27,7 @@ export default defineEventHandler(async (event) => {
     await sendMail(verifyEmailMail(user.email, 'fr', link))
   }
   catch (error) {
-    console.error('Envoi du courriel de vérification impossible :', error)
+    logError('mailer.verify_send_failed', error, { userId: user.id })
   }
 
   await setUserSession(event, { user })

@@ -7,5 +7,6 @@ export default defineEventHandler(async (event) => {
   if (!list) {
     throw createError({ statusCode: 404, message: 'errors.notFound' })
   }
+  logEvent('grocery.item_deleted', { userId: user.id, itemId: id })
   return { list }
 })

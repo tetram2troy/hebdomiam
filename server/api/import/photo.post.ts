@@ -51,10 +51,13 @@ export default defineEventHandler(async (event) => {
 
   const result = await extractRecipeWithClaude({ images })
   if (!result.ok) {
+    logWarn('import.photo_failed', { userId: user.id, photos: images.length, reason: result.reason })
     throw createError({
       statusCode: result.reason === 'notFound' ? 422 : 502,
       message: result.reason === 'notFound' ? 'errors.importFailed' : 'errors.importProviderError',
     })
   }
+  // Chaque appel vision est facturé (PRD D9) : suivre le volume par utilisateur.
+  logEvent('import.photo', { userId: user.id, photos: images.length })
   return { draft: result.draft }
 })

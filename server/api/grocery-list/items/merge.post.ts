@@ -7,5 +7,6 @@ export default defineEventHandler(async (event) => {
   if (!list) {
     throw createError({ statusCode: 404, message: 'errors.notFound' })
   }
+  logEvent('grocery.items_merged', { userId: user.id, listId: list.id, count: itemIds.length })
   return { list }
 })

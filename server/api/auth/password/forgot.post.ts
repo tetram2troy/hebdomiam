@@ -12,6 +12,11 @@ export default defineEventHandler(async (event) => {
     const token = await createEmailToken(useDb(), user.id, 'reset', 60)
     const link = `${appBaseUrl(getRequestURL(event).origin)}/reinitialiser?token=${token}`
     await sendMail(resetPasswordMail(user.email, user.locale, link))
+    logEvent('auth.reset_requested', { userId: user.id, ip: clientIp(event) })
+  }
+  else {
+    // Courriel sans compte : du probing, ou un utilisateur qui se trompe d'adresse.
+    logWarn('auth.reset_requested_unknown', { email, ip: clientIp(event) })
   }
   return { ok: true }
 })
