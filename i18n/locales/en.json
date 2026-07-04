@@ -7,7 +7,9 @@
     "home": "Home",
     "recipes": "Recipes",
     "grocery": "Groceries",
-    "plan": "Plan my week"
+    "plan": "Plan my week",
+    "switchLocale": "FR",
+    "switchLocaleLabel": "Français"
   },
   "home": {
     "welcome": "Hello {name}!",

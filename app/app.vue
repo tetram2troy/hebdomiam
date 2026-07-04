@@ -1,6 +1,8 @@
 <script setup lang="ts">
 const { loggedIn, user, clear } = useUserSession()
 const localePath = useLocalePath()
+const switchLocalePath = useSwitchLocalePath()
+const { locale } = useI18n()
 
 // Applique le thème choisi avant la peinture (évite l'éclair clair→sombre).
 useHead({
@@ -9,6 +11,22 @@ useHead({
     tagPosition: 'head',
   }],
 })
+
+const otherLocale = computed(() => (locale.value === 'fr' ? 'en' : 'fr'))
+
+async function switchLanguage() {
+  // Connecté : la préférence de compte suit (langue des courriels) — sans
+  // bloquer la bascule d'interface si l'enregistrement échoue.
+  if (loggedIn.value) {
+    try {
+      await $fetch('/api/settings', { method: 'PATCH', body: { locale: otherLocale.value } })
+    }
+    catch (error) {
+      console.warn('Préférence de langue non enregistrée :', error)
+    }
+  }
+  await navigateTo(switchLocalePath(otherLocale.value))
+}
 
 async function logout() {
   await $fetch('/api/auth/logout', { method: 'POST' })
@@ -33,6 +51,13 @@ async function logout() {
         <NuxtLink :to="localePath('/epicerie')" class="nav-link">{{ $t('nav.grocery') }}</NuxtLink>
       </nav>
       <div class="topnav-end">
+        <button
+          type="button"
+          class="lang-btn"
+          data-testid="lang-switch"
+          :aria-label="$t('nav.switchLocaleLabel')"
+          @click="switchLanguage"
+        >{{ $t('nav.switchLocale') }}</button>
         <template v-if="loggedIn">
           <NuxtLink :to="localePath('/planifier')" class="btn topnav-btn" data-testid="nav-plan">{{ $t('nav.plan') }}</NuxtLink>
           <NuxtLink :to="localePath('/reglages')" class="nav-link" data-testid="nav-settings">{{ user?.name }}</NuxtLink>
@@ -105,5 +130,20 @@ async function logout() {
 .topnav-btn {
   min-height: 40px;
   padding: 6px 16px;
+}
+
+.lang-btn {
+  background: transparent;
+  border: none;
+  min-height: 40px;
+  padding: var(--hb-space-2);
+  color: var(--md-sys-color-on-surface-variant);
+  font: var(--md-sys-typescale-label-large);
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+
+.lang-btn:hover {
+  color: var(--md-sys-color-on-surface);
 }
 </style>
