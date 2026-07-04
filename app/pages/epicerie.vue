@@ -118,6 +118,39 @@ async function removeItem(item: GroceryItemDto) {
     error.value = errorMessage(err, t)
   }
 }
+
+// ── Regroupement manuel (« 2 tomates » + « 200 g tomates » → une ligne) ─────
+const mergeIds = ref<string[]>([])
+
+watch(editingId, () => {
+  mergeIds.value = []
+})
+
+const mergeCandidates = computed(() =>
+  list.value?.items.filter(item => !item.checked && item.id !== editingId.value) ?? [])
+
+function toggleMergeCandidate(id: string) {
+  mergeIds.value = mergeIds.value.includes(id)
+    ? mergeIds.value.filter(existing => existing !== id)
+    : [...mergeIds.value, id]
+}
+
+async function mergeSelected() {
+  if (!editingItem.value || mergeIds.value.length === 0) return
+  error.value = ''
+  try {
+    // L'article édité en premier : son libellé et son rayon sont conservés.
+    const response = await $fetch<{ list: GroceryListDto }>('/api/grocery-list/items/merge', {
+      method: 'POST',
+      body: { itemIds: [editingItem.value.id, ...mergeIds.value] },
+    })
+    data.value = response
+    mergeIds.value = []
+  }
+  catch (err) {
+    error.value = errorMessage(err, t)
+  }
+}
 </script>
 
 <template>
@@ -210,6 +243,27 @@ async function removeItem(item: GroceryItemDto) {
             <option v-for="aisle in AISLES" :key="aisle" :value="aisle">{{ $t(`aisles.${aisle}`) }}</option>
           </select>
         </label>
+        <fieldset v-if="mergeCandidates.length" class="merge">
+          <legend>{{ $t('grocery.mergeTitle') }}</legend>
+          <p class="meta merge-hint">{{ $t('grocery.mergeHint') }}</p>
+          <label v-for="candidate in mergeCandidates" :key="candidate.id" class="merge-row">
+            <input
+              type="checkbox"
+              :checked="mergeIds.includes(candidate.id)"
+              data-testid="merge-candidate"
+              @change="toggleMergeCandidate(candidate.id)"
+            >
+            <span class="merge-lbl">{{ candidate.label }}</span>
+            <span class="meta">{{ formatQuantity(candidate) }}</span>
+          </label>
+          <button
+            type="button"
+            class="btn-tonal"
+            :disabled="mergeIds.length === 0"
+            data-testid="merge-submit"
+            @click="mergeSelected"
+          >{{ $t('grocery.mergeSubmit', { n: mergeIds.length + 1 }) }}</button>
+        </fieldset>
         <button type="button" class="btn-danger" data-testid="remove-item" @click="removeItem(editingItem)">
           {{ $t('grocery.remove') }}
         </button>
@@ -440,6 +494,40 @@ async function removeItem(item: GroceryItemDto) {
 .sheet-aisle {
   width: 100%;
   max-width: 320px;
+}
+
+.merge {
+  width: 100%;
+  border: 1px solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-sys-shape-corner-medium);
+  padding: var(--hb-space-3) var(--hb-space-4);
+  display: grid;
+  gap: var(--hb-space-2);
+  justify-items: start;
+  margin: 0;
+}
+
+.merge legend {
+  font: var(--md-sys-typescale-title-small);
+  padding-inline: var(--hb-space-1);
+}
+
+.merge-hint {
+  margin: 0;
+}
+
+.merge-row {
+  display: flex;
+  align-items: center;
+  gap: var(--hb-space-3);
+  width: 100%;
+  min-height: 44px;
+  font: var(--md-sys-typescale-body-large);
+}
+
+.merge-lbl {
+  flex: 1;
+  min-width: 0;
 }
 
 .cart {

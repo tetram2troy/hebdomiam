@@ -20,5 +20,13 @@ export const groceryItemIdParamsSchema = z.object({
   id: z.uuid(),
 })
 
+/** Fusion manuelle : le premier id est l'article conservé (libellé, rayon). */
+export const groceryItemsMergeSchema = z.object({
+  itemIds: z.array(z.uuid()).min(2).max(50).refine(
+    ids => new Set(ids).size === ids.length,
+    { message: 'duplicate ids' },
+  ),
+})
+
 export type GroceryItemCreateInput = z.infer<typeof groceryItemCreateSchema>
 export type GroceryItemUpdateInput = z.infer<typeof groceryItemUpdateSchema>

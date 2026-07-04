@@ -170,3 +170,53 @@ export async function deleteGroceryItem(db: Db, userId: string, itemId: string, 
   await db.delete(groceryItems).where(eq(groceryItems.id, itemId))
   return getGroceryListForWeek(db, userId, now)
 }
+
+/** Fusionne plusieurs articles en un seul (regroupement manuel). Le premier id
+    est conservé : libellé et rayon gardés, quantités additionnées si tous les
+    articles partagent la même unité de base (sinon quantité effacée — le
+    détail reste dans les sources). */
+export async function mergeGroceryItems(db: Db, userId: string, itemIds: string[], now = new Date()): Promise<GroceryListDto | null> {
+  const rows = await db.select({
+    id: groceryItems.id,
+    groceryListId: groceryItems.groceryListId,
+    quantity: groceryItems.quantity,
+    unit: groceryItems.unit,
+    checked: groceryItems.checked,
+    isManual: groceryItems.isManual,
+    sources: groceryItems.sources,
+  })
+    .from(groceryItems)
+    .innerJoin(groceryLists, eq(groceryLists.id, groceryItems.groceryListId))
+    .innerJoin(mealPlans, eq(mealPlans.id, groceryLists.mealPlanId))
+    .where(and(inArray(groceryItems.id, itemIds), eq(mealPlans.userId, userId)))
+
+  // Tous les articles doivent exister, appartenir à l'utilisateur et à la même liste.
+  if (rows.length !== itemIds.length) return null
+  if (new Set(rows.map(r => r.groceryListId)).size !== 1) return null
+
+  const byId = new Map(rows.map(r => [r.id, r]))
+  const ordered = itemIds.map(id => byId.get(id)!)
+  const [target, ...merged] = ordered
+
+  const units = new Set(ordered.map(r => r.unit))
+  const summable = units.size === 1 && ordered.every(r => r.quantity !== null)
+  const quantity = summable
+    ? ordered.reduce((total, r) => total + Number(r.quantity), 0)
+    : null
+
+  await db.transaction(async (tx) => {
+    await tx.update(groceryItems)
+      .set({
+        quantity: quantity === null ? null : quantity.toFixed(2),
+        unit: summable ? target!.unit : null,
+        // Regroupé pour l'achat : repasse « à acheter » même si une part était cochée.
+        checked: false,
+        isManual: ordered.every(r => r.isManual),
+        sources: ordered.flatMap(r => r.sources ?? []),
+      })
+      .where(eq(groceryItems.id, target!.id))
+    await tx.delete(groceryItems).where(inArray(groceryItems.id, merged.map(r => r.id)))
+  })
+
+  return getGroceryListForWeek(db, userId, now)
+}

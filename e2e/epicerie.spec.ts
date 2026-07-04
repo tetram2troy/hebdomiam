@@ -118,7 +118,19 @@ test('du plan validé au panier plein : agrégation, cochage, article libre, ray
   await expect(page.getByTestId('progress')).toHaveText('0 / 4 dans le panier')
   await expect(page.getByTestId('cart-item')).toHaveCount(0)
 
+  // Regroupement manuel : les deux lignes de tomates (unités incompatibles)
+  // deviennent une seule, sans perdre la provenance
+  await page.getByRole('button', { name: 'Modifier tomates' }).first().click()
+  await expect(page.getByTestId('edit-sheet')).toBeVisible()
+  await page.locator('.merge-row', { hasText: 'tomates' }).getByRole('checkbox').check()
+  await page.getByTestId('merge-submit').click()
+  await expect(page.getByTestId('grocery-item').filter({ hasText: 'tomates' })).toHaveCount(1)
+  await expect(page.getByTestId('progress')).toHaveText('0 / 3 dans le panier')
+  await expect(page.getByTestId('edit-sheet')).toContainText('Agrégé de :')
+  await expect(page.getByTestId('edit-sheet')).toContainText('Sauce tomate riche')
+  await page.getByRole('button', { name: '✕ Fermer' }).click()
+
   // La carte de l'accueil reflète le restant
   await page.goto('/')
-  await expect(page.getByTestId('grocery-card')).toContainText('4 articles restants')
+  await expect(page.getByTestId('grocery-card')).toContainText('3 articles restants')
 })

@@ -6,6 +6,7 @@ import {
   addManualGroceryItem,
   deleteGroceryItem,
   getGroceryListForWeek,
+  mergeGroceryItems,
   updateGroceryItem,
 } from '../../server/utils/grocery-repo'
 import { createPlan, validatePlan, type PlanResult } from '../../server/utils/plan-repo'
@@ -162,6 +163,81 @@ describe('interactions en magasin', () => {
   })
 })
 
+describe('regroupement manuel', () => {
+  it('additionne les quantités de même unité et concatène les sources', async () => {
+    const user = await createTestUser(db)
+    await seedValidatedPlan(user.id)
+    let list = (await getGroceryListForWeek(db, user.id, NOW))!
+
+    // riz (700 g) + tomates au poids (1,4 kg = 1400 g) : même unité de base
+    const riz = list.items.find(i => i.label.toLowerCase().startsWith('riz'))!
+    const tomatesPoids = list.items.find(i => i.label === 'tomates' && i.unit === 'kg')!
+
+    list = (await mergeGroceryItems(db, user.id, [riz.id, tomatesPoids.id], NOW))!
+    const merged = list.items.find(i => i.id === riz.id)!
+    expect(merged.label).toBe(riz.label) // libellé du premier conservé
+    expect(merged.quantity).toBe(2.1) // 700 g + 1400 g → 2,1 kg à l'affichage
+    expect(merged.unit).toBe('kg')
+    // riz : 2 sources (les deux recettes) ; tomates au poids : 1 source (Tofu au riz)
+    expect(merged.sources.map(s => s.recipeTitle).sort())
+      .toEqual(['Poulet au riz', 'Tofu au riz', 'Tofu au riz'])
+    expect(list.items.find(i => i.id === tomatesPoids.id)).toBeUndefined()
+  })
+
+  it('efface la quantité quand les unités sont incompatibles, sans perdre les sources', async () => {
+    const user = await createTestUser(db)
+    await seedValidatedPlan(user.id)
+    let list = (await getGroceryListForWeek(db, user.id, NOW))!
+
+    // « 3,5 tomates » + « 1,4 kg de tomates » : dimension différente
+    const parUnite = list.items.find(i => i.label === 'tomates' && i.unit === 'unit')!
+    const parPoids = list.items.find(i => i.label === 'tomates' && i.unit === 'kg')!
+
+    list = (await mergeGroceryItems(db, user.id, [parUnite.id, parPoids.id], NOW))!
+    const merged = list.items.find(i => i.id === parUnite.id)!
+    expect(merged.quantity).toBeNull()
+    expect(merged.sources).toHaveLength(2)
+    expect(list.items.filter(i => i.label === 'tomates')).toHaveLength(1)
+  })
+
+  it('décoche l\'article fusionné et ne garde isManual que si tout est manuel', async () => {
+    const user = await createTestUser(db)
+    await seedValidatedPlan(user.id)
+    let list = (await addManualGroceryItem(db, user.id, { label: 'Sauce maison', quantity: 100, unit: 'g', aisle: 'canned' }, NOW))!
+
+    const manual = list.items.find(i => i.label === 'Sauce maison')!
+    const riz = list.items.find(i => i.label.toLowerCase().startsWith('riz'))!
+    await updateGroceryItem(db, user.id, riz.id, { checked: true }, NOW)
+
+    list = (await mergeGroceryItems(db, user.id, [manual.id, riz.id], NOW))!
+    const merged = list.items.find(i => i.id === manual.id)!
+    expect(merged.checked).toBe(false) // regroupé pour l'achat
+    expect(merged.isManual).toBe(false) // une part vient de recettes
+    expect(merged.quantity).toBe(800) // 100 g + 700 g
+  })
+
+  it('refuse un id inconnu ou un article d\'une autre semaine', async () => {
+    const user = await createTestUser(db)
+    await seedValidatedPlan(user.id)
+    const list = (await getGroceryListForWeek(db, user.id, NOW))!
+    const [a, b] = list.items
+
+    expect(await mergeGroceryItems(db, user.id, [a!.id, '00000000-0000-0000-0000-000000000000'], NOW)).toBeNull()
+
+    // Une deuxième semaine → deux listes : la fusion inter-listes est refusée
+    const nextWeek = new Date('2026-07-10T12:00:00')
+    const created = await createPlan(db, user.id, { dishCount: 2, peopleCount: 1, daysCount: 7, replace: false }, nextWeek)
+    await validatePlan(db, user.id, (created as Extract<PlanResult, { plan: unknown }>).plan.id)
+    const nextList = (await getGroceryListForWeek(db, user.id, nextWeek))!
+    expect(await mergeGroceryItems(db, user.id, [a!.id, nextList.items[0]!.id], NOW)).toBeNull()
+
+    // rien n'a été modifié
+    const intact = (await getGroceryListForWeek(db, user.id, NOW))!
+    expect(intact.totalCount).toBe(5)
+    expect(intact.items.find(i => i.id === b!.id)).toBeDefined()
+  })
+})
+
 describe('isolation multi-utilisateur (IDOR)', () => {
   it('un autre utilisateur ne voit ni ne modifie la liste', async () => {
     const alice = await createTestUser(db, 'Alice')
@@ -174,6 +250,7 @@ describe('isolation multi-utilisateur (IDOR)', () => {
     expect(await updateGroceryItem(db, bob.id, item.id, { checked: true }, NOW)).toBeNull()
     expect(await deleteGroceryItem(db, bob.id, item.id, NOW)).toBeNull()
     expect(await addManualGroceryItem(db, bob.id, { label: 'intrus', aisle: 'other' }, NOW)).toBeNull()
+    expect(await mergeGroceryItems(db, bob.id, [list.items[0]!.id, list.items[1]!.id], NOW)).toBeNull()
 
     // rien n'a bougé chez Alice
     const intact = (await getGroceryListForWeek(db, alice.id, NOW))!
