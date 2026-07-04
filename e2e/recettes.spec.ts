@@ -108,9 +108,10 @@ test('cycle de vie complet d\'une recette', async ({ page }) => {
   await page.getByTestId('recipe-submit').click()
   await expect(page.getByTestId('recipe-title')).toHaveText('Chili revisité')
 
-  // Suppression (avec confirmation native)
-  page.on('dialog', dialog => dialog.accept())
+  // Suppression (modal de confirmation)
   await page.getByTestId('delete-recipe').click()
+  await expect(page.getByTestId('confirm-dialog')).toBeVisible()
+  await page.getByTestId('confirm-dialog-confirm').click()
   await expect(page.getByTestId('empty-collection')).toBeVisible()
 })
 

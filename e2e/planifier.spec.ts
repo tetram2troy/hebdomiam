@@ -150,8 +150,8 @@ test('garde-fous et rotation : collection trop petite, puis exclusion des cuisin
   const neverCooked = ['Seule recette A', 'Seule recette B', 'Recette C', 'Recette D', 'Jamais cuisinée E']
     .find(t => !cookedTitles.includes(t))!
 
-  page.on('dialog', dialog => dialog.accept())
   await page.getByTestId('replan').click()
+  await page.getByTestId('confirm-dialog-confirm').click()
   await expect(page.getByTestId('plan-params')).toBeVisible()
   await page.getByTestId('propose').click()
   await expect(page.getByTestId('suggestion-card')).toHaveCount(4)

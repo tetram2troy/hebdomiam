@@ -30,9 +30,10 @@ function scaledQuantity(ingredient: { quantity: number, unit: string | null }): 
   return ingredient.unit ? `${formatted} ${t(`units.${ingredient.unit}`)}` : formatted
 }
 
+const deleteDialog = ref<{ open: () => void } | null>(null)
+
 async function removeRecipe() {
   if (!recipe.value) return
-  if (!window.confirm(t('recipes.deleteConfirm', { title: recipe.value.title }))) return
   deleteError.value = ''
   deleting.value = true
   try {
@@ -79,11 +80,19 @@ async function removeRecipe() {
           <NuxtLink :to="localePath(`/recettes/${recipe.id}/modifier`)" class="btn btn-outline" data-testid="edit-recipe">
             ✎ {{ $t('common.edit') }}
           </NuxtLink>
-          <button type="button" class="btn-danger" :disabled="deleting" data-testid="delete-recipe" @click="removeRecipe">
+          <button type="button" class="btn-danger" :disabled="deleting" data-testid="delete-recipe" @click="deleteDialog?.open()">
             {{ $t('common.delete') }}
           </button>
         </div>
         <p v-if="deleteError" class="error" role="alert">{{ deleteError }}</p>
+        <HbConfirmDialog
+          ref="deleteDialog"
+          :title="$t('recipes.deleteConfirmTitle', { title: recipe.title })"
+          :body="$t('recipes.deleteConfirmBody')"
+          :confirm-label="$t('common.delete')"
+          danger
+          @confirm="removeRecipe"
+        />
       </div>
       <div class="photo">
         <img v-if="recipe.imageUrl && !imageFailed" :src="recipe.imageUrl" alt="" @error="imageFailed = true">

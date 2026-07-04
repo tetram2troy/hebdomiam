@@ -59,8 +59,9 @@ async function markCooked(itemId: string) {
   }
 }
 
+const replanDialog = ref<{ open: () => void } | null>(null)
+
 async function replan() {
-  if (!window.confirm(t('home.replanConfirm'))) return
   await navigateTo({ path: localePath('/planifier'), query: { replace: '1' } })
 }
 </script>
@@ -158,10 +159,18 @@ async function replan() {
           <NuxtLink v-if="plan.status === 'draft'" :to="localePath('/planifier')" class="btn" data-testid="resume-plan">
             {{ $t('home.resume') }}
           </NuxtLink>
-          <button v-else type="button" class="btn-outline" data-testid="replan" @click="replan">
+          <button v-else type="button" class="btn-outline" data-testid="replan" @click="replanDialog?.open()">
             {{ $t('home.replan') }}
           </button>
         </div>
+        <HbConfirmDialog
+          ref="replanDialog"
+          :title="$t('home.replanConfirmTitle')"
+          :body="$t('home.replanConfirmBody')"
+          :confirm-label="$t('home.replan')"
+          danger
+          @confirm="replan"
+        />
       </div>
     </template>
 
