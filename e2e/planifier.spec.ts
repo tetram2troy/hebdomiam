@@ -131,6 +131,8 @@ test('garde-fous et rotation : collection trop petite, puis exclusion des cuisin
   await apiRecipe(page, 'Recette D')
   await apiRecipe(page, 'Jamais cuisinée E')
   await page.reload()
+  // Attendre l'hydratation : un clic trop tôt n'atteint pas le gestionnaire Vue.
+  await page.waitForLoadState('networkidle')
   await page.getByTestId('propose').click()
   await expect(page.getByTestId('suggestion-card')).toHaveCount(4)
 

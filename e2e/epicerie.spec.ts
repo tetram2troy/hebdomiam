@@ -56,6 +56,8 @@ test('du plan validé au panier plein : agrégation, cochage, article libre, ray
 
   // Planifier et valider la semaine → la liste naît avec la validation
   await page.goto('/planifier')
+  // Attendre l'hydratation : un clic trop tôt n'atteint pas le gestionnaire Vue.
+  await page.waitForLoadState('networkidle')
   await page.getByTestId('propose').click()
   await expect(page.getByTestId('suggestion-card')).toHaveCount(4)
   await page.getByTestId('validate-week').click()

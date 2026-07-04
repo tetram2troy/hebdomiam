@@ -67,6 +67,8 @@ test('import par URL : adresse sans recette → erreur claire, rien de sauvegard
   await registerFreshUser(page)
 
   await page.goto('/recettes/importer')
+  // Attendre l'hydratation : remplir trop tôt laisse v-model réinitialiser le champ.
+  await page.waitForLoadState('networkidle')
   await page.getByTestId('import-url').fill(`${baseURL}/login`)
   await page.getByTestId('extract-url').click()
 

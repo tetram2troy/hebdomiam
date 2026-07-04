@@ -47,12 +47,15 @@ test('cuisine : étapes cochées persistées, quantités ×2, Cuisinée ✓', as
     await apiRecipe(page, title)
   }
   await page.goto('/planifier')
+  // Attendre l'hydratation : un clic trop tôt n'atteint pas le gestionnaire Vue.
+  await page.waitForLoadState('networkidle')
   await page.getByTestId('propose').click()
   await page.getByTestId('validate-week').click()
   await expect(page.getByTestId('plan-done')).toBeVisible()
 
   // Depuis l'accueil, la carte Mode cuisine mène ici
   await page.goto('/')
+  await page.waitForLoadState('networkidle')
   await page.getByTestId('cooking-card').click()
 
   await expect(page.getByTestId('cook-tab')).toHaveCount(4)

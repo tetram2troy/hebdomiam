@@ -79,6 +79,8 @@ test.describe('thème clair', () => {
   test('cartes recette : coins arrondis « large » et placeholder illustré tokenisé', async ({ page }) => {
     await registerFreshUser(page)
     await page.goto('/recettes/nouvelle')
+    // Attendre l'hydratation : remplir trop tôt laisse v-model réinitialiser les champs.
+    await page.waitForLoadState('networkidle')
     await page.getByLabel('Titre *').fill('Soupe test design')
     await page.getByLabel('Portions de base *').fill('2')
     const row = page.locator('.ingredient-row').first()

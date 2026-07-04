@@ -2,8 +2,10 @@ import { defineConfig, devices } from '@playwright/test'
 
 export default defineConfig({
   testDir: './e2e',
-  // La suite complète tourne en parallèle contre un seul serveur : marge par test.
-  timeout: 45_000,
+  // La suite complète tourne en parallèle contre un seul serveur : marge par test
+  // et par assertion (l'hydratation SSR ralentit sous charge de deux workers).
+  timeout: 60_000,
+  expect: { timeout: 10_000 },
   fullyParallel: false,
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? 'github' : 'list',

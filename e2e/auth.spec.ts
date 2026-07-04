@@ -7,6 +7,8 @@ const name = 'Testeur M0'
 
 test('inscription, déconnexion puis reconnexion', async ({ page }) => {
   await page.goto('/register')
+  // Attendre l'hydratation : remplir trop tôt laisse v-model réinitialiser les champs.
+  await page.waitForLoadState('networkidle')
   await page.getByLabel('Nom').fill(name)
   await page.getByLabel('Courriel').fill(email)
   await page.getByLabel('Mot de passe').fill(password)
@@ -24,6 +26,7 @@ test('inscription, déconnexion puis reconnexion', async ({ page }) => {
 
 test('refuse un mauvais mot de passe', async ({ page }) => {
   await page.goto('/login')
+  await page.waitForLoadState('networkidle')
   await page.getByLabel('Courriel').fill(email)
   await page.getByLabel('Mot de passe').fill('mauvais-mot-de-passe-999')
   await page.getByRole('button', { name: 'Se connecter' }).click()

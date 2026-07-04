@@ -120,6 +120,8 @@ test('un utilisateur ne voit pas les recettes d\'un autre (isolation)', async ({
   const alicePage = await alice.newPage()
   await registerFreshUser(alicePage)
   await alicePage.goto('/recettes/nouvelle')
+  // Attendre l'hydratation : remplir trop tôt laisse v-model réinitialiser les champs.
+  await alicePage.waitForLoadState('networkidle')
   await alicePage.getByLabel('Titre *').fill('Secret d\'Alice')
   await alicePage.getByLabel('Portions de base *').fill('2')
   const row = alicePage.locator('.ingredient-row').first()
