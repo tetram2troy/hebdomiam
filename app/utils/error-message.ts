@@ -15,6 +15,9 @@ const KNOWN_KEYS = new Set([
   'errors.importProviderError',
   'errors.fileTooLarge',
   'errors.invalidImage',
+  'errors.invalidPassword',
+  'errors.invalidCode',
+  'errors.invalidToken',
 ])
 
 export function errorMessage(err: unknown, t: (key: string) => string): string {

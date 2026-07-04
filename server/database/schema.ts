@@ -5,6 +5,7 @@ export const localeEnum = pgEnum('locale', ['fr', 'en'])
 export const unitSystemEnum = pgEnum('unit_system', ['metric', 'imperial'])
 export const mealPlanStatusEnum = pgEnum('meal_plan_status', ['draft', 'validated', 'cooked'])
 export const mealPlanRecipeStatusEnum = pgEnum('meal_plan_recipe_status', ['suggested', 'accepted', 'swapped', 'cooked'])
+export const emailTokenTypeEnum = pgEnum('email_token_type', ['verify', 'reset'])
 
 // Enums partagés avec shared/schemas/recipe.ts (UNITS / AISLES) — garder synchronisés.
 export const unitEnum = pgEnum('unit', ['g', 'kg', 'ml', 'l', 'oz', 'lb', 'cup', 'tbsp', 'tsp', 'unit', 'pinch'])
@@ -23,8 +24,25 @@ export const users = pgTable('users', {
   defaultPeopleCount: integer('default_people_count').notNull().default(1),
   defaultDaysCount: integer('default_days_count').notNull().default(7),
   rotationWeeks: integer('rotation_weeks').notNull().default(3),
+  // 2FA TOTP optionnelle (M5) : secret posé au setup, actif quand enabledAt non nul.
+  totpSecret: text('totp_secret'),
+  totpEnabledAt: timestamp('totp_enabled_at', { withTimezone: true }),
+  totpBackupHash: text('totp_backup_hash'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 })
+
+/** Jetons de courriel (vérification, réinitialisation) — hachés, à expiration. */
+export const emailTokens = pgTable('email_tokens', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  type: emailTokenTypeEnum('type').notNull(),
+  tokenHash: text('token_hash').notNull().unique(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  usedAt: timestamp('used_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, table => [
+  index('email_tokens_user_id_idx').on(table.userId),
+])
 
 export const recipes = pgTable('recipes', {
   id: uuid('id').primaryKey().defaultRandom(),

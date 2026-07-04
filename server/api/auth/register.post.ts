@@ -17,6 +17,17 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 409, message: 'errors.emailTaken' })
   }
 
+  // Courriel de vérification — l'inscription n'échoue jamais sur un souci SMTP.
+  try {
+    const token = await createEmailToken(useDb(), user.id, 'verify', 24 * 60)
+    const link = `${appBaseUrl(getRequestURL(event).origin)}/verifier-courriel?token=${token}`
+    // locale du compte à la création = fr (défaut du schéma)
+    await sendMail(verifyEmailMail(user.email, 'fr', link))
+  }
+  catch (error) {
+    console.error('Envoi du courriel de vérification impossible :', error)
+  }
+
   await setUserSession(event, { user })
   setResponseStatus(event, 201)
   return { user }
