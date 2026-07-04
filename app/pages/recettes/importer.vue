@@ -150,4 +150,10 @@ function importPhotos() {
   min-height: var(--hb-touch-target-store);
   padding-inline: var(--hb-space-8);
 }
+
+/* Le panneau aligne ses enfants à gauche (justify-items: start), ce qui
+   rétrécit le label à son contenu : le champ URL doit occuper toute la largeur. */
+.panel label {
+  width: 100%;
+}
 </style>

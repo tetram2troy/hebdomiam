@@ -25,6 +25,10 @@ test('import par URL : extraction → brouillon à relire → enregistrement', a
   await page.getByTestId('import-recipe').click()
   await expect(page.getByRole('heading', { name: 'Importer une recette' })).toBeVisible()
 
+  // Le champ URL occupe la largeur du panneau (une adresse de recette est longue)
+  const urlBox = await page.getByTestId('import-url').boundingBox()
+  expect(urlBox!.width).toBeGreaterThanOrEqual(700)
+
   // Extraction de la fixture via le pipeline complet
   await page.getByTestId('import-url').fill(`${baseURL}/test-fixtures/recette-fixture.html`)
   await page.getByTestId('extract-url').click()
