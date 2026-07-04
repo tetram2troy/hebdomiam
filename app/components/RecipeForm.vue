@@ -41,6 +41,7 @@ const seed = props.draft
 const form = reactive({
   title: seed?.title ?? '',
   description: seed?.description ?? '',
+  imageUrl: seed?.imageUrl ?? '',
   baseServings: seed?.baseServings ?? 4,
   prepMinutes: seed?.prepMinutes?.toString() ?? '',
   cookMinutes: seed?.cookMinutes?.toString() ?? '',
@@ -59,6 +60,7 @@ const form = reactive({
 const tagInput = ref('')
 const error = ref('')
 const pending = ref(false)
+const imageFailed = ref(false)
 
 function addIngredient() {
   form.ingredients.push(emptyIngredient())
@@ -99,9 +101,9 @@ function toPayload() {
   return {
     title: form.title,
     description: form.description.trim() || null,
-    // Conservés à travers l'édition ; renseignés par l'import.
+    // Conservé à travers l'édition ; renseigné par l'import.
     sourceUrl: props.draft?.sourceUrl ?? props.recipe?.sourceUrl ?? null,
-    imageUrl: props.draft?.imageUrl ?? props.recipe?.imageUrl ?? null,
+    imageUrl: form.imageUrl.trim() || null,
     baseServings: form.baseServings,
     prepMinutes: form.prepMinutes === '' ? null : Number(form.prepMinutes),
     cookMinutes: form.cookMinutes === '' ? null : Number(form.cookMinutes),
@@ -234,6 +236,38 @@ async function submit() {
       </section>
 
       <section class="col">
+        <div class="photo-block">
+          <img
+            v-if="form.imageUrl && !imageFailed"
+            :src="form.imageUrl"
+            alt=""
+            class="photo-preview"
+            data-testid="image-preview"
+            @error="imageFailed = true"
+          >
+          <p v-else-if="form.imageUrl && imageFailed" class="hint photo-broken" role="alert">
+            {{ $t('recipes.form.photoBroken') }}
+          </p>
+          <label>
+            {{ $t('recipes.form.photoUrl') }}
+            <input
+              v-model="form.imageUrl"
+              type="url"
+              maxlength="1000"
+              :placeholder="$t('recipes.form.photoPlaceholder')"
+              data-testid="image-url"
+              @input="imageFailed = false"
+            >
+          </label>
+          <button
+            v-if="form.imageUrl"
+            type="button"
+            class="btn-text photo-remove"
+            data-testid="image-remove"
+            @click="form.imageUrl = ''; imageFailed = false"
+          >✕ {{ $t('recipes.form.photoRemove') }}</button>
+        </div>
+
         <label>
           {{ $t('recipes.form.baseServings') }} *
           <input v-model.number="form.baseServings" type="number" min="1" max="50" required class="narrow">
@@ -391,6 +425,33 @@ async function submit() {
 
 .narrow {
   max-width: 120px;
+}
+
+.photo-block {
+  display: grid;
+  gap: var(--hb-space-2);
+  justify-items: start;
+}
+
+.photo-preview {
+  width: 100%;
+  aspect-ratio: 3 / 2;
+  max-height: 220px;
+  object-fit: cover;
+  border-radius: var(--md-sys-shape-corner-large);
+  border: 1px solid var(--md-sys-color-outline-variant);
+}
+
+.photo-block label {
+  width: 100%;
+}
+
+.photo-broken {
+  color: var(--md-sys-color-error);
+}
+
+.photo-remove {
+  min-height: 36px;
 }
 
 .tag-list {

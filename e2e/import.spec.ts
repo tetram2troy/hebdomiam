@@ -41,6 +41,9 @@ test('import par URL : extraction → brouillon à relire → enregistrement', a
   await expect(page.getByLabel('Préparation (min)')).toHaveValue('25')
   await expect(page.getByLabel('Cuisson (min)')).toHaveValue('60')
 
+  // La photo extraite est visible dans le brouillon et modifiable
+  await expect(page.getByTestId('image-url')).toHaveValue('https://exemple.test/photos/ragout-de-boulettes.jpg')
+
   // Les entités HTML sont décodées et les lignes parsées (700 g, ½ c. à thé, 4 tasses)
   const rows = page.locator('.ingredient-row')
   await expect(rows).toHaveCount(5)
