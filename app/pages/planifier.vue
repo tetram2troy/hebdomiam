@@ -115,22 +115,30 @@ watch([replacing, replaceMode, replaceQuery], () => {
   optionsTimer = setTimeout(loadOptions, replaceQuery.value ? 250 : 0)
 })
 
+// Jeton de séquence : une réponse arrivée après une recherche plus récente
+// est ignorée (sinon la liste non filtrée peut écraser la liste filtrée).
+let optionsSeq = 0
+
 async function loadOptions() {
   if (!plan.value || !replacing.value) return
+  const seq = ++optionsSeq
   optionsPending.value = true
   try {
-    options.value = await $fetch<ReplacementOption[]>(`/api/plans/${plan.value.id}/replacements`, {
+    const result = await $fetch<ReplacementOption[]>(`/api/plans/${plan.value.id}/replacements`, {
       query: {
         mode: replaceMode.value,
         q: replaceMode.value === 'search' && replaceQuery.value.trim() ? replaceQuery.value.trim() : undefined,
       },
     })
+    if (seq !== optionsSeq) return
+    options.value = result
   }
   catch (err) {
+    if (seq !== optionsSeq) return
     error.value = errorMessage(err, t)
   }
   finally {
-    optionsPending.value = false
+    if (seq === optionsSeq) optionsPending.value = false
   }
 }
 
