@@ -151,15 +151,19 @@ describe('interactions en magasin', () => {
     expect(without.totalCount).toBe(5)
   })
 
-  it('convertit la quantité corrigée vers l\'unité de base', async () => {
+  it('corrige libellé et quantité, convertie vers l\'unité de base', async () => {
     const user = await createTestUser(db)
     await seedValidatedPlan(user.id)
     const list = (await getGroceryListForWeek(db, user.id, NOW))!
     const riz = list.items.find(i => i.label.toLowerCase().startsWith('riz'))!
 
-    // correction : « finalement 1 kg »
-    const updated = (await updateGroceryItem(db, user.id, riz.id, { quantity: 1, unit: 'kg' }, NOW))!
-    expect(updated.items.find(i => i.id === riz.id)).toMatchObject({ quantity: 1, unit: 'kg' })
+    // correction : « finalement 1 kg de riz jasmin »
+    const updated = (await updateGroceryItem(db, user.id, riz.id, { label: 'riz jasmin', quantity: 1, unit: 'kg' }, NOW))!
+    expect(updated.items.find(i => i.id === riz.id)).toMatchObject({ label: 'riz jasmin', quantity: 1, unit: 'kg' })
+
+    // effacement de la quantité (article « au jugé »)
+    const cleared = (await updateGroceryItem(db, user.id, riz.id, { quantity: null }, NOW))!
+    expect(cleared.items.find(i => i.id === riz.id)).toMatchObject({ quantity: null, unit: null })
   })
 })
 

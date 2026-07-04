@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { AISLES, type Aisle } from '#shared/schemas/recipe'
+import { AISLES, UNITS, type Aisle, type Unit } from '#shared/schemas/recipe'
 import type { GroceryItemDto, GroceryListDto } from '#shared/types/grocery'
 
 definePageMeta({ middleware: 'auth' })
@@ -18,6 +18,38 @@ const editingId = ref('')
 
 const editingItem = computed(() =>
   list.value?.items.find(i => i.id === editingId.value) ?? null)
+
+// Brouillon d'édition (libellé, quantité, unité) — repris de l'article à l'ouverture.
+const editLabel = ref('')
+// v-model sur <input type="number"> : Vue y écrit un number (ou '' si vidé).
+const editQuantity = ref<string | number>('')
+const editUnit = ref<Unit | ''>('')
+
+function fillEditDraft(item: GroceryItemDto) {
+  editLabel.value = item.label
+  editQuantity.value = item.quantity === null ? '' : String(item.quantity)
+  editUnit.value = item.unit ?? ''
+}
+
+function toggleEditor(item: GroceryItemDto) {
+  if (editingId.value === item.id) {
+    editingId.value = ''
+    return
+  }
+  editingId.value = item.id
+  fillEditDraft(item)
+}
+
+async function saveEdit(item: GroceryItemDto) {
+  const raw = String(editQuantity.value).trim()
+  const quantity = raw === '' ? null : Number(raw)
+  await patchItem(item, {
+    label: editLabel.value.trim(),
+    quantity,
+    unit: quantity === null || editUnit.value === '' ? null : editUnit.value,
+  })
+  if (!error.value) editingId.value = ''
+}
 
 const weekLabel = computed(() => {
   if (!list.value) return ''
@@ -146,6 +178,9 @@ async function mergeSelected() {
     })
     data.value = response
     mergeIds.value = []
+    // La fusion a pu changer la quantité (cumulée ou effacée) : brouillon à jour.
+    const merged = response.list.items.find(item => item.id === editingId.value)
+    if (merged) fillEditDraft(merged)
   }
   catch (err) {
     error.value = errorMessage(err, t)
@@ -197,77 +232,94 @@ async function mergeSelected() {
           {{ $t(`aisles.${section.aisle}`) }}
           <span class="cnt">{{ $t('grocery.remaining', { n: section.items.length }, section.items.length) }}</span>
         </h2>
-        <div
-          v-for="item in section.items"
-          :key="item.id"
-          class="row"
-          data-testid="grocery-item"
-        >
-          <button
-            type="button"
-            class="check"
-            :disabled="busyId === item.id"
-            :aria-label="$t('grocery.checkLabel', { label: item.label })"
-            @click="toggle(item)"
-          >
-            <span class="box" aria-hidden="true" />
-            <span class="lbl">{{ item.label }}<span v-if="item.isManual" class="chip chip-sm manual">{{ $t('grocery.manualBadge') }}</span></span>
-            <span class="qty">{{ formatQuantity(item) }}</span>
-          </button>
-          <button
-            type="button"
-            class="btn-text edit"
-            :aria-label="$t('grocery.editLabel', { label: item.label })"
-            :aria-expanded="editingId === item.id"
-            @click="editingId = editingId === item.id ? '' : item.id"
-          >✎</button>
-        </div>
-      </section>
-
-      <!-- Feuille de correction -->
-      <div v-if="editingItem" class="sheet" role="dialog" :aria-label="$t('grocery.editLabel', { label: editingItem.label })" data-testid="edit-sheet">
-        <div class="sheet-head">
-          <h2>{{ editingItem.label }}<span v-if="formatQuantity(editingItem)"> — {{ formatQuantity(editingItem) }}</span></h2>
-          <button type="button" class="btn-text" @click="editingId = ''">✕ {{ $t('grocery.close') }}</button>
-        </div>
-        <p v-if="editingItem.sources.length" class="meta">
-          {{ $t('grocery.sources') }} {{ editingItem.sources.map(formatSource).join(' + ') }}
-        </p>
-        <label class="sheet-aisle">
-          {{ $t('grocery.aisleLabel') }}
-          <select
-            :value="editingItem.aisle"
-            data-testid="aisle-select"
-            @change="patchItem(editingItem, { aisle: ($event.target as HTMLSelectElement).value })"
-          >
-            <option v-for="aisle in AISLES" :key="aisle" :value="aisle">{{ $t(`aisles.${aisle}`) }}</option>
-          </select>
-        </label>
-        <fieldset v-if="mergeCandidates.length" class="merge">
-          <legend>{{ $t('grocery.mergeTitle') }}</legend>
-          <p class="meta merge-hint">{{ $t('grocery.mergeHint') }}</p>
-          <label v-for="candidate in mergeCandidates" :key="candidate.id" class="merge-row">
-            <input
-              type="checkbox"
-              :checked="mergeIds.includes(candidate.id)"
-              data-testid="merge-candidate"
-              @change="toggleMergeCandidate(candidate.id)"
+        <template v-for="item in section.items" :key="item.id">
+          <div class="row" data-testid="grocery-item">
+            <button
+              type="button"
+              class="check"
+              :disabled="busyId === item.id"
+              :aria-label="$t('grocery.checkLabel', { label: item.label })"
+              @click="toggle(item)"
             >
-            <span class="merge-lbl">{{ candidate.label }}</span>
-            <span class="meta">{{ formatQuantity(candidate) }}</span>
-          </label>
-          <button
-            type="button"
-            class="btn-tonal"
-            :disabled="mergeIds.length === 0"
-            data-testid="merge-submit"
-            @click="mergeSelected"
-          >{{ $t('grocery.mergeSubmit', { n: mergeIds.length + 1 }) }}</button>
-        </fieldset>
-        <button type="button" class="btn-danger" data-testid="remove-item" @click="removeItem(editingItem)">
-          {{ $t('grocery.remove') }}
-        </button>
-      </div>
+              <span class="box" aria-hidden="true" />
+              <span class="lbl">{{ item.label }}<span v-if="item.isManual" class="chip chip-sm manual">{{ $t('grocery.manualBadge') }}</span></span>
+              <span class="qty">{{ formatQuantity(item) }}</span>
+            </button>
+            <button
+              type="button"
+              class="btn-text edit"
+              :aria-label="$t('grocery.editLabel', { label: item.label })"
+              :aria-expanded="editingId === item.id"
+              @click="toggleEditor(item)"
+            >✎</button>
+          </div>
+
+          <!-- Feuille de correction, juste sous l'article édité -->
+          <div v-if="editingId === item.id" class="sheet" role="region" :aria-label="$t('grocery.editLabel', { label: item.label })" data-testid="edit-sheet">
+            <div class="sheet-head">
+              <h2>{{ item.label }}<span v-if="formatQuantity(item)"> — {{ formatQuantity(item) }}</span></h2>
+              <button type="button" class="btn-text" @click="editingId = ''">✕ {{ $t('grocery.close') }}</button>
+            </div>
+            <p v-if="item.sources.length" class="meta">
+              {{ $t('grocery.sources') }} {{ item.sources.map(formatSource).join(' + ') }}
+            </p>
+
+            <form class="edit-form" @submit.prevent="saveEdit(item)">
+              <label class="grow">
+                {{ $t('grocery.editItemLabel') }}
+                <input v-model="editLabel" type="text" required maxlength="120" data-testid="edit-label">
+              </label>
+              <label>
+                {{ $t('grocery.editQuantity') }}
+                <input v-model="editQuantity" type="number" min="0.01" step="0.01" max="99999" data-testid="edit-quantity">
+              </label>
+              <label>
+                {{ $t('grocery.editUnit') }}
+                <select v-model="editUnit" data-testid="edit-unit">
+                  <option value="">{{ $t('units.none') }}</option>
+                  <option v-for="unit in UNITS" :key="unit" :value="unit">{{ $t(`units.${unit}`) }}</option>
+                </select>
+              </label>
+              <button type="submit" class="btn-tonal" data-testid="edit-save">{{ $t('common.save') }}</button>
+            </form>
+
+            <label class="sheet-aisle">
+              {{ $t('grocery.aisleLabel') }}
+              <select
+                :value="item.aisle"
+                data-testid="aisle-select"
+                @change="patchItem(item, { aisle: ($event.target as HTMLSelectElement).value })"
+              >
+                <option v-for="aisle in AISLES" :key="aisle" :value="aisle">{{ $t(`aisles.${aisle}`) }}</option>
+              </select>
+            </label>
+            <fieldset v-if="mergeCandidates.length" class="merge">
+              <legend>{{ $t('grocery.mergeTitle') }}</legend>
+              <p class="meta merge-hint">{{ $t('grocery.mergeHint') }}</p>
+              <label v-for="candidate in mergeCandidates" :key="candidate.id" class="merge-row">
+                <input
+                  type="checkbox"
+                  :checked="mergeIds.includes(candidate.id)"
+                  data-testid="merge-candidate"
+                  @change="toggleMergeCandidate(candidate.id)"
+                >
+                <span class="merge-lbl">{{ candidate.label }}</span>
+                <span class="meta">{{ formatQuantity(candidate) }}</span>
+              </label>
+              <button
+                type="button"
+                class="btn-tonal"
+                :disabled="mergeIds.length === 0"
+                data-testid="merge-submit"
+                @click="mergeSelected"
+              >{{ $t('grocery.mergeSubmit', { n: mergeIds.length + 1 }, mergeIds.length + 1) }}</button>
+            </fieldset>
+            <button type="button" class="btn-danger" data-testid="remove-item" @click="removeItem(item)">
+              {{ $t('grocery.remove') }}
+            </button>
+          </div>
+        </template>
+      </section>
 
       <!-- Dans le panier -->
       <section v-if="checkedItems.length" class="cart">
@@ -472,10 +524,31 @@ async function mergeSelected() {
   border-radius: var(--md-sys-shape-corner-large);
   background: var(--md-sys-color-surface-container-lowest);
   padding: var(--hb-space-4);
-  margin: var(--hb-space-4) 0;
+  margin: var(--hb-space-2) 0 var(--hb-space-4);
   display: grid;
   gap: var(--hb-space-3);
   justify-items: start;
+}
+
+.edit-form {
+  display: flex;
+  align-items: end;
+  flex-wrap: wrap;
+  gap: var(--hb-space-2);
+  width: 100%;
+}
+
+.edit-form .grow {
+  flex: 1;
+  min-width: 160px;
+}
+
+.edit-form input[type='number'] {
+  max-width: 110px;
+}
+
+.edit-form button {
+  min-height: 44px;
 }
 
 .sheet-head {

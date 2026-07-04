@@ -122,13 +122,26 @@ test('du plan validé au panier plein : agrégation, cochage, article libre, ray
   // deviennent une seule, sans perdre la provenance
   await page.getByRole('button', { name: 'Modifier tomates' }).first().click()
   await expect(page.getByTestId('edit-sheet')).toBeVisible()
+
+  // La feuille s'ouvre directement sous l'article édité, pas en bas de page
+  const editedRow = await page.getByTestId('grocery-item').filter({ hasText: 'tomates' }).first().boundingBox()
+  const sheetBox = await page.getByTestId('edit-sheet').boundingBox()
+  expect(sheetBox!.y).toBeGreaterThan(editedRow!.y)
+  expect(sheetBox!.y - (editedRow!.y + editedRow!.height)).toBeLessThan(40)
+
   await page.locator('.merge-row', { hasText: 'tomates' }).getByRole('checkbox').check()
   await page.getByTestId('merge-submit').click()
   await expect(page.getByTestId('grocery-item').filter({ hasText: 'tomates' })).toHaveCount(1)
   await expect(page.getByTestId('progress')).toHaveText('0 / 3 dans le panier')
   await expect(page.getByTestId('edit-sheet')).toContainText('Agrégé de :')
   await expect(page.getByTestId('edit-sheet')).toContainText('Sauce tomate riche')
-  await page.getByRole('button', { name: '✕ Fermer' }).click()
+
+  // Unités incompatibles → cumul impossible : l'utilisateur corrige à la main
+  await page.getByTestId('edit-quantity').fill('1.5')
+  await page.getByTestId('edit-unit').selectOption('kg')
+  await page.getByTestId('edit-save').click()
+  await expect(page.getByTestId('edit-sheet')).toBeHidden()
+  await expect(page.getByTestId('grocery-item').filter({ hasText: 'tomates' })).toContainText('1,5 kg')
 
   // La carte de l'accueil reflète le restant
   await page.goto('/')
