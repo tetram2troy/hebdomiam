@@ -2,6 +2,14 @@
 const { loggedIn, user, clear } = useUserSession()
 const localePath = useLocalePath()
 
+// Applique le thème choisi avant la peinture (évite l'éclair clair→sombre).
+useHead({
+  script: [{
+    innerHTML: '(function(){try{var t=localStorage.getItem("hb-theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}})()',
+    tagPosition: 'head',
+  }],
+})
+
 async function logout() {
   await $fetch('/api/auth/logout', { method: 'POST' })
   await clear()
@@ -27,7 +35,7 @@ async function logout() {
       <div class="topnav-end">
         <template v-if="loggedIn">
           <NuxtLink :to="localePath('/planifier')" class="btn topnav-btn" data-testid="nav-plan">{{ $t('nav.plan') }}</NuxtLink>
-          <span class="meta">{{ user?.name }}</span>
+          <NuxtLink :to="localePath('/reglages')" class="nav-link" data-testid="nav-settings">{{ user?.name }}</NuxtLink>
           <button type="button" class="btn-outline topnav-btn" @click="logout">{{ $t('auth.logout') }}</button>
         </template>
         <template v-else>
