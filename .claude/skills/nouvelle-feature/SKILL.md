@@ -1,55 +1,51 @@
 ---
 name: nouvelle-feature
-description: Workflow complet pour développer une nouvelle fonctionnalité d'Hebdomiam — de la lecture du PRD aux commits conventionnels, avec la pyramide de tests et les conventions du projet. Utiliser dès que Fabrice demande une nouvelle feature, une modification de comportement ou une correction non triviale.
+description: Workflow séquentiel pour développer une fonctionnalité d'Hebdomiam — plan, code, tests, vérification visuelle, lint, revue de sécurité, revue de conformité aux règles de codage, doc, commits. Utiliser dès que Fabrice demande une nouvelle feature, une modification de comportement ou une correction non triviale.
 ---
 
 # Développer une fonctionnalité Hebdomiam
 
-Suivre ces étapes dans l'ordre. Ne jamais annoncer « fait » avant l'étape 6.
+Workflow séquentiel — chaque étape est un jalon, ne pas annoncer « fait » avant
+la fin de l'étape 7. Les règles de codage détaillées sont dans
+[regles-de-codage.md](regles-de-codage.md) (même dossier).
 
-## 1. Comprendre avant d'écrire
+## 1. Plan
 
-- Lire la section pertinente de `PRD.md` (décisions §4, modèle §6, sécurité §8, jalons §11).
-  Si la demande contredit une décision structurante, le signaler avant d'implémenter.
-- Explorer l'existant : la fonctionnalité voisine la plus proche (page, route, repo,
-  schéma) est le modèle à suivre. Ne pas inventer un nouveau pattern s'il en existe un.
+- Lire la section pertinente de `PRD.md` (décisions §4, modèle §6, sécurité §8,
+  jalons §11). Si la demande contredit une décision structurante, **s'arrêter et
+  le signaler** avant d'implémenter.
+- Explorer l'existant : la fonctionnalité voisine la plus proche (page, route,
+  repo, schéma) est le modèle à suivre — ne pas inventer un nouveau pattern.
+- Produire un plan court : fichiers touchés, changement de schéma DB (oui/non),
+  routes/API, écrans, tests prévus (unit/intégration/e2e), risques de sécurité.
+  Demande ambiguë ou structurante → présenter le plan avant de coder ;
+  sinon l'énoncer en une phrase et avancer.
 
-## 2. Implémenter selon les conventions
+## 2. Code
 
-Chaque nouvelle surface serveur coche ces cases :
+Suivre [regles-de-codage.md](regles-de-codage.md). Rappel du strict minimum
+serveur : entrée validée Zod (`shared/schemas/`), accès DB dans un repo scopé
+`userId`, action critique journalisée (`logEvent`/`logWarn`), route sensible
+rate-limitée, erreurs = clés i18n, chaînes visibles dans `fr.json` **et**
+`en.json`, schéma modifié → `npm run db:generate`.
 
-- [ ] Entrée validée par Zod (`readValidatedBody` / `getValidatedRouterParams`),
-      schéma dans `shared/schemas/` (partagé via `#shared`).
-- [ ] Accès DB dans une fonction de `server/utils/*-repo.ts` **scopée sur `userId`**
-      (chaîne de jointures jusqu'à `users`, retourne `null` si l'objet n'appartient
-      pas à l'utilisateur — jamais de vérification dans le handler).
-- [ ] Action critique (mutation, événement de sécurité) journalisée :
-      `logEvent`/`logWarn` (`server/utils/logger.ts`), nom `domaine.action`,
-      jamais de secret ni de contenu utilisateur, PII minimale (userId, IP via `clientIp`).
-- [ ] Route sensible (auth, coût IA, envoi de courriel) : `assertRateLimit`.
-- [ ] Erreurs API = clés i18n (`errors.*`) traduites côté client.
-- [ ] Toute chaîne visible : clé dans `i18n/locales/fr.json` **et** `en.json`.
-- [ ] Quantités en `decimal` Drizzle ; schéma modifié → `npm run db:generate`.
-- [ ] Dans `server/utils/`, imports **explicites** entre utils (l'auto-import Nitro
-      ne joue pas dans Vitest — un import manquant ne casse qu'aux tests).
+## 3. Tests
 
-## 3. Tester à chaque étage
-
-- **Unitaires** (`tests/unit/`) : logique pure et nouveaux schémas Zod (bornes,
+- **Unitaires** (`tests/unit/`) : logique pure, nouveaux schémas Zod (bornes,
   normalisation, refus).
 - **Intégration** (`tests/integration/`) : les fonctions repo contre la vraie DB.
-  **Toute nouvelle ressource a son test IDOR** (Bob ne lit/modifie pas les données
-  d'Alice → `null`, rien de modifié).
+  **Toute nouvelle ressource a son test IDOR** (Bob ne lit/modifie pas les
+  données d'Alice → `null`, rien de modifié).
 - **E2E** (`e2e/`) : le parcours utilisateur réel. Lire la skill `e2e-stable`
-  avant d'écrire ou modifier un spec — les pièges du projet y sont recensés.
+  avant d'écrire ou modifier un spec.
 
-## 4. Vérifier visuellement
+## 4. Test visuel (Playwright)
 
 Tout changement d'interface passe par la skill `verifier-ui` : capture d'écran
-Playwright **lue et inspectée** avant d'annoncer le résultat. Un diff CSS qui
-compile ne prouve rien.
+prise, **lue et inspectée** — un diff CSS qui compile ne prouve rien. Verrouiller
+les propriétés mesurables par une assertion `boundingBox()` dans le spec permanent.
 
-## 5. Valider la suite complète
+## 5. Lint, typecheck et suites complètes
 
 ```powershell
 npm run lint
@@ -57,18 +53,43 @@ npm run typecheck
 npm test
 npm run test:integration        # DB de dev démarrée
 npm run build                   # les e2e servent .output
-npm run test:e2e                # charger les variables de .env dans le shell d'abord
+npm run test:e2e                # .env chargé dans le shell ; port 3000 libre
 ```
 
-Avant les e2e : vérifier qu'aucun `node .output` résiduel n'écoute sur le port 3000
-(`Get-NetTCPConnection -LocalPort 3000`) — Playwright réutiliserait un vieux build.
-Un échec e2e n'est pas forcément une régression de code : diagnostiquer (skill
-`e2e-stable`) avant de retoucher l'app.
+Un échec e2e n'est pas forcément une régression : diagnostiquer avec la skill
+`e2e-stable` avant de retoucher l'app ou d'assouplir une assertion.
 
-## 6. Documenter et committer
+## 6. Revue de sécurité (PRD §8)
 
-- Mettre à jour ce qui a changé : statut du `PRD.md`, `README.md`, conventions de
-  `CLAUDE.md`. La doc fait partie de la feature.
-- Commits conventionnels **en français**, découpés par sujet (`feat:`, `fix:`,
-  `test:`, `docs:` séparés), corps expliquant le *pourquoi* et les choix de
-  sécurité. Un bug trouvé en route = son propre commit `fix:` avec l'explication.
+Relire le diff avec cette grille — chaque « non » se corrige avant de continuer :
+
+- [ ] Toute entrée (body, params, query, fichier) passe par un schéma Zod ?
+- [ ] Toute requête DB métier remonte à `userId` via la couche repo — et le
+      test IDOR le prouve ?
+- [ ] Les actions critiques sont journalisées **sans** secret, jeton, code TOTP,
+      mot de passe ni contenu utilisateur (PII minimale : userId, IP) ?
+- [ ] Route d'auth / coûteuse (IA, courriel) → `assertRateLimit` ?
+- [ ] Messages d'erreur non énumérants (pas de « ce compte existe ») ?
+- [ ] Fetch sortant → garde SSRF (`fetchExternalPage`), jamais `fetch` nu ?
+- [ ] Upload → type réel vérifié (magic bytes) + ré-encodage ?
+- [ ] Aucun secret en dur ; configuration par variables d'environnement ?
+
+## 7. Revue de conformité aux règles de codage
+
+Relire le diff contre [regles-de-codage.md](regles-de-codage.md) : nommage,
+structure des composants et des repos, tokens CSS (jamais de couleur en dur),
+i18n bilingue complet, `decimal` jamais `float`, imports explicites entre
+`server/utils/*`, `data-testid` sur les éléments testés, commentaires en
+français qui expliquent le *pourquoi*.
+
+## 8. Documentation
+
+Mettre à jour ce qui a changé : statut du `PRD.md`, `README.md`, conventions de
+`CLAUDE.md`, et les skills elles-mêmes si une leçon nouvelle a été apprise.
+La doc fait partie de la feature.
+
+## 9. Commits
+
+Commits conventionnels **en français**, découpés par sujet (`feat:`, `fix:`,
+`test:`, `docs:` séparés), corps expliquant le *pourquoi* et les choix de
+sécurité. Un bug trouvé en route = son propre commit `fix:` avec l'explication.

@@ -2,10 +2,11 @@
 
 Application de planification de repas hebdomadaire.
 
-> Version : 0.3 — 2026-07-04
+> Version : 0.4 — 2026-07-31
 > Statut : M0–M4 livrés. M5 en cours — livrés : vérification du courriel,
 > réinitialisation de mot de passe, 2FA TOTP, réglages du compte,
-> journalisation structurée ; restent : PWA, sauvegardes, revue de sécurité.
+> journalisation structurée, multi-utilisateur géré (rôles admin/user,
+> inscription fermée, invitations) ; restent : PWA, sauvegardes, revue de sécurité.
 
 ---
 
@@ -65,7 +66,7 @@ Autres candidats écartés : Popote, Mijote, Tambouille, Semainier, Batchy.
 |---|---|---|
 | D1 | Extraction URL | **Parsing schema.org/Recipe** gratuit, repli IA si absent. Coût uniquement à la création de recette : acceptable. |
 | D1b | Extraction photo | **API Claude (vision) par défaut**, derrière une interface de fournisseur interchangeable. L'option auto-hébergée (Ollama) est écartée pour l'instant : le home lab est un mini-PC classe N100 dont l'iGPU Quick Sync ne sert qu'au transcodage vidéo — l'inférence serait CPU-only avec un petit modèle quantifié, trop lente et limitée pour la vision, en concurrence RAM avec Immich/Jellyfin. `immich-ml` n'est pas réutilisable non plus (API interne : CLIP/visages) — voir §7.4. |
-| D2 | Multi-utilisateurs | **Comptes privés** en V1 ; le schéma de données prévoit les « foyers » partagés en V2. |
+| D2 | Multi-utilisateurs | **Comptes privés et gérés** (révisé 2026-07-31) : rôles `admin`/`user`, **inscription publique fermée** — les comptes sont créés par un admin (invitation par lien, 7 jours). Bootstrap : le premier inscrit d'une instance vierge devient admin (promotion rétroactive du plus ancien compte à la migration). Un admin voit les métadonnées des comptes (courriel, nom, rôle, statut), **jamais les données métier** (recettes, plans). Le schéma prévoit toujours les « foyers » partagés en V2. |
 | D3 | Suggestions | **Rotation intelligente** en V1 ; « envies du moment » par IA en V2. |
 | D4 | Hébergement | **Home lab**, derrière le **Traefik existant** (TLS et protections déjà en place). On applique quand même le niveau de sécurité « exposé publiquement » dans l'application elle-même (défense en profondeur). |
 | D5 | Langues | **Bilingue FR/EN dès la V1** (i18n dès le départ, pas de rattrapage). |
@@ -81,10 +82,23 @@ Autres candidats écartés : Popote, Mijote, Tambouille, Semainier, Batchy.
 ### 5.1 MVP (V1)
 
 #### F1 — Comptes et authentification
-- Inscription par courriel + mot de passe (hachage **Argon2id**).
+- Inscription par courriel + mot de passe (hachage **Argon2id**) — **réservée au
+  bootstrap** : sur une instance vierge seulement, et ce compte devient admin (D2).
 - Connexion par session scellée (cookie httpOnly, secure, sameSite).
 - Vérification du courriel à l'inscription ; réinitialisation de mot de passe par courriel.
 - Isolation stricte des données : toute requête est filtrée par `userId` côté serveur.
+
+#### F1b — Gestion des comptes (admin)
+- Écran `/admin` (rôle admin requis) : liste des comptes (métadonnées seulement),
+  création par **invitation** (lien de 7 jours retourné à l'admin et envoyé par
+  courriel — l'acceptation fixe le mot de passe et vaut vérification du courriel),
+  renvoi d'invitation, promotion/rétrogradation, désactivation/réactivation,
+  suppression (cascade).
+- Garde-fous anti-lockout : un admin ne se cible jamais lui-même via ces routes,
+  et le **dernier admin actif** ne peut être ni rétrogradé, ni désactivé, ni
+  supprimé (y compris par auto-suppression dans les réglages).
+- La désactivation est **effective immédiatement** : les sessions scellées étant
+  sans état serveur, un middleware relit le statut en base à chaque requête API.
 
 #### F2 — Gestion des recettes (CRUD)
 - Champs : titre, description, photo, **nombre de portions de base**, temps de préparation,
@@ -171,10 +185,14 @@ Autres candidats écartés : Popote, Mijote, Tambouille, Semainier, Batchy.
 
 ```
 User          id, email, passwordHash, name, emailVerifiedAt, createdAt,
+              role(admin|user, défaut user), disabledAt (désactivation douce),
               locale(fr|en), unitSystem(metric|imperial),
               defaultDishCount(4), defaultPeopleCount(1), defaultDaysCount(7),
               rotationWeeks(3)
               (V2 : householdId nullable → table Household)
+
+EmailToken    type(verify|reset|invite) — 'invite' : création de compte par un
+              admin, TTL 7 jours, haché, usage unique
 
 Recipe        id, userId (FK), title, description, imageUrl, baseServings,
               prepMinutes, cookMinutes, sourceUrl?, freezable(bool),
@@ -314,6 +332,13 @@ si un middleware Traefik saute ou si elle est déployée ailleurs un jour).
 - Validation Zod systématique de **toute** entrée (body, query, params) côté serveur.
 - Contrôle d'accès centralisé : chaque ressource vérifiée contre `session.userId`
   (protection IDOR) — testé automatiquement.
+- **Autorisation par rôle** : les routes `/api/admin/*` passent par
+  `requireAdminSession`, qui relit rôle et statut **en base** à chaque appel — le
+  rôle copié dans le cookie ne sert qu'à l'affichage (nav, middleware client).
+  Une démotion ou désactivation est effective immédiatement.
+- **Révocation des sessions scellées** : le middleware `account-status` relit
+  `disabledAt` en base sur chaque requête `/api/*` authentifiée — un compte
+  désactivé ou supprimé perd l'accès sans attendre l'expiration du cookie (7 j).
 - Module **nuxt-security** : CSP stricte, HSTS, X-Content-Type-Options, frame-ancestors,
   limites de taille de requête. ⚠️ Le middleware Traefik `secure-headers@file` du home
   lab applique déjà sa propre CSP stricte : **une seule couche doit être propriétaire
@@ -381,6 +406,14 @@ L'extraction IA est testée avec des réponses enregistrées (fixtures), pas d'a
 ---
 
 ## 12. Journal des décisions et questions restantes
+
+**Résolu le 2026-07-31 — multi-utilisateur géré (révision de D2) :** rôles
+admin/user ; inscription publique fermée (bootstrap : premier inscrit = admin,
+promotion rétroactive du plus ancien compte en migration) ; création de comptes
+par invitation admin (jeton `invite` 7 jours, lien retourné à l'admin) ;
+désactivation douce appliquée aux sessions actives par middleware ; garde-fous
+« self » et « dernier admin actif ». Les e2e créent désormais leurs comptes via
+`e2e/helpers.ts` (admin seedé par `e2e/global-setup.ts`).
 
 **Résolu le 2026-07-02** (voir tableau complet en §4) : nom **Hebdomiam** ; extraction
 schema.org pour les URLs, API Claude pour les photos (interface interchangeable) ;

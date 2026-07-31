@@ -31,6 +31,13 @@ toute chaîne visible passe par i18n (`i18n/locales/*.json`), jamais en dur.
 - **Isolation multi-utilisateur** : toute requête DB sur des données métier filtre par
   `userId` de la session (`requireUserSession`). Écrire un test IDOR pour chaque
   nouvelle ressource.
+- **Rôles** : toute route `/api/admin/*` passe par `requireAdminSession`
+  (`server/utils/session.ts`) — le rôle est relu **en base**, jamais décidé sur le
+  cookie seul (le `role` en session ne sert qu'à l'affichage). La désactivation de
+  compte est appliquée par le middleware `server/middleware/account-status.ts`.
+- **Inscription publique fermée** (bootstrap seulement) : les comptes de test e2e se
+  créent via `registerFreshUser` de `e2e/helpers.ts` (admin seedé par
+  `e2e/global-setup.ts`), jamais par la page /register — voir la skill `e2e-stable`.
 - Mots de passe : Argon2id via `hashUserPassword`/`verifyUserPassword`
   (`server/utils/password.ts`) — ne pas utiliser les `hashPassword`/`verifyPassword`
   (scrypt) auto-importés par nuxt-auth-utils.

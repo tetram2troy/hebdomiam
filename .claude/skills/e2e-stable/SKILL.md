@@ -22,10 +22,13 @@ La suite tourne à 2 workers contre un seul serveur (`node .output`), timeouts
    PATCH — capturer `page.waitForResponse(…)` avant le clic et l'attendre.
 4. **Rate limiting (5/min/IP)** : une IP dédiée par fichier via
    `test.use({ extraHTTPHeaders: { 'x-forwarded-for': '203.0.113.X' } })`.
-   Registre : .11-.13 recettes · .21 design · .41 planifier · .51 reglages ·
-   .52 securite-2fa · .53 courriel · .54 i18n · .60+ captures/diagnostics ·
-   .71 epicerie · .95 import · .98 cuisine. Prendre une adresse libre et
-   compter les logins/inscriptions du fichier (max 5 chacun par minute).
+   Registre : .11-.13 recettes · .21 design · .31 auth · .41 planifier ·
+   .51 reglages · .52 securite-2fa · .53 courriel · .54 i18n · .61-.62 admin ·
+   .63+ captures/diagnostics · .71 epicerie · .95 import · .98 cuisine.
+   Prendre une adresse libre et compter les logins du fichier (max 5/min).
+   Le helper partagé consomme sur son propre pool (198.51.x.y aléatoire) —
+   jamais un compteur par module : il se réinitialise à chaque worker et les
+   fichiers tournent en parallèle.
 5. **v-model sur `<input type="number">`** : Vue écrit un *number* dans la ref
    (ou `''` si vidé). Côté app : typer `ref<string | number>` et passer par
    `String(x).trim()`. Une méthode string sur un number lève une exception
@@ -37,6 +40,21 @@ La suite tourne à 2 workers contre un seul serveur (`node .output`), timeouts
    jeton connu en DB** depuis le spec (pattern dans `e2e/courriel.spec.ts`).
 8. Les codes TOTP se génèrent avec `generateSync({ secret })` d'otplib, secret
    récupéré depuis l'écran d'activation (pattern dans `e2e/securite-2fa.spec.ts`).
+9. **L'inscription publique est fermée** : tout compte de test naît par
+   `registerFreshUser(page, name?)` de `e2e/helpers.ts` (API admin + invitation),
+   jamais par la page /register. L'admin de la suite est seedé par
+   `e2e/global-setup.ts` (upsert idempotent, DB directe). Un compte ainsi créé
+   est **déjà vérifié** — pour tester le flux « courriel non vérifié », remettre
+   l'état par UPDATE direct (pattern `markEmailUnverified` dans `courriel.spec.ts`).
+10. **Cookie de session Secure vs contexte API** : le build de prod émet
+    `nuxt-session` avec l'attribut Secure ; le jar d'`APIRequestContext` le
+    refuse sur http://127.0.0.1 (le navigateur, lui, l'accepte). Pour un appel
+    API authentifié depuis un spec : `page.evaluate(fetch(...))` (cookies natifs
+    du navigateur) ; côté helper : transporter le cookie explicitement
+    (en-tête `cookie:` manuel, `addCookies` sans attribut Secure).
+11. **Locale du navigateur** : `locale: 'fr-CA'` dans `playwright.config.ts` —
+    sans elle, la détection de langue redirige le premier passage à la racine
+    vers /en et tous les sélecteurs français échouent.
 
 ## Avant de lancer
 
