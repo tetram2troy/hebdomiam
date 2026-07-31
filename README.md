@@ -35,11 +35,14 @@ npm run dev                     # http://localhost:3000
 
 ## Déploiement (home lab)
 
-Le `docker-compose.yml` s'appuie sur le Traefik existant (réseau externe `proxy`) :
-l'app est exposée sur `hebdomiam.${DOMAIN}` avec la chaîne de middlewares standard et
-`rate-limit-auth@file` sur `/api/auth`. La base de données vit sur un réseau
-`internal: true` sans accès Internet. Les migrations tournent dans un job dédié
-(`migrate`) avant le démarrage de l'app.
+L'intégration au serveur passe par **[deploy/serveur-perso/](deploy/serveur-perso/README.md)** :
+image GHCR taguée (workflow `release.yml` sur tag `v*`), blocs à coller dans le compose
+unique du serveur, migrations en job dédié (`node .output/server/migrate.mjs`),
+sauvegarde `pg_dump`. L'app est exposée sur `recettes.${DOMAIN}` avec la chaîne de
+middlewares standard et `rate-limit-auth@file` sur `/api/auth` ; la base vit sur un
+réseau `internal: true` sans accès Internet. Gabarit d'origine : `docs/HOSTING.md`.
+
+Banc d'essai local du même modèle (build sur place) :
 
 ```bash
 cp .env.example .env   # renseigner DOMAIN, POSTGRES_PASSWORD, NUXT_SESSION_PASSWORD

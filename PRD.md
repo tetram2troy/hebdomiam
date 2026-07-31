@@ -262,7 +262,7 @@ Principes :
       - hebdomiam-internal
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.hebdomiam.rule=Host(`hebdomiam.${DOMAIN}`)"
+      - "traefik.http.routers.hebdomiam.rule=Host(`recettes.${DOMAIN}`)"
       - "traefik.http.routers.hebdomiam.entrypoints=websecure,websecure-alt"
       - "traefik.http.routers.hebdomiam.tls=true"
       - "traefik.http.routers.hebdomiam.middlewares=geoblock-eu-na@file,crowdsec-bouncer@file,secure-headers@file,rate-limit@file"
@@ -430,12 +430,17 @@ création de recettes.
   `rate-limit` (tous `@file`), + routeur `rate-limit-auth@file` sur les routes d'auth ;
   DB isolée sur un réseau `internal: true`.
 - SMTP : relais partagé Brevo réutilisé (`SMTP_*` du `.env`), `SMTP_FROM` dédié.
-- Domaine : `hebdomiam.${DOMAIN}` — DNS wildcard (DDNS) et certificat wildcard couvrent
+- Domaine : `recettes.${DOMAIN}` (tranché le 2026-07-31) — DNS wildcard (DDNS) et certificat wildcard couvrent
   automatiquement le nouveau sous-domaine, rien à créer.
 
+**Résolu le 2026-07-31 — hébergement :** sous-domaine `recettes.${DOMAIN}` ;
+bundle d'intégration `deploy/serveur-perso/` (image GHCR taguée, migrations en
+job dédié `node .output/server/migrate.mjs`, sauvegarde pg_dump) — voir
+`docs/HOSTING.md` pour le gabarit d'origine. CSP : propriété du middleware
+Traefik (nuxt-security la délègue) ; **écart à traiter côté infra** : les
+photos de recettes sont des URL externes → `img-src 'self' https: data:`
+(voir `deploy/serveur-perso/README.md` §7).
+
 **Questions restantes (non bloquantes) :**
-1. Sous-domaine final : `hebdomiam.${DOMAIN}` (retenu par défaut) ou plus court `miam.${DOMAIN}` ?
-2. Propriété de la CSP : Traefik `secure-headers@file` ou l'app (nuxt-security) — à
-   arbitrer quand le premier écran existera (voir §8).
-3. Geoblock EU/NA : en voyage hors EU/NA, l'app ne sera accessible que via
+1. Geoblock EU/NA : en voyage hors EU/NA, l'app ne sera accessible que via
    Tailscale/LAN (exemptés). Accepté tel quel, ou prévoir une exemption comme Vaultwarden ?

@@ -51,4 +51,6 @@ toute chaîne visible passe par i18n (`i18n/locales/*.json`), jamais en dur.
   `domaine.action` ; jamais de secret ni de contenu utilisateur, PII minimale (userId).
 - Commits : Conventional Commits (`feat:`, `fix:`, `chore:`…), messages en français.
 - Le compose de prod cible le home lab (réseau Traefik externe `proxy`) — ne pas y
-  ajouter de reverse proxy ni publier de ports.
+  ajouter de reverse proxy ni publier de ports. L'intégration réelle au serveur passe
+  par `deploy/serveur-perso/` (image GHCR, gabarit dans `docs/HOSTING.md`) ; les
+  migrations de prod s'exécutent en job dédié : `node .output/server/migrate.mjs`.
