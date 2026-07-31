@@ -1,4 +1,7 @@
 # Production — home lab derrière le Traefik existant (réseau externe « proxy »).
+# Ce compose autonome sert de banc d'essai local du modèle de production ;
+# l'intégration réelle au serveur passe par deploy/serveur-perso/ (bloc à
+# coller dans le compose unique du serveur, image GHCR).
 # Variables requises dans .env : DOMAIN, POSTGRES_PASSWORD, NUXT_SESSION_PASSWORD.
 services:
   app:
@@ -7,9 +10,13 @@ services:
       target: runtime
     image: hebdomiam:latest
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
     environment:
+      TZ: ${TZ:-America/Toronto}
       NUXT_DATABASE_URL: postgresql://hebdomiam:${POSTGRES_PASSWORD}@db:5432/hebdomiam
       NUXT_SESSION_PASSWORD: ${NUXT_SESSION_PASSWORD}
+      NUXT_PUBLIC_BASE_URL: https://recettes.${DOMAIN}
     depends_on:
       db:
         condition: service_healthy
@@ -21,26 +28,29 @@ services:
     labels:
       - "traefik.enable=true"
       # Routeur principal
-      - "traefik.http.routers.hebdomiam.rule=Host(`hebdomiam.${DOMAIN}`)"
+      - "traefik.http.routers.hebdomiam.rule=Host(`recettes.${DOMAIN}`)"
       - "traefik.http.routers.hebdomiam.entrypoints=websecure,websecure-alt"
       - "traefik.http.routers.hebdomiam.tls=true"
       - "traefik.http.routers.hebdomiam.middlewares=geoblock-eu-na@file,crowdsec-bouncer@file,secure-headers@file,rate-limit@file"
       # Routeur prioritaire sur les routes d'auth (pattern immich-auth) :
       # protection brute-force renforcée au périmètre
-      - "traefik.http.routers.hebdomiam-auth.rule=Host(`hebdomiam.${DOMAIN}`) && PathPrefix(`/api/auth`)"
+      - "traefik.http.routers.hebdomiam-auth.rule=Host(`recettes.${DOMAIN}`) && PathPrefix(`/api/auth`)"
       - "traefik.http.routers.hebdomiam-auth.entrypoints=websecure,websecure-alt"
       - "traefik.http.routers.hebdomiam-auth.tls=true"
       - "traefik.http.routers.hebdomiam-auth.priority=100"
       - "traefik.http.routers.hebdomiam-auth.middlewares=geoblock-eu-na@file,crowdsec-bouncer@file,secure-headers@file,rate-limit-auth@file"
       - "traefik.http.routers.hebdomiam-auth.service=hebdomiam"
       - "traefik.http.services.hebdomiam.loadbalancer.server.port=3000"
+      - "traefik.docker.network=proxy"
 
   # Migrations exécutées en job dédié (PRD §7.3) — jamais au boot de l'app.
+  # Même image que l'app : l'exécuteur et les fichiers SQL sont embarqués.
   migrate:
     build:
       context: .
-      target: build
-    command: npx drizzle-kit migrate
+      target: runtime
+    image: hebdomiam:latest
+    command: ["node", ".output/server/migrate.mjs"]
     environment:
       NUXT_DATABASE_URL: postgresql://hebdomiam:${POSTGRES_PASSWORD}@db:5432/hebdomiam
     depends_on:
@@ -53,6 +63,8 @@ services:
   db:
     image: postgres:16-alpine
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
     environment:
       POSTGRES_USER: hebdomiam
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
