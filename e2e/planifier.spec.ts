@@ -1,23 +1,11 @@
 import { expect, test, type Page } from '@playwright/test'
+import { registerFreshUser } from './helpers'
 
 // M2 — le rituel du vendredi : paramètres → suggestions (✓/↻/remplacer) →
 // validation → accueil (semaine planifiée) → « Cuisinée ✓ » → rotation.
 
-// IP distincte par fichier de test (rate limiting d'inscription : 5/min/IP).
+// IP distincte par fichier de test (rate limiting applicatif : 5/min/IP).
 test.use({ extraHTTPHeaders: { 'x-forwarded-for': '203.0.113.41' } })
-
-async function registerFreshUser(page: Page) {
-  const email = `m2-${Date.now()}-${Math.floor(Math.random() * 1e6)}@example.com`
-  await page.goto('/register')
-  // Attendre l'hydratation : un clic trop tôt déclenche la soumission native du
-  // formulaire SSR (rechargement à vide) au lieu du gestionnaire Vue.
-  await page.waitForLoadState('networkidle')
-  await page.getByLabel('Nom').fill('Planificatrice')
-  await page.getByLabel('Courriel').fill(email)
-  await page.getByLabel('Mot de passe').fill('mot-de-passe-tres-long-123')
-  await page.getByRole('button', { name: 'S\'inscrire' }).click()
-  await expect(page.getByTestId('welcome')).toBeVisible()
-}
 
 /** Seed rapide par l'API, depuis la page (cookies de session natifs) —
     la création par l'UI est couverte par recettes.spec. */

@@ -1,6 +1,7 @@
 import { createHash, randomBytes } from 'node:crypto'
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test } from '@playwright/test'
 import pg from 'pg'
+import { registerFreshUser } from './helpers'
 
 // Parcours par courriel (M5) : réinitialisation de mot de passe et vérification
 // d'adresse. Seule l'empreinte SHA-256 des jetons est en base : le test insère
@@ -10,7 +11,6 @@ import pg from 'pg'
 // IP distincte par fichier de test (rate limiting : 5 logins/min/IP).
 test.use({ extraHTTPHeaders: { 'x-forwarded-for': '203.0.113.53' } })
 
-const PASSWORD = 'mot-de-passe-tres-long-123'
 const DB_URL = process.env.NUXT_DATABASE_URL
   ?? 'postgresql://hebdomiam:hebdomiam@localhost:5432/hebdomiam'
 
@@ -33,16 +33,18 @@ async function insertEmailToken(email: string, type: 'verify' | 'reset'): Promis
   return raw
 }
 
-async function registerFreshUser(page: Page) {
-  const email = `courriel-${Date.now()}-${Math.floor(Math.random() * 1e6)}@example.com`
-  await page.goto('/register')
-  await page.waitForLoadState('networkidle')
-  await page.getByLabel('Nom').fill('Distraite')
-  await page.getByLabel('Courriel').fill(email)
-  await page.getByLabel('Mot de passe').fill(PASSWORD)
-  await page.getByRole('button', { name: 'S\'inscrire' }).click()
-  await expect(page.getByTestId('welcome')).toBeVisible()
-  return email
+/** Un compte créé par invitation naît vérifié (possession du lien) : pour
+    tester le flux « vérifier le courriel », on remet l'état non vérifié —
+    impossible via l'UI, UPDATE direct comme insertEmailToken ci-dessus. */
+async function markEmailUnverified(email: string): Promise<void> {
+  const client = new pg.Client({ connectionString: DB_URL })
+  await client.connect()
+  try {
+    await client.query('UPDATE users SET email_verified_at = NULL WHERE email = $1', [email])
+  }
+  finally {
+    await client.end()
+  }
 }
 
 test('mot de passe oublié : demande anonyme puis réinitialisation par jeton', async ({ page }) => {
@@ -85,6 +87,7 @@ test('mot de passe oublié : demande anonyme puis réinitialisation par jeton', 
 
 test('vérification du courriel : le lien confirme et les réglages l\'affichent', async ({ page }) => {
   const email = await registerFreshUser(page)
+  await markEmailUnverified(email)
 
   await page.goto('/reglages')
   await expect(page.getByText('non vérifié')).toBeVisible()

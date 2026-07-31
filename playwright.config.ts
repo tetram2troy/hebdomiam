@@ -2,6 +2,8 @@ import { defineConfig, devices } from '@playwright/test'
 
 export default defineConfig({
   testDir: './e2e',
+  // Seed du compte admin de la suite (inscription publique fermée) — voir e2e/global-setup.ts.
+  globalSetup: './e2e/global-setup.ts',
   // La suite complète tourne en parallèle contre un seul serveur : marge par test
   // et par assertion (l'hydratation SSR ralentit sous charge de deux workers).
   timeout: 60_000,
@@ -11,6 +13,9 @@ export default defineConfig({
   reporter: process.env.CI ? 'github' : 'list',
   use: {
     baseURL: 'http://127.0.0.1:3000',
+    // Navigateur francophone : sans quoi la détection de langue redirige le
+    // premier passage à la racine vers /en et casse les sélecteurs français.
+    locale: 'fr-CA',
     trace: 'on-first-retry',
   },
   projects: [

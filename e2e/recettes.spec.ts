@@ -1,25 +1,13 @@
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test } from '@playwright/test'
+import { registerFreshUser } from './helpers'
 
-// Parcours M1 complet : inscription → collection vide → création d'une recette
+// Parcours M1 complet : compte frais → collection vide → création d'une recette
 // complète → fiche (mise à l'échelle des portions) → recherche/filtres →
 // modification → suppression douce.
 
-// IP distincte par fichier de test : le rate limiting d'inscription (5/min/IP)
+// IP distincte par fichier de test : le rate limiting applicatif (5/min/IP)
 // est un comportement de prod qu'on ne veut pas désactiver.
 test.use({ extraHTTPHeaders: { 'x-forwarded-for': '203.0.113.11' } })
-
-async function registerFreshUser(page: Page) {
-  const email = `m1-${Date.now()}-${Math.floor(Math.random() * 1e6)}@example.com`
-  await page.goto('/register')
-  // Attendre l'hydratation : un clic trop tôt déclenche la soumission native du
-  // formulaire SSR (rechargement à vide) au lieu du gestionnaire Vue.
-  await page.waitForLoadState('networkidle')
-  await page.getByLabel('Nom').fill('Testeuse M1')
-  await page.getByLabel('Courriel').fill(email)
-  await page.getByLabel('Mot de passe').fill('mot-de-passe-tres-long-123')
-  await page.getByRole('button', { name: 'S\'inscrire' }).click()
-  await expect(page.getByTestId('welcome')).toContainText('Testeuse M1')
-}
 
 test('cycle de vie complet d\'une recette', async ({ page }) => {
   await registerFreshUser(page)

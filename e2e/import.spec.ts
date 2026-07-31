@@ -1,21 +1,11 @@
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test } from '@playwright/test'
+import { registerFreshUser } from './helpers'
 
 // M4 — import par URL : pipeline complet (fetch → schema.org → brouillon)
 // contre une page-fixture servie par l'app (NUXT_IMPORT_ALLOW_PRIVATE=1 en test).
 
-// IP distincte par fichier de test (rate limiting d'inscription : 5/min/IP).
+// IP distincte par fichier de test (rate limiting applicatif : 5/min/IP).
 test.use({ extraHTTPHeaders: { 'x-forwarded-for': '203.0.113.95' } })
-
-async function registerFreshUser(page: Page) {
-  const email = `m4-${Date.now()}-${Math.floor(Math.random() * 1e6)}@example.com`
-  await page.goto('/register')
-  await page.waitForLoadState('networkidle')
-  await page.getByLabel('Nom').fill('Importatrice')
-  await page.getByLabel('Courriel').fill(email)
-  await page.getByLabel('Mot de passe').fill('mot-de-passe-tres-long-123')
-  await page.getByRole('button', { name: 'S\'inscrire' }).click()
-  await expect(page.getByTestId('welcome')).toBeVisible()
-}
 
 test('import par URL : extraction → brouillon à relire → enregistrement', async ({ page, baseURL }) => {
   await registerFreshUser(page)

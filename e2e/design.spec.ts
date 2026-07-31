@@ -1,10 +1,11 @@
-import { expect, test, type Locator, type Page } from '@playwright/test'
+import { expect, test, type Locator } from '@playwright/test'
+import { registerFreshUser } from './helpers'
 
 // Conformité au design system « Primeur » (docs/design-system.md, app/assets/css/tokens.css) :
 // tokens réellement appliqués, fontes chargées, thèmes clair/sombre, focus visible,
 // cibles tactiles. Ces tests protègent le design contre les régressions CSS.
 
-// IP distincte par fichier de test (rate limiting d'inscription : 5/min/IP).
+// IP distincte par fichier de test (rate limiting applicatif : 5/min/IP).
 test.use({ extraHTTPHeaders: { 'x-forwarded-for': '203.0.113.21' } })
 
 const PRIMARY_LIGHT = 'rgb(30, 122, 61)' // --md-sys-color-primary (#1E7A3D)
@@ -17,17 +18,6 @@ function style(locator: Locator, property: string) {
     (el, prop) => getComputedStyle(el).getPropertyValue(prop),
     property,
   )
-}
-
-async function registerFreshUser(page: Page) {
-  const email = `design-${Date.now()}-${Math.floor(Math.random() * 1e6)}@example.com`
-  await page.goto('/register')
-  await page.waitForLoadState('networkidle')
-  await page.getByLabel('Nom').fill('Design QA')
-  await page.getByLabel('Courriel').fill(email)
-  await page.getByLabel('Mot de passe').fill('mot-de-passe-tres-long-123')
-  await page.getByRole('button', { name: 'S\'inscrire' }).click()
-  await expect(page.getByTestId('welcome')).toBeVisible()
 }
 
 test.describe('thème clair', () => {

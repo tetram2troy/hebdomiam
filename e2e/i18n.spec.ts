@@ -1,9 +1,10 @@
 import { expect, test } from '@playwright/test'
+import { registerFreshUser } from './helpers'
 
 // Switch de langue FR/EN du header : bascule d'interface pour tout visiteur,
 // préférence de compte synchronisée quand on est connecté (langue des courriels).
 
-// IP distincte par fichier de test (rate limiting : 5 inscriptions/min/IP).
+// IP distincte par fichier de test (rate limiting applicatif : 5/min/IP).
 test.use({ extraHTTPHeaders: { 'x-forwarded-for': '203.0.113.54' } })
 
 test('visiteur : la bascule EN/FR traduit l\'interface et préfixe l\'URL', async ({ page }) => {
@@ -24,14 +25,7 @@ test('visiteur : la bascule EN/FR traduit l\'interface et préfixe l\'URL', asyn
 })
 
 test('connecté : la bascule traduit l\'interface et persiste la préférence du compte', async ({ page }) => {
-  const email = `i18n-${Date.now()}-${Math.floor(Math.random() * 1e6)}@example.com`
-  await page.goto('/register')
-  await page.waitForLoadState('networkidle')
-  await page.getByLabel('Nom').fill('Bilingue')
-  await page.getByLabel('Courriel').fill(email)
-  await page.getByLabel('Mot de passe').fill('mot-de-passe-tres-long-123')
-  await page.getByRole('button', { name: 'S\'inscrire' }).click()
-  await expect(page.getByTestId('welcome')).toBeVisible()
+  await registerFreshUser(page, 'Bilingue')
 
   await page.getByTestId('lang-switch').click()
   await expect(page).toHaveURL(/\/en$/)

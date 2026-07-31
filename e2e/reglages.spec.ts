@@ -1,24 +1,11 @@
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test } from '@playwright/test'
+import { FRESH_PASSWORD as PASSWORD, registerFreshUser } from './helpers'
 
 // Réglages du compte (M5) : profil, préférences, changement de mot de passe,
 // suppression de compte.
 
-// IP distincte par fichier de test (rate limiting : 5 inscriptions et 5 logins/min/IP).
+// IP distincte par fichier de test (rate limiting : 5 logins/min/IP).
 test.use({ extraHTTPHeaders: { 'x-forwarded-for': '203.0.113.51' } })
-
-const PASSWORD = 'mot-de-passe-tres-long-123'
-
-async function registerFreshUser(page: Page, name = 'Régleuse') {
-  const email = `reglages-${Date.now()}-${Math.floor(Math.random() * 1e6)}@example.com`
-  await page.goto('/register')
-  await page.waitForLoadState('networkidle')
-  await page.getByLabel('Nom').fill(name)
-  await page.getByLabel('Courriel').fill(email)
-  await page.getByLabel('Mot de passe').fill(PASSWORD)
-  await page.getByRole('button', { name: 'S\'inscrire' }).click()
-  await expect(page.getByTestId('welcome')).toBeVisible()
-  return email
-}
 
 test('profil et préférences : nom, unités et rotation persistés', async ({ page }) => {
   await registerFreshUser(page)
@@ -49,9 +36,10 @@ test('profil et préférences : nom, unités et rotation persistés', async ({ p
   await expect(page.getByTestId('units-imperial')).toHaveClass(/on/)
   await expect(page.getByRole('group', { name: /Rotation/ }).locator('.val')).toHaveText('4')
 
-  // Le courriel est marqué non vérifié tant que le lien n'est pas cliqué
-  await expect(page.getByText('non vérifié')).toBeVisible()
-  await expect(page.getByTestId('resend-verify')).toBeVisible()
+  // Un compte créé par invitation est déjà vérifié (la possession du lien en
+  // est la preuve) — le flux « non vérifié » est couvert par courriel.spec.
+  await expect(page.getByText('✓ vérifié')).toBeVisible()
+  await expect(page.getByTestId('resend-verify')).toHaveCount(0)
 })
 
 test('changement de mot de passe : l\'ancien est refusé, le nouveau connecte', async ({ page }) => {
@@ -89,7 +77,8 @@ test('suppression de compte : confirmation par mot de passe puis accès révoqu�
   await page.getByTestId('delete-account').click()
   await page.getByLabel('Mot de passe', { exact: true }).fill(PASSWORD)
   await page.getByTestId('delete-account-confirm').click()
-  await expect(page).toHaveURL(/\/register$/)
+  // Vers la connexion : l'inscription publique est fermée.
+  await expect(page).toHaveURL(/\/login$/)
 
   // Le compte n'existe plus
   await page.goto('/login')
