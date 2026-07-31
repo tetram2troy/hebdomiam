@@ -15,11 +15,14 @@ import { connectTestDb, createTestUser, truncateAll } from './test-db'
 const db = connectTestDb()
 const PASSWORD = 'mot-de-passe-tres-long-123'
 
-async function createUserWithPassword() {
+async function createUserWithPassword(role: 'admin' | 'user' = 'user') {
   const [user] = await db.insert(users).values({
     email: `settings-${process.pid}-${Math.random().toString(36).slice(2)}@example.com`,
     passwordHash: await hashUserPassword(PASSWORD),
     name: 'Testeuse Réglages',
+    role,
+    // Compte établi : le garde lastAdmin ne compte que les admins vérifiés.
+    emailVerifiedAt: new Date(),
   }).returning({ id: users.id, email: users.email })
   return user!
 }
@@ -108,5 +111,29 @@ describe('deleteAccount', () => {
     expect(await deleteAccount(db, user.id, PASSWORD)).toBe('ok')
     expect(await getProfile(db, user.id)).toBeNull()
     expect(await db.select().from(recipes)).toHaveLength(0)
+  })
+
+  it('refuse l\'auto-suppression du dernier admin actif', async () => {
+    const admin = await createUserWithPassword('admin')
+    expect(await deleteAccount(db, admin.id, PASSWORD)).toBe('lastAdmin')
+    expect(await getProfile(db, admin.id)).not.toBeNull()
+  })
+
+  it('supprime un admin quand un autre admin actif existe', async () => {
+    const admin = await createUserWithPassword('admin')
+    await createTestUser(db, 'Autre admin', { role: 'admin', emailVerifiedAt: new Date() })
+    expect(await deleteAccount(db, admin.id, PASSWORD)).toBe('ok')
+  })
+
+  it('un admin désactivé ne compte pas comme relève', async () => {
+    const admin = await createUserWithPassword('admin')
+    await createTestUser(db, 'Admin désactivé', { role: 'admin', emailVerifiedAt: new Date(), disabledAt: new Date() })
+    expect(await deleteAccount(db, admin.id, PASSWORD)).toBe('lastAdmin')
+  })
+
+  it('un admin jamais activé ne compte pas comme relève', async () => {
+    const admin = await createUserWithPassword('admin')
+    await createTestUser(db, 'Invitation en attente', { role: 'admin' })
+    expect(await deleteAccount(db, admin.id, PASSWORD)).toBe('lastAdmin')
   })
 })

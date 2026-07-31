@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  acceptInviteSchema,
   forgotPasswordSchema,
   loginSchema,
   registerSchema,
@@ -39,6 +40,11 @@ describe('registerSchema', () => {
   it('ignore les champs inconnus', () => {
     const result = registerSchema.parse({ ...valid, isAdmin: true })
     expect(result).not.toHaveProperty('isAdmin')
+  })
+
+  it('ignore un rôle injecté — le rôle ne vient jamais du corps de requête', () => {
+    const result = registerSchema.parse({ ...valid, role: 'admin' })
+    expect(result).not.toHaveProperty('role')
   })
 })
 
@@ -90,6 +96,22 @@ describe('resetPasswordSchema', () => {
 
   it('rejette un nouveau mot de passe de moins de 12 caractères', () => {
     expect(() => resetPasswordSchema.parse({ token, password: 'court' })).toThrow()
+  })
+})
+
+describe('acceptInviteSchema', () => {
+  const token = 'a'.repeat(48)
+
+  it('accepte un jeton et un mot de passe valides', () => {
+    expect(() => acceptInviteSchema.parse({ token, password: 'mot-de-passe-solide' })).not.toThrow()
+  })
+
+  it('rejette un jeton hors bornes (anti force brute)', () => {
+    expect(() => acceptInviteSchema.parse({ token: 'court', password: 'mot-de-passe-solide' })).toThrow()
+  })
+
+  it('rejette un mot de passe de moins de 12 caractères', () => {
+    expect(() => acceptInviteSchema.parse({ token, password: 'court' })).toThrow()
   })
 })
 

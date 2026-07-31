@@ -15,13 +15,20 @@ export async function truncateAll(db: Db) {
 
 let userCounter = 0
 
+export interface TestUserOptions {
+  role?: 'admin' | 'user'
+  disabledAt?: Date | null
+  emailVerifiedAt?: Date | null
+}
+
 /** Insère un utilisateur de test (hash factice : on ne teste pas l'auth ici). */
-export async function createTestUser(db: Db, name = 'Testeur') {
+export async function createTestUser(db: Db, name = 'Testeur', options: TestUserOptions = {}) {
   userCounter += 1
   const [user] = await db.insert(users).values({
     email: `test-${userCounter}-${process.pid}@example.com`,
     passwordHash: '$argon2id$fake-hash-for-tests',
     name,
+    ...options,
   }).returning({ id: users.id, email: users.email })
   return user!
 }
