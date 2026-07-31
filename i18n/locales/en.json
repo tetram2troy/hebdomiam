@@ -8,6 +8,7 @@
     "recipes": "Recipes",
     "grocery": "Groceries",
     "plan": "Plan my week",
+    "admin": "Admin",
     "switchLocale": "FR",
     "switchLocaleLabel": "Français"
   },
@@ -202,7 +203,39 @@
     "totpBody": "Enter the 6-digit code from your authenticator app (or your backup code).",
     "totpCode": "Code",
     "totpSubmit": "Verify",
-    "backToLogin": "← Back to login"
+    "backToLogin": "← Back to login",
+    "registrationClosed": "Registration is closed — accounts are created by an administrator. Ask them for an invitation.",
+    "inviteTitle": "Activate my account",
+    "inviteIntro": "An administrator created an account for you. Choose your password to activate it.",
+    "inviteSubmit": "Activate my account",
+    "inviteDone": "Account activated! You can now log in."
+  },
+  "admin": {
+    "title": "Administration",
+    "createTitle": "Create an account",
+    "createHint": "The invitee receives a link (emailed and shown here) to choose their password and activate the account.",
+    "createSubmit": "Create and invite",
+    "created": "Account created — invitation generated.",
+    "inviteUrlLabel": "Invitation link (valid for 7 days):",
+    "copy": "Copy",
+    "copied": "Copied ✓",
+    "usersTitle": "Accounts",
+    "you": "you",
+    "roleAdmin": "admin",
+    "disabled": "disabled",
+    "invitePending": "invitation pending",
+    "since": "created {date}",
+    "resendInvite": "Resend invitation",
+    "inviteResent": "New invitation generated.",
+    "promote": "Promote to admin",
+    "demote": "Demote",
+    "disable": "Disable",
+    "enable": "Re-enable",
+    "saved": "Saved.",
+    "deleted": "Account deleted.",
+    "deleteTitle": "Delete this account?",
+    "deleteBody": "{name}'s account and all their data (recipes, plans, lists) will be permanently deleted.",
+    "deleteConfirm": "Delete permanently"
   },
   "common": {
     "save": "Save",
@@ -338,6 +371,12 @@
     "invalidPassword": "Incorrect password.",
     "invalidCode": "Invalid or expired code.",
     "invalidToken": "Invalid or expired link.",
+    "forbidden": "Administrator access only.",
+    "registrationClosed": "Registration is closed — ask an administrator for an invitation.",
+    "accountDisabled": "This account is disabled. Contact an administrator.",
+    "lastAdmin": "Not possible: this is the last active administrator account.",
+    "adminSelf": "You cannot change your own account here — use the settings page.",
+    "inviteAlreadyActive": "This account is already active — the invitation is no longer needed.",
     "unknown": "Something went wrong. Please try again."
   }
 }

@@ -8,6 +8,7 @@
     "recipes": "Recettes",
     "grocery": "Épicerie",
     "plan": "Planifier ma semaine",
+    "admin": "Administration",
     "switchLocale": "EN",
     "switchLocaleLabel": "English"
   },
@@ -202,7 +203,39 @@
     "totpBody": "Entre le code à 6 chiffres de ton application d'authentification (ou ton code de secours).",
     "totpCode": "Code",
     "totpSubmit": "Vérifier",
-    "backToLogin": "← Retour à la connexion"
+    "backToLogin": "← Retour à la connexion",
+    "registrationClosed": "Les inscriptions sont fermées — les comptes sont créés par un administrateur. Demande-lui une invitation.",
+    "inviteTitle": "Activer mon compte",
+    "inviteIntro": "Un administrateur t'a créé un compte. Choisis ton mot de passe pour l'activer.",
+    "inviteSubmit": "Activer mon compte",
+    "inviteDone": "Compte activé ! Tu peux te connecter."
+  },
+  "admin": {
+    "title": "Administration",
+    "createTitle": "Créer un compte",
+    "createHint": "L'invité reçoit un lien (envoyé par courriel et affiché ici) pour choisir son mot de passe et activer son compte.",
+    "createSubmit": "Créer et inviter",
+    "created": "Compte créé — invitation générée.",
+    "inviteUrlLabel": "Lien d'invitation (valide 7 jours) :",
+    "copy": "Copier",
+    "copied": "Copié ✓",
+    "usersTitle": "Comptes",
+    "you": "toi",
+    "roleAdmin": "admin",
+    "disabled": "désactivé",
+    "invitePending": "invitation en attente",
+    "since": "créé le {date}",
+    "resendInvite": "Renvoyer l'invitation",
+    "inviteResent": "Nouvelle invitation générée.",
+    "promote": "Promouvoir admin",
+    "demote": "Rétrograder",
+    "disable": "Désactiver",
+    "enable": "Réactiver",
+    "saved": "Enregistré.",
+    "deleted": "Compte supprimé.",
+    "deleteTitle": "Supprimer ce compte ?",
+    "deleteBody": "Le compte de {name} et toutes ses données (recettes, plans, listes) seront supprimés définitivement.",
+    "deleteConfirm": "Supprimer définitivement"
   },
   "common": {
     "save": "Enregistrer",
@@ -338,6 +371,12 @@
     "invalidPassword": "Mot de passe incorrect.",
     "invalidCode": "Code invalide ou expiré.",
     "invalidToken": "Lien invalide ou expiré.",
+    "forbidden": "Accès réservé aux administrateurs.",
+    "registrationClosed": "Les inscriptions sont fermées — demande une invitation à un administrateur.",
+    "accountDisabled": "Ce compte est désactivé. Contacte un administrateur.",
+    "lastAdmin": "Impossible : c'est le dernier compte administrateur actif.",
+    "adminSelf": "Tu ne peux pas modifier ton propre compte ici — passe par les réglages.",
+    "inviteAlreadyActive": "Ce compte est déjà actif — l'invitation n'a plus d'objet.",
     "unknown": "Une erreur est survenue. Réessaie."
   }
 }

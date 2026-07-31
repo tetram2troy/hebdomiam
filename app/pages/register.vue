@@ -3,6 +3,10 @@ const { fetch: refreshSession } = useUserSession()
 const localePath = useLocalePath()
 const { t } = useI18n()
 
+// L'inscription publique n'existe que sur une instance vierge (bootstrap du
+// premier admin) : fermée, la page explique comment obtenir un compte.
+const { data: registration } = await useFetch<{ open: boolean }>('/api/auth/registration-open')
+
 const name = ref('')
 const email = ref('')
 const password = ref('')
@@ -32,7 +36,11 @@ async function submit() {
 <template>
   <section>
     <h1>{{ $t('auth.registerTitle') }}</h1>
-    <form @submit.prevent="submit">
+    <template v-if="registration && !registration.open">
+      <p class="meta" data-testid="register-closed">{{ $t('auth.registrationClosed') }}</p>
+      <NuxtLink :to="localePath('/login')" class="btn">{{ $t('auth.login') }}</NuxtLink>
+    </template>
+    <form v-else @submit.prevent="submit">
       <label>
         {{ $t('auth.name') }}
         <input v-model="name" type="text" name="name" autocomplete="name" required>

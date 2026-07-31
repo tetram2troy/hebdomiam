@@ -18,6 +18,12 @@ const KNOWN_KEYS = new Set([
   'errors.invalidPassword',
   'errors.invalidCode',
   'errors.invalidToken',
+  'errors.forbidden',
+  'errors.registrationClosed',
+  'errors.accountDisabled',
+  'errors.lastAdmin',
+  'errors.adminSelf',
+  'errors.inviteAlreadyActive',
 ])
 
 export function errorMessage(err: unknown, t: (key: string) => string): string {

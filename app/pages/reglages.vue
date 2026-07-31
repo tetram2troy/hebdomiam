@@ -149,7 +149,8 @@ async function deleteAccount() {
   try {
     await $fetch('/api/account', { method: 'DELETE', body: { password: deletePassword.value } })
     await clear()
-    await navigateTo(localePath('/register'))
+    // Vers la connexion : l'inscription publique est fermée, /register est un cul-de-sac.
+    await navigateTo(localePath('/login'))
   }
   catch (err) {
     error.value = errorMessage(err, t)

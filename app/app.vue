@@ -4,6 +4,10 @@ const localePath = useLocalePath()
 const switchLocalePath = useSwitchLocalePath()
 const { locale } = useI18n()
 
+// Inscription fermée dès qu'un compte existe : le lien ne s'affiche que sur
+// une instance vierge (bootstrap du premier admin).
+const { data: registration } = useFetch<{ open: boolean }>('/api/auth/registration-open')
+
 // Applique le thème choisi avant la peinture (évite l'éclair clair→sombre).
 useHead({
   script: [{
@@ -60,12 +64,13 @@ async function logout() {
         >{{ $t('nav.switchLocale') }}</button>
         <template v-if="loggedIn">
           <NuxtLink :to="localePath('/planifier')" class="btn topnav-btn" data-testid="nav-plan">{{ $t('nav.plan') }}</NuxtLink>
+          <NuxtLink v-if="user?.role === 'admin'" :to="localePath('/admin')" class="nav-link" data-testid="nav-admin">{{ $t('nav.admin') }}</NuxtLink>
           <NuxtLink :to="localePath('/reglages')" class="nav-link" data-testid="nav-settings">{{ user?.name }}</NuxtLink>
           <button type="button" class="btn-outline topnav-btn" @click="logout">{{ $t('auth.logout') }}</button>
         </template>
         <template v-else>
           <NuxtLink :to="localePath('/login')" class="nav-link">{{ $t('auth.login') }}</NuxtLink>
-          <NuxtLink :to="localePath('/register')" class="nav-link">{{ $t('auth.register') }}</NuxtLink>
+          <NuxtLink v-if="registration?.open" :to="localePath('/register')" class="nav-link">{{ $t('auth.register') }}</NuxtLink>
         </template>
       </div>
     </header>
