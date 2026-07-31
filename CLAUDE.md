@@ -17,6 +17,13 @@ toute chaîne visible passe par i18n (`i18n/locales/*.json`), jamais en dur.
 - `npm run test:e2e` — Playwright (nécessite DB migrée + `npm run build`)
 - `npm run db:generate` — nouvelle migration après modification de `server/database/schema.ts`
 
+## Skills projet (`.claude/skills/`)
+
+- `/nouvelle-feature` — workflow complet d'une fonctionnalité (PRD → conventions →
+  pyramide de tests → validation → doc → commits). À suivre pour toute demande de feature.
+- `/verifier-ui` — capture Playwright inspectée avant d'annoncer un changement visuel.
+- `/e2e-stable` — pièges connus de la suite Playwright et méthode de diagnostic.
+
 ## Conventions
 
 - **Toute entrée serveur est validée par Zod** (`readValidatedBody`), schémas dans
