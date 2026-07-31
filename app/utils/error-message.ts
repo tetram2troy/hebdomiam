@@ -1,6 +1,8 @@
 // Convertit une erreur $fetch en message traduit. Le serveur renvoie des clés
 // i18n (ex. « errors.emailTaken ») dans le champ message.
-const KNOWN_KEYS = new Set([
+// Exporté pour le test qui garantit que chaque clé est traduite en FR et EN —
+// une clé non traduite s'affiche brute à l'écran (vécu avec errors.planExists).
+export const KNOWN_KEYS = new Set([
   'errors.invalidCredentials',
   'errors.emailTaken',
   'errors.tooManyRequests',
