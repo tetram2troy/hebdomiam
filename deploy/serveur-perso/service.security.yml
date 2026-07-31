@@ -1,0 +1,21 @@
+# Limites de ressources — fichier d'override côté infra.
+# Mesuré sur le build v0.1.0 : app 178 Mo au repos (docker stats) ;
+# marge SSR sous charge → limite 384M. Postgres seul sur une petite base.
+services:
+  hebdomiam:
+    deploy:
+      resources:
+        limits:
+          memory: 384M
+          cpus: '0.75'
+        reservations:
+          memory: 128M
+
+  hebdomiam-db:
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.5'
+        reservations:
+          memory: 64M

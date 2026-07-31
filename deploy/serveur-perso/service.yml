@@ -1,0 +1,90 @@
+# Hebdomiam — blocs à coller dans le docker-compose.yml du serveur.
+#
+# 1. Les deux services ci-dessous vont sous « services: » (indentation 2 espaces).
+# 2. Ajouter le réseau interne au bloc « networks: » de fin de fichier :
+#        hebdomiam-internal:
+#          internal: true
+# 3. Compléter le .env du serveur avec les lignes de env.example.
+#
+# L'app est stateless (aucun fichier persistant) : seule la base a un volume.
+
+  hebdomiam:
+    # Adapter <compte-github> au dépôt réel ; tag immuable, jamais « latest »
+    # (migrations de schéma → mises à jour supervisées, voir README).
+    image: ghcr.io/<compte-github>/hebdomiam:v0.1.0
+    container_name: hebdomiam
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - proxy                # Traefik + sortie Internet (API Claude, SMTP)
+      - hebdomiam-internal   # base de données
+    environment:
+      - TZ=${TZ:-America/Toronto}
+      - NUXT_DATABASE_URL=postgresql://hebdomiam:${HEBDOMIAM_POSTGRES_PASSWORD}@hebdomiam-db:5432/hebdomiam
+      - NUXT_SESSION_PASSWORD=${HEBDOMIAM_SESSION_PASSWORD}
+      # Base des liens dans les courriels (vérification, invitation, reset)
+      - NUXT_PUBLIC_BASE_URL=https://recettes.${DOMAIN}
+      # Relais SMTP partagé du serveur (Brevo) — variables existantes réutilisées
+      - SMTP_HOST=${SMTP_HOST}
+      - SMTP_PORT=${SMTP_PORT}
+      - SMTP_SECURITY=${SMTP_SECURITY}
+      - SMTP_USERNAME=${SMTP_USERNAME}
+      - SMTP_PASSWORD=${SMTP_PASSWORD}
+      - SMTP_FROM=hebdomiam@${DOMAIN}
+      # Optionnelle : sans clé, l'import par URL fonctionne (schema.org seul)
+      # et l'import par photo est désactivé proprement.
+      - ANTHROPIC_API_KEY=${HEBDOMIAM_ANTHROPIC_API_KEY:-}
+    depends_on:
+      hebdomiam-db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    labels:
+      - "traefik.enable=true"
+      # Routeur principal
+      - "traefik.http.routers.hebdomiam.rule=Host(`recettes.${DOMAIN}`)"
+      - "traefik.http.routers.hebdomiam.entrypoints=websecure,websecure-alt"
+      - "traefik.http.routers.hebdomiam.tls=true"
+      - "traefik.http.routers.hebdomiam.middlewares=geoblock-eu-na@file,crowdsec-bouncer@file,secure-headers@file,rate-limit@file"
+      # Routeur prioritaire : brute-force sur l'auth limité au périmètre
+      # (pattern immich-auth), en plus du rate limiting applicatif.
+      - "traefik.http.routers.hebdomiam-auth.rule=Host(`recettes.${DOMAIN}`) && PathPrefix(`/api/auth`)"
+      - "traefik.http.routers.hebdomiam-auth.entrypoints=websecure,websecure-alt"
+      - "traefik.http.routers.hebdomiam-auth.tls=true"
+      - "traefik.http.routers.hebdomiam-auth.priority=100"
+      - "traefik.http.routers.hebdomiam-auth.middlewares=geoblock-eu-na@file,crowdsec-bouncer@file,secure-headers@file,rate-limit-auth@file"
+      - "traefik.http.routers.hebdomiam-auth.service=hebdomiam"
+      - "traefik.http.services.hebdomiam.loadbalancer.server.port=3000"
+      - "traefik.docker.network=proxy"
+      # Tag immuable + migrations de schéma : mises à jour manuelles (README)
+      - "com.centurylinklabs.watchtower.enable=false"
+
+  hebdomiam-db:
+    image: postgres:16-alpine
+    container_name: hebdomiam-db
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - hebdomiam-internal   # internal: true — ni proxy, ni Internet, ni hôte
+    environment:
+      - TZ=${TZ:-America/Toronto}
+      - POSTGRES_USER=hebdomiam
+      - POSTGRES_PASSWORD=${HEBDOMIAM_POSTGRES_PASSWORD}
+      - POSTGRES_DB=hebdomiam
+    volumes:
+      # postgres:16-alpine tourne en uid/gid 70:70 — voir README (prérequis)
+      - /app-tetram/hebdomiam/db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hebdomiam -d hebdomiam"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    labels:
+      # Jamais de bump automatique d'une base de données
+      - "com.centurylinklabs.watchtower.enable=false"
