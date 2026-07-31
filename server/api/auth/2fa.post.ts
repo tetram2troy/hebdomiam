@@ -23,7 +23,13 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 401, message: 'errors.invalidCredentials' })
   }
 
-  const publicUser = { id: user.id, email: user.email, name: user.name }
+  // Fenêtre login → 2FA : le compte a pu être désactivé entre les deux étapes.
+  if (user.disabledAt) {
+    logWarn('auth.login_disabled', { userId: user.id, ip: clientIp(event) })
+    throw createError({ statusCode: 403, message: 'errors.accountDisabled' })
+  }
+
+  const publicUser = { id: user.id, email: user.email, name: user.name, role: user.role }
   await replaceUserSession(event, { user: publicUser })
   // method=backup : authenticateur perdu — ou compromis. À surveiller.
   logEvent('auth.login', { userId: user.id, ip: clientIp(event), twoFactor: method })

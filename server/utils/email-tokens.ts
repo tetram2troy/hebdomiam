@@ -1,6 +1,6 @@
 import { createHash, randomBytes } from 'node:crypto'
 import { and, eq, gt, isNull } from 'drizzle-orm'
-import type { Db } from '../database/client'
+import type { Db, DbLike } from '../database/client'
 import { emailTokens } from '../database/schema'
 
 // Jetons de courriel : seul le SHA-256 est stocké — un vol de base ne permet
@@ -10,7 +10,22 @@ function hashToken(raw: string): string {
   return createHash('sha256').update(raw).digest('hex')
 }
 
-export async function createEmailToken(db: Db, userId: string, type: 'verify' | 'reset', ttlMinutes: number): Promise<string> {
+export type EmailTokenType = 'verify' | 'reset' | 'invite'
+
+/** Invalide les jetons encore vivants d'un utilisateur pour un type donné —
+    un seul jeton d'invitation valide à la fois : un lien remplacé ne doit pas
+    rester un droit d'écrasement de mot de passe pendant son TTL. */
+export async function invalidateEmailTokens(db: DbLike, userId: string, type: EmailTokenType, now = new Date()): Promise<void> {
+  await db.update(emailTokens)
+    .set({ usedAt: now })
+    .where(and(
+      eq(emailTokens.userId, userId),
+      eq(emailTokens.type, type),
+      isNull(emailTokens.usedAt),
+    ))
+}
+
+export async function createEmailToken(db: DbLike, userId: string, type: EmailTokenType, ttlMinutes: number): Promise<string> {
   const raw = randomBytes(24).toString('hex') // 48 caractères
   await db.insert(emailTokens).values({
     userId,
@@ -22,7 +37,7 @@ export async function createEmailToken(db: Db, userId: string, type: 'verify' | 
 }
 
 /** Consomme un jeton valide (bon type, non expiré, non utilisé) → userId. */
-export async function consumeEmailToken(db: Db, type: 'verify' | 'reset', raw: string, now = new Date()): Promise<string | null> {
+export async function consumeEmailToken(db: Db, type: EmailTokenType, raw: string, now = new Date()): Promise<string | null> {
   const [token] = await db.update(emailTokens)
     .set({ usedAt: now })
     .where(and(

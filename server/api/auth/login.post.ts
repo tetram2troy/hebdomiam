@@ -24,6 +24,13 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 401, message: 'errors.invalidCredentials' })
   }
 
+  // Compte désactivé : refusé seulement après validation du mot de passe —
+  // on ne révèle rien à qui ne connaît pas les identifiants.
+  if (user.disabledAt) {
+    logWarn('auth.login_disabled', { userId: user.id, ip: clientIp(event) })
+    throw createError({ statusCode: 403, message: 'errors.accountDisabled' })
+  }
+
   // 2FA active : mot de passe validé mais session incomplète tant que le code
   // TOTP n'est pas fourni (POST /api/auth/2fa).
   if (user.totpEnabledAt) {
@@ -32,7 +39,7 @@ export default defineEventHandler(async (event) => {
     return { requires2fa: true as const }
   }
 
-  const publicUser = { id: user.id, email: user.email, name: user.name }
+  const publicUser = { id: user.id, email: user.email, name: user.name, role: user.role }
   await setUserSession(event, { user: publicUser })
   logEvent('auth.login', { userId: user.id, ip: clientIp(event) })
   return { user: publicUser }

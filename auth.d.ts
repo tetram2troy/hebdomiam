@@ -3,6 +3,8 @@ declare module '#auth-utils' {
     id: string
     email: string
     name: string
+    /** Copie du rôle pour le front (nav, middleware) — le serveur relit la base. */
+    role: 'admin' | 'user'
   }
 
   interface UserSession {
