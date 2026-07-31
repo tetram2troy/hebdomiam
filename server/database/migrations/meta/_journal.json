@@ -36,6 +36,20 @@
       "when": 1783087567263,
       "tag": "0004_daffy_medusa",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1785498407454,
+      "tag": "0005_melodic_dreadnoughts",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1785498497376,
+      "tag": "0006_promotion_premier_admin",
+      "breakpoints": true
     }
   ]
 }

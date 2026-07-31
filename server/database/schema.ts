@@ -5,7 +5,8 @@ export const localeEnum = pgEnum('locale', ['fr', 'en'])
 export const unitSystemEnum = pgEnum('unit_system', ['metric', 'imperial'])
 export const mealPlanStatusEnum = pgEnum('meal_plan_status', ['draft', 'validated', 'cooked'])
 export const mealPlanRecipeStatusEnum = pgEnum('meal_plan_recipe_status', ['suggested', 'accepted', 'swapped', 'cooked'])
-export const emailTokenTypeEnum = pgEnum('email_token_type', ['verify', 'reset'])
+export const emailTokenTypeEnum = pgEnum('email_token_type', ['verify', 'reset', 'invite'])
+export const userRoleEnum = pgEnum('user_role', ['admin', 'user'])
 
 // Enums partagés avec shared/schemas/recipe.ts (UNITS / AISLES) — garder synchronisés.
 export const unitEnum = pgEnum('unit', ['g', 'kg', 'ml', 'l', 'oz', 'lb', 'cup', 'tbsp', 'tsp', 'unit', 'pinch'])
@@ -17,6 +18,12 @@ export const users = pgTable('users', {
   passwordHash: text('password_hash').notNull(),
   name: text('name').notNull(),
   emailVerifiedAt: timestamp('email_verified_at', { withTimezone: true }),
+  // Rôles : l'inscription publique est fermée — les comptes sont créés par un admin
+  // (le premier inscrit d'une instance vierge est promu admin, voir users-repo).
+  role: userRoleEnum('role').notNull().default('user'),
+  // Désactivation douce : bloque la connexion et invalide les sessions en cours
+  // (middleware account-status) sans supprimer les données.
+  disabledAt: timestamp('disabled_at', { withTimezone: true }),
   locale: localeEnum('locale').notNull().default('fr'),
   unitSystem: unitSystemEnum('unit_system').notNull().default('metric'),
   // Valeurs par défaut de planification (modifiables dans les réglages, PRD F5)

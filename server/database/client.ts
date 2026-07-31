@@ -4,6 +4,12 @@ import * as schema from './schema'
 
 export type Db = NodePgDatabase<typeof schema>
 
+/** Transaction ouverte par `db.transaction()` — même surface de requête que Db. */
+export type DbTx = Parameters<Parameters<Db['transaction']>[0]>[0]
+
+/** Accepté par les helpers utilisables dedans comme hors transaction. */
+export type DbLike = Db | DbTx
+
 // Factory sans dépendance à Nuxt : utilisée par useDb() en production et par les
 // tests d'intégration (base éphémère) sans passer par useRuntimeConfig.
 export function createDbClient(connectionString: string): Db {
