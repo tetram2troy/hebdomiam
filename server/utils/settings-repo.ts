@@ -3,6 +3,7 @@ import type { ProfileDto } from '#shared/types/settings'
 import { eq } from 'drizzle-orm'
 import type { Db } from '../database/client'
 import { users } from '../database/schema'
+import { lockActiveAdmins } from './admin-repo'
 import { hashUserPassword, verifyUserPassword } from './password'
 
 // Réglages du compte — chaque fonction est scopée sur l'utilisateur de la session.
@@ -42,14 +43,28 @@ export async function changePassword(db: Db, userId: string, currentPassword: st
   return 'ok'
 }
 
-/** Suppression immédiate et définitive (cascade sur toutes les données métier). */
-export async function deleteAccount(db: Db, userId: string, password: string): Promise<'ok' | 'invalidPassword' | 'notFound'> {
+/** Suppression immédiate et définitive (cascade sur toutes les données métier).
+    Refusée au dernier admin actif : l'instance deviendrait ingérable — c'est le
+    même garde-fou que dans admin-repo, appliqué ici au seul contournement
+    possible (l'auto-suppression via les réglages). */
+export async function deleteAccount(db: Db, userId: string, password: string): Promise<'ok' | 'invalidPassword' | 'notFound' | 'lastAdmin'> {
   const user = await db.query.users.findFirst({
     where: eq(users.id, userId),
-    columns: { passwordHash: true },
+    columns: { passwordHash: true, role: true, disabledAt: true },
   })
   if (!user) return 'notFound'
   if (!(await verifyUserPassword(user.passwordHash, password))) return 'invalidPassword'
+
+  if (user.role === 'admin' && user.disabledAt === null) {
+    return db.transaction(async (tx) => {
+      // Décompte verrouillé des admins vérifiés et actifs : un admin jamais
+      // activé (invitation en attente) n'est pas une relève.
+      if ((await lockActiveAdmins(tx)) <= 1) return 'lastAdmin'
+      await tx.delete(users).where(eq(users.id, userId))
+      return 'ok'
+    })
+  }
+
   await db.delete(users).where(eq(users.id, userId))
   return 'ok'
 }

@@ -57,6 +57,21 @@ export function verifyEmailMail(to: string, locale: MailLocale, link: string): M
   }
 }
 
+export function inviteMail(to: string, locale: MailLocale, link: string): Mail {
+  if (locale === 'en') {
+    return {
+      to,
+      subject: 'Hebdomiam — you are invited',
+      text: `Hi!\n\nAn administrator created an Hebdomiam account for you. Click this link to choose your password and activate it:\n${link}\n\nThe link expires in 7 days. If you weren't expecting this, ignore this message.`,
+    }
+  }
+  return {
+    to,
+    subject: 'Hebdomiam — tu es invité(e)',
+    text: `Bonjour !\n\nUn administrateur t'a créé un compte Hebdomiam. Clique ce lien pour choisir ton mot de passe et l'activer :\n${link}\n\nLe lien expire dans 7 jours. Si tu n'attendais pas cette invitation, ignore ce message.`,
+  }
+}
+
 export function resetPasswordMail(to: string, locale: MailLocale, link: string): Mail {
   if (locale === 'en') {
     return {
