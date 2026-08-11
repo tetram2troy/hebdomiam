@@ -48,12 +48,16 @@ function extractionModel(): string {
   return process.env.NUXT_EXTRACTION_MODEL || DEFAULT_MODEL
 }
 
-/** Réduit le HTML en texte brut pour limiter les jetons envoyés. */
+/** Réduit le HTML en texte brut pour limiter les jetons envoyés.
+    Pas une frontière de sécurité (le résultat part vers l'extraction, jamais
+    vers un rendu HTML) — mais les balises fermantes tolèrent les variantes
+    du genre « </script > » pour ne pas laisser passer leur contenu
+    (CodeQL js/bad-tag-filter). */
 export function htmlToText(html: string): string {
   return html
-    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
-    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
-    .replace(/<(?:nav|footer|header|aside|form|svg)[\s\S]*?<\/(?:nav|footer|header|aside|form|svg)>/gi, ' ')
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script[^>]*>/gi, ' ')
+    .replace(/<style\b[^>]*>[\s\S]*?<\/style[^>]*>/gi, ' ')
+    .replace(/<(?:nav|footer|header|aside|form|svg)\b[^>]*>[\s\S]*?<\/(?:nav|footer|header|aside|form|svg)[^>]*>/gi, ' ')
     .replace(/<br\s*\/?>|<\/(?:p|div|li|h[1-6]|tr)>/gi, '\n')
     .replace(/<[^>]+>/g, ' ')
     .replace(/[ \t]+/g, ' ')
