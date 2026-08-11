@@ -13,6 +13,10 @@ FROM node:24-slim AS runtime
 ENV NODE_ENV=production \
     NITRO_HOST=0.0.0.0 \
     NITRO_PORT=3000
+# npm ne sert jamais au runtime (CMD = node) : on retire son arborescence.
+# C'est elle qui portait les CVE relevées par Trivy (tar, undici, ip-address…
+# livrés DANS l'image de base avec npm) — les dépendances de l'app sont saines.
+RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx
 WORKDIR /app
 COPY --from=build --chown=node:node /app/.output ./.output
 # Migrations exécutables depuis cette image (job dédié au déploiement,
