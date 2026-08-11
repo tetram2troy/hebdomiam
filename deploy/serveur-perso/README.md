@@ -10,8 +10,9 @@ de cache disque) — seule la base PostgreSQL a un volume.
 ## 1. Prérequis
 
 - **Image GHCR** : le dépôt doit être poussé sur GitHub ; le workflow
-  `release.yml` publie `ghcr.io/<compte>/hebdomiam:vX.Y.Z` (+ `latest`) à
-  chaque tag `v*`. Adapter `image:` dans `service.yml` au compte réel.
+  `release.yml` publie `ghcr.io/<compte>/<repo>:X.Y.Z` (+ `latest`) à chaque
+  tag `vX.Y.Z` — le « v » du tag git n'apparaît pas dans le tag d'image.
+  Adapter `image:` dans `service.yml` au compte réel.
   Si le paquet GHCR est privé : `docker login ghcr.io` sur le serveur avec un
   PAT `read:packages`.
   *Alternative sans GitHub* : cloner le repo sur le serveur et remplacer
@@ -63,7 +64,7 @@ démarrage immédiatement avec un message `[config] …` explicite.
 Tag immuable + migrations de schéma ⇒ **jamais de Watchtower** (label déjà posé).
 
 ```bash
-# Mise à jour : changer le tag dans le compose (ex. v0.2.0), puis
+# Mise à jour : changer le tag dans le compose (ex. 0.2.0), puis
 docker compose pull hebdomiam
 docker compose run --rm hebdomiam node .output/server/migrate.mjs
 docker compose up -d hebdomiam

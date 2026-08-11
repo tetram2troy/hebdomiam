@@ -11,7 +11,9 @@
   hebdomiam:
     # Adapter <compte-github> au dépôt réel ; tag immuable, jamais « latest »
     # (migrations de schéma → mises à jour supervisées, voir README).
-    image: ghcr.io/<compte-github>/hebdomiam:v0.1.0
+    # NB : le tag git « v0.1.0 » produit l'image « 0.1.0 » (metadata-action
+    # retire le v).
+    image: ghcr.io/<compte-github>/hebdomiam:0.1.0
     container_name: hebdomiam
     restart: unless-stopped
     security_opt:
