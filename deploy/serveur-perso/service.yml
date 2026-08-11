@@ -9,11 +9,10 @@
 # L'app est stateless (aucun fichier persistant) : seule la base a un volume.
 
   hebdomiam:
-    # Adapter <compte-github> au dépôt réel ; tag immuable, jamais « latest »
-    # (migrations de schéma → mises à jour supervisées, voir README).
-    # NB : le tag git « v0.1.0 » produit l'image « 0.1.0 » (metadata-action
-    # retire le v).
-    image: ghcr.io/<compte-github>/hebdomiam:0.1.0
+    # Tag immuable, jamais « latest » (migrations de schéma → mises à jour
+    # supervisées, voir README). NB : le tag git « v0.1.0 » produit l'image
+    # « 0.1.0 » (metadata-action retire le v).
+    image: ghcr.io/tetram2troy/hebdomiam:0.1.0
     container_name: hebdomiam
     restart: unless-stopped
     security_opt:
