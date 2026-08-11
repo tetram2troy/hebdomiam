@@ -48,8 +48,10 @@ jobs:
           load: true
           tags: hebdomiam:scan
           cache-from: type=gha
-      # 0.28.0 : tag supprimé en amont — le job échouait dès « Set up job »
-      - uses: aquasecurity/trivy-action@0.36.0
+      # Épinglé par SHA : l'amont a déjà renommé tous ses tags (0.x.y → v0.x.y),
+      # cassant deux fois la résolution de l'action (« Set up job » en échec).
+      # SHA = commit du tag v0.36.0.
+      - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: hebdomiam:scan
           format: table
