@@ -10,9 +10,14 @@ COPY . .
 RUN npm run build
 
 FROM node:24-slim AS runtime
+# PORT (et non NITRO_PORT, prioritaire chez Nitro) : reste surchargeable au
+# runtime par -e PORT=… (contrat docs/HOSTING.md §2.2). Arrêt propre en moins
+# de 10 s : Nitro draine puis ferme (le défaut de 30 s dépasserait la grâce
+# Docker et finirait en SIGKILL).
 ENV NODE_ENV=production \
     NITRO_HOST=0.0.0.0 \
-    NITRO_PORT=3000
+    PORT=3000 \
+    NITRO_SHUTDOWN_TIMEOUT=8000
 # npm ne sert jamais au runtime (CMD = node) : on retire son arborescence.
 # C'est elle qui portait les CVE relevées par Trivy (tar, undici, ip-address…
 # livrés DANS l'image de base avec npm) — les dépendances de l'app sont saines.
@@ -27,5 +32,5 @@ COPY --from=build --chown=node:node /app/scripts/migrate.mjs ./.output/server/mi
 USER node
 EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
-  CMD node -e "fetch('http://127.0.0.1:'+(process.env.NITRO_PORT||process.env.PORT||3000)+'/api/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
+  CMD node -e "fetch('http://127.0.0.1:'+(process.env.NITRO_PORT||process.env.PORT||3000)+'/healthz').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
 CMD ["node", ".output/server/index.mjs"]

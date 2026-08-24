@@ -18,8 +18,10 @@ export const ingredientInputSchema = z.object({
 export const recipeInputSchema = z.object({
   title: z.string().trim().min(1).max(200),
   description: z.string().trim().max(2000).nullish(),
-  /** URL de photo (import) — l'upload local arrive plus tard. */
-  imageUrl: z.url().max(1000).nullish(),
+  /** URL de photo (import) — l'upload local arrive plus tard. https seulement :
+      une image http:// serait bloquée par le navigateur (mixed content) sur le
+      site servi en https, silencieusement. */
+  imageUrl: z.url({ protocol: /^https$/ }).max(1000).nullish(),
   baseServings: z.number().int().min(1).max(50),
   prepMinutes: z.number().int().min(0).max(1440).nullish(),
   cookMinutes: z.number().int().min(0).max(1440).nullish(),

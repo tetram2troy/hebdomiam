@@ -34,6 +34,10 @@ export default defineConfig({
       // Autorise l'import de la page-fixture locale (import.spec) — la garde
       // SSRF reste active partout ailleurs (jamais activé hors tests).
       NUXT_IMPORT_ALLOW_PRIVATE: '1',
+      // Fait confiance à X-Forwarded-For : chaque spec simule une IP distincte
+      // pour isoler son bucket de rate limiting (jamais activé hors tests —
+      // en prod l'IP vient de cf-connecting-ip, voir server/utils/client-ip.ts).
+      NUXT_TRUST_XFF: '1',
     },
   },
 })

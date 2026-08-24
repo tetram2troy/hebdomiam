@@ -110,7 +110,8 @@ function extractSteps(instructions: unknown): string[] {
 }
 
 function extractImage(image: unknown): string | null {
-  if (typeof image === 'string') return image.startsWith('http') ? image.slice(0, 1000) : null
+  // https seulement : cohérent avec recipeInputSchema.imageUrl (mixed content).
+  if (typeof image === 'string') return image.startsWith('https://') ? image.slice(0, 1000) : null
   if (Array.isArray(image)) {
     for (const item of image) {
       const found = extractImage(item)

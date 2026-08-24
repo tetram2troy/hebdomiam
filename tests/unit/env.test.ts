@@ -23,4 +23,24 @@ describe('envProblems', () => {
     expect(problems).toHaveLength(1)
     expect(problems[0]).toContain('32 caractères')
   })
+
+  it('exige NUXT_PUBLIC_BASE_URL et SMTP_HOST en production réelle', () => {
+    const problems = envProblems({ ...VALID, NODE_ENV: 'production' })
+    expect(problems).toHaveLength(2)
+    expect(problems[0]).toContain('NUXT_PUBLIC_BASE_URL')
+    expect(problems[1]).toContain('SMTP_HOST')
+  })
+
+  it('accepte une configuration de production complète', () => {
+    expect(envProblems({
+      ...VALID,
+      NODE_ENV: 'production',
+      NUXT_PUBLIC_BASE_URL: 'https://recettes.example.com',
+      SMTP_HOST: 'smtp-relay.brevo.com',
+    })).toEqual([])
+  })
+
+  it('ne réclame pas SMTP hors production (serveur e2e local, courriels en console)', () => {
+    expect(envProblems(VALID)).toEqual([])
+  })
 })

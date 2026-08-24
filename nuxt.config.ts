@@ -3,6 +3,14 @@ export default defineNuxtConfig({
 
   devtools: { enabled: true },
 
+  app: {
+    head: {
+      // Sans favicon déclaré, chaque navigateur demande /favicon.ico et Nitro
+      // rend un 404 SSR complet à chaque chargement à froid.
+      link: [{ rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' }],
+    },
+  },
+
   css: [
     '~/assets/css/tokens.css',
     '~/assets/css/fonts.css',
@@ -42,6 +50,14 @@ export default defineNuxtConfig({
     // Pas de CORS : l'API n'est consommée que par le front même origine.
     // Le défaut du module émettait Access-Control-Allow-Origin: *.
     corsHandler: false,
+    // Le défaut (8 Mo par requête multipart) coupait l'import photo avant le
+    // handler, qui accepte 3 images × 10 Mo (server/api/import/photo.post.ts).
+    // 35 Mo = 3×10 Mo + enrobage multipart — loin du plafond Cloudflare (100 Mo).
+    requestSizeLimiter: {
+      maxRequestSizeInBytes: 2_000_000,
+      maxUploadFileRequestInBytes: 35_000_000,
+      throwError: true,
+    },
     // Rate limiting global désactivé : limiteur applicatif ciblé sur les routes d'auth
     // (server/utils/rate-limit.ts) + rate-limit-auth@file côté Traefik.
     rateLimiter: false,

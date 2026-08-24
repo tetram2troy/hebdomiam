@@ -1,5 +1,5 @@
 import type { H3Event } from 'h3'
-import { getRequestIP } from 'h3'
+import { resolveClientIp } from './client-ip'
 
 // Journalisation applicative structurée : une ligne JSON par événement sur la
 // sortie standard — captée par Docker en prod (PRD §8), exploitable avec jq/grep.
@@ -36,7 +36,7 @@ export function logError(event: string, error: unknown, fields: Record<string, u
   write('error', event, { ...fields, message: error instanceof Error ? error.message : String(error) })
 }
 
-/** IP du client (X-Forwarded-For derrière Traefik) pour les événements de sécurité. */
+/** IP du client (cf-connecting-ip derrière Cloudflare) pour les événements de sécurité. */
 export function clientIp(event: H3Event): string {
-  return getRequestIP(event, { xForwardedFor: true }) ?? 'unknown'
+  return resolveClientIp(event)
 }

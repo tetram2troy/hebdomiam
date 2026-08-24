@@ -27,7 +27,10 @@ jobs:
           tags: |
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
-            type=raw,value=latest
+          # latest=auto : suit les tags semver stables seulement — une
+          # pré-version (v0.2.0-rc1) ne déplace pas « latest ».
+          flavor: |
+            latest=auto
       - uses: docker/build-push-action@v6
         with:
           context: .

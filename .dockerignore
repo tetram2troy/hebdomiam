@@ -10,3 +10,13 @@ coverage
 test-results
 playwright-report
 *.md
+# Fixture e2e : hors du contexte de build → hors du manifeste d'assets Nitro
+# (la supprimer après build laisserait un 500 ENOENT au lieu d'un 404).
+public/test-fixtures
+# Hors sujet dans l'image : tests, docs, bundle d'intégration, scratch
+e2e
+tests
+docs
+deploy
+.claude
+*.log

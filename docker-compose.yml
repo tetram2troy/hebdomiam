@@ -2,7 +2,8 @@
 # Ce compose autonome sert de banc d'essai local du modèle de production ;
 # l'intégration réelle au serveur passe par deploy/serveur-perso/ (bloc à
 # coller dans le compose unique du serveur, image GHCR).
-# Variables requises dans .env : DOMAIN, POSTGRES_PASSWORD, NUXT_SESSION_PASSWORD.
+# Variables requises dans .env : DOMAIN, POSTGRES_PASSWORD, NUXT_SESSION_PASSWORD,
+# SMTP_HOST (+ SMTP_* utiles) — l'app refuse de démarrer sans (env-check, NODE_ENV=production).
 services:
   app:
     build:
@@ -17,6 +18,13 @@ services:
       NUXT_DATABASE_URL: postgresql://hebdomiam:${POSTGRES_PASSWORD}@db:5432/hebdomiam
       NUXT_SESSION_PASSWORD: ${NUXT_SESSION_PASSWORD}
       NUXT_PUBLIC_BASE_URL: https://recettes.${DOMAIN}
+      # Relais SMTP (courriels transactionnels) — requis au démarrage en production.
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_SECURITY: ${SMTP_SECURITY:-starttls}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: hebdomiam@${DOMAIN}
     depends_on:
       db:
         condition: service_healthy

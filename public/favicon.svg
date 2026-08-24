@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- Bol fumant sur fond basilic — tokens « Primeur » (tokens.css) -->
+  <rect width="32" height="32" rx="7" fill="#1e7a3d"/>
+  <path d="M6 14a10 10 0 0 0 20 0z" fill="#f7faf4"/>
+  <path d="M12.5 4.5c0 2-1.5 2.5-1.5 4.5M16.5 3.5c0 2-1.5 2.5-1.5 4.5M20.5 4.5c0 2-1.5 2.5-1.5 4.5" stroke="#cdefd2" stroke-width="1.8" stroke-linecap="round" fill="none"/>
+</svg>

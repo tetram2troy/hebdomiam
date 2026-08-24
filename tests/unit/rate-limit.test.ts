@@ -47,4 +47,18 @@ describe('createRateLimiter', () => {
     clock = 1500
     expect(limiter.check('ip-1')).toBe(true)
   })
+
+  it('purge les clés dont la fenêtre est écoulée (mémoire bornée)', () => {
+    let clock = 0
+    const limiter = createRateLimiter({ max: 5, windowMs: 1000 }, () => clock)
+
+    for (let i = 0; i < 100; i++) limiter.check(`ip-${i}`)
+    expect(limiter.size()).toBe(100)
+
+    // Deux fenêtres plus tard, un unique appel déclenche le balayage :
+    // seules les clés encore actives survivent.
+    clock = 2500
+    limiter.check('ip-active')
+    expect(limiter.size()).toBe(1)
+  })
 })

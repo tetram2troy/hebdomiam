@@ -12,3 +12,11 @@ export function useDb() {
   }
   return db
 }
+
+/** Ferme le pool pg à l'arrêt du serveur (hook Nitro `close`, docs/HOSTING.md §2.7). */
+export async function closeDb() {
+  if (db) {
+    await db.$client.end()
+    db = null
+  }
+}

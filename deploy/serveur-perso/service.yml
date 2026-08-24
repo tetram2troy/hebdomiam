@@ -1,6 +1,6 @@
 # Hebdomiam — blocs à coller dans le docker-compose.yml du serveur.
 #
-# 1. Les deux services ci-dessous vont sous « services: » (indentation 2 espaces).
+# 1. Les trois services ci-dessous vont sous « services: » (indentation 2 espaces).
 # 2. Ajouter le réseau interne au bloc « networks: » de fin de fichier :
 #        hebdomiam-internal:
 #          internal: true
@@ -10,13 +10,18 @@
 
   hebdomiam:
     # Tag immuable, jamais « latest » (migrations de schéma → mises à jour
-    # supervisées, voir README). NB : le tag git « v0.1.0 » produit l'image
-    # « 0.1.0 » (metadata-action retire le v).
-    image: ghcr.io/tetram2troy/hebdomiam:0.1.1
+    # supervisées, voir README). NB : le tag git « v0.1.2 » produit l'image
+    # « 0.1.2 » (metadata-action retire le v).
+    image: ghcr.io/tetram2troy/hebdomiam:0.1.2
     container_name: hebdomiam
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
+    # Aucun état dans le conteneur : système de fichiers en lecture seule,
+    # /tmp en tmpfs (sharp peut y recourir pour le ré-encodage d'images).
+    read_only: true
+    tmpfs:
+      - /tmp
     networks:
       - proxy                # Traefik + sortie Internet (API Claude, SMTP)
       - hebdomiam-internal   # base de données
@@ -39,8 +44,11 @@
     depends_on:
       hebdomiam-db:
         condition: service_healthy
+      # L'app ne démarre jamais sur un schéma non migré.
+      hebdomiam-migrate:
+        condition: service_completed_successfully
     healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -63,6 +71,29 @@
       - "traefik.http.services.hebdomiam.loadbalancer.server.port=3000"
       - "traefik.docker.network=proxy"
       # Tag immuable + migrations de schéma : mises à jour manuelles (README)
+      - "com.centurylinklabs.watchtower.enable=false"
+
+  # Migrations en job dédié (jamais au boot de l'app) : relancé à chaque
+  # `docker compose up`, inoffensif quand le schéma est déjà à jour. Même image
+  # que l'app — penser à changer les DEUX tags lors d'une mise à jour.
+  hebdomiam-migrate:
+    image: ghcr.io/tetram2troy/hebdomiam:0.1.2
+    container_name: hebdomiam-migrate
+    command: ["node", ".output/server/migrate.mjs"]
+    restart: "no"
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
+    networks:
+      - hebdomiam-internal
+    environment:
+      - NUXT_DATABASE_URL=postgresql://hebdomiam:${HEBDOMIAM_POSTGRES_PASSWORD}@hebdomiam-db:5432/hebdomiam
+    depends_on:
+      hebdomiam-db:
+        condition: service_healthy
+    labels:
       - "com.centurylinklabs.watchtower.enable=false"
 
   hebdomiam-db:

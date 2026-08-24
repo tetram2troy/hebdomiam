@@ -2,7 +2,9 @@ import { drizzle, type NodePgDatabase } from 'drizzle-orm/node-postgres'
 import pg from 'pg'
 import * as schema from './schema'
 
-export type Db = NodePgDatabase<typeof schema>
+// L'intersection avec $client (le pool pg) reflète le type de retour réel de
+// drizzle() — nécessaire pour fermer le pool à l'arrêt (closeDb).
+export type Db = NodePgDatabase<typeof schema> & { $client: pg.Pool }
 
 /** Transaction ouverte par `db.transaction()` — même surface de requête que Db. */
 export type DbTx = Parameters<Parameters<Db['transaction']>[0]>[0]
