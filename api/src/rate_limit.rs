@@ -48,16 +48,11 @@ impl RateLimiter {
         true
     }
 
-    /// Le quota de `key` est-il épuisé ? Ne consomme rien.
-    pub fn is_exhausted_at(&self, key: &str, now: Instant) -> bool {
-        let window_start = now.checked_sub(self.window);
-        self.hits.get(key).is_some_and(|times| {
-            times
-                .iter()
-                .filter(|t| window_start.is_none_or(|start| **t > start))
-                .count()
-                >= self.max
-        })
+    /// Rend la dernière tentative consommée par `key` (tentative réussie).
+    pub fn refund(&mut self, key: &str) {
+        if let Some(times) = self.hits.get_mut(key) {
+            times.pop();
+        }
     }
 
     /// Nombre de clés retenues — observable de la purge pour les tests.
@@ -92,33 +87,36 @@ impl RateLimits {
 
     /// Verrou par compte sur les ÉCHECS d'authentification (en plus du quota
     /// par IP, contournable par rotation d'adresses) : 429 dès que `key` a
-    /// accumulé `max` échecs dans la fenêtre. Ne consomme rien — les
-    /// connexions réussies ne comptent pas (voir `record_failure`).
-    pub fn assert_not_locked(&self, bucket: &str, key: &str, max: usize, window_ms: u64) -> Result<(), ApiError> {
-        let locked = {
+    /// accumulé `max` échecs dans la fenêtre.
+    ///
+    /// La tentative est RÉSERVÉE avant la vérification (contrôle et décompte
+    /// sous le même verrou) : des requêtes simultanées ne peuvent pas toutes
+    /// passer le contrôle avant qu'un échec soit compté. Une tentative réussie
+    /// est rendue par `refund_attempt` — seuls les échecs restent comptés.
+    pub fn reserve_attempt(&self, bucket: &str, key: &str, max: usize, window_ms: u64) -> Result<(), ApiError> {
+        let reserved = {
             let mut buckets = self.buckets.lock().expect("verrou rate limit");
             buckets
                 .entry(bucket.to_string())
                 .or_insert_with(|| RateLimiter::new(max, Duration::from_millis(window_ms)))
-                .is_exhausted_at(key, Instant::now())
+                .check_at(key, Instant::now())
         };
-        if locked {
+        if reserved {
+            Ok(())
+        } else {
             // La clé (courriel ou userId) n'est pas journalisée ici : l'appelant
             // a déjà consigné chaque échec avec son contexte.
             log_warn("security.account_locked", json!({ "bucket": bucket }));
             Err(ApiError::new(429, "errors.tooManyRequests"))
-        } else {
-            Ok(())
         }
     }
 
-    /// Consigne un échec d'authentification pour `key`.
-    pub fn record_failure(&self, bucket: &str, key: &str, max: usize, window_ms: u64) {
+    /// Rend la tentative réservée : l'authentification a réussi.
+    pub fn refund_attempt(&self, bucket: &str, key: &str) {
         let mut buckets = self.buckets.lock().expect("verrou rate limit");
-        buckets
-            .entry(bucket.to_string())
-            .or_insert_with(|| RateLimiter::new(max, Duration::from_millis(window_ms)))
-            .check_at(key, Instant::now());
+        if let Some(limiter) = buckets.get_mut(bucket) {
+            limiter.refund(key);
+        }
     }
 }
 
@@ -129,21 +127,16 @@ mod tests {
     #[test]
     fn verrou_par_compte_sur_les_echecs_seulement() {
         let limits = RateLimits::default();
+        // Trois échecs : chaque tentative réservée reste comptée.
         for _ in 0..3 {
-            assert!(limits.assert_not_locked("login:compte", "a@b.c", 3, 60_000).is_ok());
-            limits.record_failure("login:compte", "a@b.c", 3, 60_000);
+            assert!(limits.reserve_attempt("login:compte", "a@b.c", 3, 60_000).is_ok());
         }
-        assert_eq!(
-            limits
-                .assert_not_locked("login:compte", "a@b.c", 3, 60_000)
-                .unwrap_err()
-                .status
-                .as_u16(),
-            429
-        );
-        // Vérifier ne consomme rien : un autre compte reste libre indéfiniment.
+        let locked = limits.reserve_attempt("login:compte", "a@b.c", 3, 60_000).unwrap_err();
+        assert_eq!(locked.status.as_u16(), 429);
+        // Les succès sont rendus : un autre compte reste libre indéfiniment.
         for _ in 0..10 {
-            assert!(limits.assert_not_locked("login:compte", "autre@b.c", 3, 60_000).is_ok());
+            assert!(limits.reserve_attempt("login:compte", "autre@b.c", 3, 60_000).is_ok());
+            limits.refund_attempt("login:compte", "autre@b.c");
         }
     }
 

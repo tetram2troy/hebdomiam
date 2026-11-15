@@ -174,7 +174,9 @@ pub async fn login(
 ) -> ApiResult<Response> {
     state.rate_limit("auth:login", &ip, 5, 60_000)?;
     // Verrou par compte : le quota par IP ne résiste pas à une rotation d'adresses.
-    state.limits.assert_not_locked(
+    // Tentative réservée AVANT la vérification (pas de course entre requêtes
+    // simultanées), rendue si le mot de passe est bon.
+    state.limits.reserve_attempt(
         LOGIN_ACCOUNT_BUCKET,
         &body.email,
         ACCOUNT_MAX_FAILURES,
@@ -191,15 +193,11 @@ pub async fn login(
     let Some(user) = user.filter(|_| valid) else {
         // Le courriel visé (pas le mot de passe !) : détecte le brute-force ciblé.
         log_warn("auth.login_failed", json!({ "email": body.email, "ip": ip }));
-        // Compté que le compte existe ou non (pas d'énumération par le verrou).
-        state.limits.record_failure(
-            LOGIN_ACCOUNT_BUCKET,
-            &body.email,
-            ACCOUNT_MAX_FAILURES,
-            ACCOUNT_WINDOW_MS,
-        );
+        // La tentative réservée reste comptée, que le compte existe ou non
+        // (pas d'énumération par le verrou).
         return Err(ApiError::new(401, "errors.invalidCredentials"));
     };
+    state.limits.refund_attempt(LOGIN_ACCOUNT_BUCKET, &body.email);
 
     // Compte désactivé : refusé seulement après validation du mot de passe —
     // on ne révèle rien à qui ne connaît pas les identifiants.
@@ -249,14 +247,12 @@ pub async fn two_factor(
     let account = pending_user_id.to_string();
     state
         .limits
-        .assert_not_locked(TOTP_ACCOUNT_BUCKET, &account, TOTP_MAX_FAILURES, ACCOUNT_WINDOW_MS)?;
+        .reserve_attempt(TOTP_ACCOUNT_BUCKET, &account, TOTP_MAX_FAILURES, ACCOUNT_WINDOW_MS)?;
     let Some(method) = twofa::verify_login(&state.db, pending_user_id, &body.code).await? else {
         log_warn("auth.2fa_failed", json!({ "userId": pending_user_id, "ip": ip }));
-        state
-            .limits
-            .record_failure(TOTP_ACCOUNT_BUCKET, &account, TOTP_MAX_FAILURES, ACCOUNT_WINDOW_MS);
         return Err(ApiError::new(401, "errors.invalidCode"));
     };
+    state.limits.refund_attempt(TOTP_ACCOUNT_BUCKET, &account);
     let Some(user) = users::find_by_id(&state.db, pending_user_id).await? else {
         return Err(ApiError::new(401, "errors.invalidCredentials"));
     };

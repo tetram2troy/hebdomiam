@@ -56,7 +56,7 @@ toute chaîne visible passe par i18n (`i18n/locales/*.json`), jamais en dur.
   (`app/utils/error-message.ts`).
 - Quantités en `numeric` (`rust_decimal`), jamais en `float` en base.
 - Routes d'auth : rate limiting applicatif par IP (`state.rate_limit`) + verrou par
-  compte sur les échecs (`limits.assert_not_locked` / `record_failure`) +
+  compte sur les échecs (`limits.reserve_attempt` / `refund_attempt`) +
   `rate-limit-auth@file` côté Traefik en prod. L'IP client vient de l'extracteur
   `ClientIp` (en-têtes crus seulement depuis `TRUSTED_PROXIES`).
 - URL fournie par l'utilisateur : `validation::url` avec `WEB` ou `HTTPS_ONLY` —
