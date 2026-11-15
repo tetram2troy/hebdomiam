@@ -7,7 +7,7 @@
 //! moment de la connexion — ce qui ferme la fenêtre de DNS rebinding que
 //! l'ancien backend documentait comme limite connue.
 
-use std::net::{IpAddr, SocketAddr};
+use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -45,10 +45,14 @@ pub struct FetchedPage {
     pub final_url: String,
 }
 
+/// Adresse non publique (ou d'usage spécial) : refusée comme cible d'import.
+/// Les formes IPv6 qui embarquent une IPv4 (mappée, compatible, NAT64, 6to4)
+/// sont ramenées à l'IPv4 embarquée ; les tunnels dont la destination réelle
+/// est opaque (Teredo, NAT64 local) sont refusés en bloc.
 pub fn is_private_addr(ip: IpAddr) -> bool {
     match ip {
         IpAddr::V4(v4) => {
-            let [a, b, ..] = v4.octets();
+            let [a, b, c, _] = v4.octets();
             a == 0
                 || a == 10
                 || a == 127
@@ -56,17 +60,35 @@ pub fn is_private_addr(ip: IpAddr) -> bool {
                 || (a == 169 && b == 254)
                 || (a == 172 && (16..=31).contains(&b))
                 || (a == 192 && b == 168)
-                || a >= 224
+                || (a == 192 && b == 0 && c == 0) // 192.0.0.0/24 (IETF)
+                || (a == 192 && b == 0 && c == 2) // TEST-NET-1
+                || (a == 198 && (b == 18 || b == 19)) // 198.18.0.0/15 (bancs d'essai)
+                || (a == 198 && b == 51 && c == 100) // TEST-NET-2
+                || (a == 203 && b == 0 && c == 113) // TEST-NET-3
+                || a >= 224 // multicast, réservé, diffusion
         }
         IpAddr::V6(v6) => {
-            if let Some(mapped) = v6.to_ipv4_mapped() {
-                return is_private_addr(IpAddr::V4(mapped));
+            let s = v6.segments();
+            let embedded = |hi: u16, lo: u16| IpAddr::V4(Ipv4Addr::from((u32::from(hi) << 16) | u32::from(lo)));
+            // ::ffff:a.b.c.d (mappée) et ::a.b.c.d (compatible, dépréciée) — couvre aussi :: et ::1.
+            if s[..5] == [0, 0, 0, 0, 0] && (s[5] == 0 || s[5] == 0xffff) {
+                return is_private_addr(embedded(s[6], s[7]));
             }
-            let first = v6.segments()[0];
-            v6.is_loopback()
-                || v6.is_unspecified()
-                || (first & 0xfe00) == 0xfc00 // fc00::/7 (ULA)
-                || (first & 0xffc0) == 0xfe80 // fe80::/10 (link-local)
+            // NAT64 bien connu 64:ff9b::/96
+            if s[..6] == [0x64, 0xff9b, 0, 0, 0, 0] {
+                return is_private_addr(embedded(s[6], s[7]));
+            }
+            // 6to4 2002::/16 : IPv4 dans les bits 16 à 48
+            if s[0] == 0x2002 {
+                return is_private_addr(embedded(s[1], s[2]));
+            }
+            (s[0] == 0x64 && s[1] == 0xff9b && s[2] == 1) // NAT64 local 64:ff9b:1::/48
+                || (s[0] == 0x2001 && s[1] == 0) // Teredo 2001::/32
+                || (s[0] == 0x2001 && s[1] == 0x0db8) // documentation
+                || (s[0] & 0xfe00) == 0xfc00 // fc00::/7 (ULA)
+                || (s[0] & 0xffc0) == 0xfe80 // fe80::/10 (lien local)
+                || (s[0] & 0xffc0) == 0xfec0 // fec0::/10 (site local, déprécié)
+                || (s[0] & 0xff00) == 0xff00 // multicast
         }
     }
 }
@@ -225,6 +247,19 @@ mod tests {
             "fd12::1",
             "fe80::1",
             "::ffff:127.0.0.1",
+            "::127.0.0.1",         // IPv4 compatible (dépréciée)
+            "64:ff9b::a9fe:a9fe",  // NAT64 → 169.254.169.254
+            "64:ff9b:1::1",        // NAT64 local
+            "2002:7f00:1::",       // 6to4 → 127.0.0.1
+            "2001:0:4136:e378::1", // Teredo
+            "2001:db8::1",         // documentation
+            "fec0::1",             // site local
+            "ff02::1",             // multicast
+            "192.0.0.8",
+            "198.18.0.1",
+            "198.19.255.255",
+            "203.0.113.7",
+            "255.255.255.255",
             "pas-une-ip",
         ] {
             assert!(is_private_ip(ip), "{ip}");
@@ -240,6 +275,9 @@ mod tests {
             "100.128.0.1",
             "2001:4860:4860::8888",
             "::ffff:8.8.8.8",
+            "64:ff9b::808:808", // NAT64 → 8.8.8.8
+            "2002:808:808::",   // 6to4 → 8.8.8.8
+            "198.20.0.1",
         ] {
             assert!(!is_private_ip(ip), "{ip}");
         }
