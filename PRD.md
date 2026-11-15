@@ -2,7 +2,7 @@
 
 Application de planification de repas hebdomadaire.
 
-> Version : 0.4 — 2026-07-31
+> Version : 0.5 — 2026-11-15 (backend réécrit en Rust, front Nuxt en SPA)
 > Statut : M0–M4 livrés. M5 en cours — livrés : vérification du courriel,
 > réinitialisation de mot de passe, 2FA TOTP, réglages du compte,
 > journalisation structurée, multi-utilisateur géré (rôles admin/user,
@@ -235,25 +235,26 @@ Principes :
 
 | Couche | Choix | Justification |
 |---|---|---|
-| Framework | **Nuxt (dernière version stable)** — front + back (routes serveur Nitro) | Exigence du projet ; full-stack TypeScript unifié |
-| Langage | TypeScript strict partout | Sécurité de types front↔back (schémas partagés) |
+| Front | **Nuxt (dernière version stable) en SPA** (`ssr: false`, `nuxt generate`), TypeScript strict | Révisé 2026-11-15 : app privée authentifiée, le SSR n'apportait rien ; plus de Node en production |
+| API | **Rust — axum + tokio** ; un seul binaire sert l'API et les fichiers du front | Révisé 2026-11-15 : empreinte minimale sur le N100 (~3 Mo de RAM au repos contre ~185 Mo), image distroless ; toolchain via Docker uniquement (aucun compilateur sur le poste) |
 | Base de données | **PostgreSQL 16+** | Robuste, transactions, enums, decimal |
-| ORM | **Drizzle ORM** (+ drizzle-kit pour les migrations) | Léger, SQL-proche, excellent en TypeScript ; alternative : Prisma |
-| Validation | **Zod** — chaque route serveur valide son entrée | Schémas partagés client/serveur |
-| Auth | **nuxt-auth-utils** (sessions scellées) + Argon2id | Simple, sans dépendance SaaS |
+| Accès DB | **sqlx** (requêtes SQL paramétrées) ; migrations SQL embarquées dans le binaire (`hebdomiam migrate`) | SQL explicite ; l'historique Drizzle existant est repris sans rejouer |
+| Validation | Extracteurs `ValidJson`/`ValidPath`/`ValidQuery` : désérialisation stricte + normalisation/bornes — chaque route valide son entrée | Équivalent des anciens schémas Zod ; les formes JSON restent décrites dans `shared/types/` pour le front |
+| Auth | Sessions scellées maison (AES-256-GCM, cookie httpOnly) + Argon2id + TOTP | Sans dépendance SaaS ; mots de passe et secrets 2FA existants compatibles |
 | UI | Nuxt UI ou Tailwind CSS | Rapidité, responsive mobile-first |
 | i18n | **@nuxtjs/i18n** — FR/EN dès la V1 (D5) | Toutes les chaînes en fichiers de traduction dès le premier écran ; le français est la locale de référence |
 | IA / extraction | **API Claude par défaut** (photos + repli URL), interface de fournisseur interchangeable (voir §7.4) | Coût uniquement à la création de recettes (D9) ; le matériel du home lab exclut l'auto-hébergement (D1b) |
-| Courriels | Nodemailer via le **relais SMTP partagé du home lab** (Brevo, 300 mails/j gratuits) | Variables `SMTP_*` déjà en place (Vaultwarden, Netdata…) ; `SMTP_FROM` dédié `hebdomiam@${DOMAIN}` |
+| Courriels | lettre (Rust) via le **relais SMTP partagé du home lab** (Brevo, 300 mails/j gratuits) | Variables `SMTP_*` déjà en place (Vaultwarden, Netdata…) ; `SMTP_FROM` dédié `hebdomiam@${DOMAIN}` |
 | Upload images | Stockage volume Docker en V1 (S3-compatible en option) | Simplicité |
 
 ### 7.2 Docker (home lab, Traefik existant)
 
-- **Dockerfile multi-stage** : build Node → image finale minimale (`node:22-slim` ou
-  distroless), exécution en **utilisateur non-root**, `HEALTHCHECK` inclus.
+- **Dockerfile multi-stage** : front généré (Node) + binaire Rust (release) → image
+  finale **distroless** (`gcr.io/distroless/cc`), **utilisateur non-root**,
+  `HEALTHCHECK` intégré au binaire (`hebdomiam healthcheck`).
 - **docker-compose.yml** (pas de reverse proxy dans ce compose — on s'appuie sur le
   **Traefik existant** du home lab et ses conventions) :
-  - `app` — Nuxt (Nitro, port interne 3000), rattaché au réseau externe **`proxy`**
+  - `app` — binaire Rust (API + front, port interne 3000), rattaché au réseau externe **`proxy`**
     (celui de Traefik) + au réseau interne app↔db ; aucun port publié sur l'hôte :
 
     ```yaml
@@ -291,7 +292,7 @@ Principes :
 ### 7.4 Fournisseurs d'extraction (URL et photo)
 
 L'extraction est isolée derrière une **interface unique** (`ExtractionProvider`) avec un
-contrat commun : entrée (HTML nettoyé ou image) → sortie (recette au schéma Zod de
+contrat commun : entrée (HTML nettoyé ou image) → sortie (recette au schéma structuré de
 l'app). Le fournisseur actif est choisi par configuration (`.env`), et un ordre de
 repli peut être défini.
 
@@ -329,7 +330,8 @@ si un middleware Traefik saute ou si elle est déployée ailleurs un jour).
 - 2FA TOTP en option — ✅ livrée (M5), avec code de secours à usage unique.
 
 ### Application (OWASP Top 10)
-- Validation Zod systématique de **toute** entrée (body, query, params) côté serveur.
+- Validation systématique de **toute** entrée (body, query, params) côté serveur
+  (extracteurs validés de l'API Rust ; corps JSON exigé en `application/json`).
 - Contrôle d'accès centralisé : chaque ressource vérifiée contre `session.userId`
   (protection IDOR) — testé automatiquement.
 - **Autorisation par rôle** : les routes `/api/admin/*` passent par
@@ -339,8 +341,9 @@ si un middleware Traefik saute ou si elle est déployée ailleurs un jour).
 - **Révocation des sessions scellées** : le middleware `account-status` relit
   `disabledAt` en base sur chaque requête `/api/*` authentifiée — un compte
   désactivé ou supprimé perd l'accès sans attendre l'expiration du cookie (7 j).
-- Module **nuxt-security** : CSP stricte, HSTS, X-Content-Type-Options, frame-ancestors,
-  limites de taille de requête. ⚠️ Le middleware Traefik `secure-headers@file` du home
+- En-têtes de sécurité posés par l'API (HSTS, X-Content-Type-Options, X-Frame-Options,
+  COOP/CORP, Referrer-Policy, Permissions-Policy) et limites de taille de requête
+  (2 Mo JSON, 35 Mo pour l'import photo). ⚠️ Le middleware Traefik `secure-headers@file` du home
   lab applique déjà sa propre CSP stricte : **une seule couche doit être propriétaire
   de chaque en-tête** (à arbitrer dès M0, valider en M5) pour éviter des en-têtes
   contradictoires qui casseraient le front.
@@ -348,19 +351,21 @@ si un middleware Traefik saute ou si elle est déployée ailleurs un jour).
 - ORM paramétré (pas de SQL concaténé) ; échappement automatique côté rendu (XSS).
 
 ### Spécifique aux fonctionnalités
-- **Import URL = risque SSRF** : résolution DNS contrôlée, blocage des IP privées/loopback/
-  link-local et des redirections vers celles-ci, allowlist de schémas (https), timeout
-  et taille de réponse max.
+- **Import URL = risque SSRF** : résolution DNS contrôlée **au moment de la connexion**
+  (résolveur du client HTTP — ferme la fenêtre de DNS rebinding), blocage des IP
+  privées/loopback/link-local et des redirections vers celles-ci, allowlist de schémas
+  (https), timeout et taille de réponse max.
 - **Upload photo** : vérification du type réel (magic bytes), taille max, ré-encodage
   de l'image (supprime les métadonnées/EXIF et neutralise les payloads), stockage hors racine web.
 - **Appels IA** : la clé API (fournisseur `claude`) ne transite jamais côté client ;
   quotas par utilisateur (protection contre l'abus de coût) ; le contenu extrait —
-  qu'il vienne d'Ollama ou de Claude — est traité comme non fiable (validation Zod).
+  qu'il vienne d'Ollama ou de Claude — est traité comme non fiable (sorties structurées
+  JSON Schema côté API, puis désérialisation stricte et bornage côté serveur).
 
 ### Infrastructure et chaîne d'approvisionnement
 - Conteneurs non-root, système de fichiers en lecture seule quand possible, réseau
   interne pour la DB, utilisateur PostgreSQL aux privilèges minimaux.
-- **Dependabot** (mises à jour de dépendances) + `npm audit` en CI.
+- **Dependabot** (npm, cargo, actions, Docker) + `npm audit` et `cargo audit` (RustSec) en CI.
 - **Scan des images Docker (Trivy)** et **analyse statique (CodeQL)** en CI.
 - Sauvegardes automatiques de la DB (pg_dump quotidien, rétention 30 jours) et procédure de restauration testée.
 - Journalisation des événements de sécurité (connexions, échecs, resets) sans données sensibles.
@@ -371,10 +376,10 @@ si un middleware Traefik saute ou si elle est déployée ailleurs un jour).
 
 | Niveau | Outil | Portée |
 |---|---|---|
-| Unitaires | **Vitest** | Logique métier : mise à l'échelle des portions, agrégation/normalisation d'unités, rotation intelligente, parsing schema.org |
-| Intégration | Vitest + base éphémère | Routes API Nitro : auth, CRUD, isolation entre utilisateurs (tests IDOR), génération de liste |
-| E2E | **Playwright** | Parcours critiques : inscription → créer recette → planifier → liste d'épicerie → cocher en mode magasin |
-| Statique | ESLint + Prettier + `tsc --noEmit` (strict) | Tout le code |
+| Unitaires | **cargo test** (API) · **Vitest** (front) | Logique métier : mise à l'échelle des portions, agrégation/normalisation d'unités, rotation intelligente, parsing schema.org, validation des entrées |
+| Intégration | cargo test + base PostgreSQL dédiée par test (clonée d'un gabarit migré) | Repos et routeur HTTP de bout en bout : auth, sessions, rôles, CRUD, isolation entre utilisateurs (tests IDOR), génération de liste |
+| E2E | **Playwright** contre le binaire Rust réel | Parcours critiques : inscription → créer recette → planifier → liste d'épicerie → cocher en mode magasin |
+| Statique | ESLint + `vue-tsc` (strict) · `cargo fmt` + `clippy -D warnings` | Tout le code |
 
 Cibles : logique métier critique (portions, agrégation, rotation) ≈ 100 % ; global ≥ 80 %.
 L'extraction IA est testée avec des réponses enregistrées (fixtures), pas d'appel API réel en CI.
@@ -385,10 +390,11 @@ L'extraction IA est testée avec des réponses enregistrées (fixtures), pas d'a
   (CI verte obligatoire, pas de push direct).
 - **Conventional Commits** (`feat:`, `fix:`…) — changelog généré.
 - **GitHub Actions** :
-  1. `ci.yml` — lint, typecheck, tests unitaires/intégration, E2E, build.
-  2. `security.yml` — CodeQL, npm audit, scan Trivy de l'image.
+  1. `ci.yml` — front (lint, typecheck, Vitest), API (fmt, clippy, tests unitaires +
+     intégration), E2E, build de l'image.
+  2. `security.yml` — CodeQL (TypeScript + Rust), npm audit, cargo audit, scan Trivy de l'image.
   3. `release.yml` — build et push de l'image Docker (GHCR) taguée sur release.
-- Dependabot activé (npm + actions + docker).
+- Dependabot activé (npm + cargo + actions + docker).
 
 ---
 
@@ -406,6 +412,18 @@ L'extraction IA est testée avec des réponses enregistrées (fixtures), pas d'a
 ---
 
 ## 12. Journal des décisions et questions restantes
+
+**Résolu le 2026-11-15 — réécriture du backend en Rust :** l'API Nitro (TypeScript)
+est remplacée par un binaire Rust (axum + sqlx) qui sert aussi le front, désormais
+généré en SPA (`ssr: false`). Motifs : empreinte mémoire (~3 Mo contre ~185 Mo) et
+image (~50 Mo, distroless, sans Node ni shell) sur le mini-PC N100. Contraintes :
+aucun compilateur Rust sur le poste de dev (toolchain dans `api/Dockerfile.dev`) ;
+contrat JSON, clés d'erreur i18n, mots de passe Argon2id, secrets TOTP et schéma
+de base inchangés (l'historique de migrations Drizzle est repris). Les sessions
+existantes sont invalidées une fois (nouveau format de cookie). Modèle d'extraction
+par défaut passé à `claude-opus-5-5` (surchargeable par `EXTRACTION_MODEL`).
+TypeScript reste en 6.x : TypeScript 7 (natif) n'expose plus l'API JavaScript dont
+dépendent `vue-tsc` et `nuxt typecheck`.
 
 **Résolu le 2026-07-31 — multi-utilisateur géré (révision de D2) :** rôles
 admin/user ; inscription publique fermée (bootstrap : premier inscrit = admin,

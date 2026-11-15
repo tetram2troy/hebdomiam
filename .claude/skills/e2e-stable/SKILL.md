@@ -5,12 +5,14 @@ description: Pièges connus de la suite Playwright d'Hebdomiam (hydratation Nuxt
 
 # Écrire et déboguer les e2e d'Hebdomiam
 
-La suite tourne à 2 workers contre un seul serveur (`node .output`), timeouts
+La suite tourne contre un seul serveur — le binaire Rust (conteneur
+`hebdomiam-e2e` en local, binaire natif `E2E_API_BIN` en CI), démarré par
+`e2e/global-setup.ts` — timeouts
 60 s/test et 10 s/assertion. Chaque piège ci-dessous a réellement causé un échec.
 
 ## Pièges à l'écriture
 
-1. **Hydratation Nuxt** : après tout `page.goto()` ou `page.reload()` suivi d'un
+1. **Rendu client (SPA)** : après tout `page.goto()` ou `page.reload()` suivi d'un
    `fill`/`click`, insérer `await page.waitForLoadState('networkidle')`.
    Un fill trop tôt est effacé par v-model à l'hydratation ; un clic trop tôt
    n'atteint pas le gestionnaire Vue. Les navigations client (clic sur NuxtLink)
@@ -58,11 +60,16 @@ La suite tourne à 2 workers contre un seul serveur (`node .output`), timeouts
 
 ## Avant de lancer
 
-- Charger `.env` dans le shell (PowerShell) puis `npm run build` — les e2e
-  servent `.output`, pas les sources.
-- Port 3000 libre ? `Get-NetTCPConnection -LocalPort 3000 -State Listen` :
-  un `node .output` résiduel (smoke test, session précédente) serait réutilisé
-  par Playwright (`reuseExistingServer`) avec un **vieux build** — le tuer.
+- `DATABASE_URL` dans le shell (PowerShell : `$env:DATABASE_URL = ...`), DB de dev
+  démarrée, puis `npm run generate` — le serveur e2e sert `.output/public`, pas les
+  sources. Docker Desktop démarré (l'image `api-runtime` est reconstruite à chaque
+  exécution : jamais de vieux binaire).
+- Port 3000 libre ? `Get-NetTCPConnection -LocalPort 3000 -State Listen` (un
+  `npm run dev` oublié). Le conteneur `hebdomiam-e2e` résiduel d'une exécution
+  interrompue est supprimé automatiquement au lancement suivant.
+- Après un `page.goto()`, attendre un élément rendu avant de mesurer quoi que ce
+  soit de global (`document.fonts.ready`, styles calculés) : en SPA le HTML initial
+  est une coquille vide — vécu avec le test de typographie de `design.spec.ts`.
 
 ## Diagnostic d'un échec
 
