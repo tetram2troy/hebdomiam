@@ -19,3 +19,6 @@ playwright-report
 logs
 *.log
 .DS_Store
+
+# Compilation Rust (en dev, le dossier cible vit dans un volume Docker)
+api/target

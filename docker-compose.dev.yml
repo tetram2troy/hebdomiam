@@ -1,6 +1,8 @@
-# Développement local : uniquement la base de données.
-# L'app tourne sur la machine avec `npm run dev`.
-#   docker compose -f docker-compose.dev.yml up -d
+# Développement local : base de données + API Rust (aucun compilateur sur le poste).
+#   docker compose -f docker-compose.dev.yml up -d     → db + api (rechargement à chaud)
+#   npm run dev                                        → front Nuxt (proxy /api → :8080)
+# La première compilation de l'API prend quelques minutes (dépendances mises
+# en cache dans les volumes cargo-*).
 services:
   db:
     image: postgres:16-alpine
@@ -19,5 +21,46 @@ services:
       timeout: 5s
       retries: 5
 
+  # API Rust : migrations puis serveur, relancés à chaque modification de
+  # api/ (scrutation : les événements de fichiers Windows ne traversent pas
+  # le montage). Aussi utilisé par les scripts npm api:* (tests, lint).
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile.dev
+    image: hebdomiam-api-dev
+    working_dir: /app/api
+    command:
+      - watchexec
+      - --poll=1000ms
+      - --restart
+      - --watch=src
+      - --watch=migrations
+      - --watch=Cargo.toml
+      - --
+      - sh
+      - -c
+      - cargo run -- migrate && exec cargo run -- serve
+    ports:
+      - "8080:8080"
+    environment:
+      DATABASE_URL: postgresql://hebdomiam:hebdomiam@db:5432/hebdomiam
+      TEST_DATABASE_URL: postgresql://hebdomiam:hebdomiam@db:5432/hebdomiam_test
+      PORT: "8080"
+      APP_ENV: development
+      # Le front est servi par `npm run dev` en développement.
+      STATIC_DIR: ""
+      CARGO_TARGET_DIR: /cargo-target
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+    volumes:
+      - ./api:/app/api
+      - cargo-registry:/usr/local/cargo/registry
+      - cargo-target:/cargo-target
+    depends_on:
+      db:
+        condition: service_healthy
+
 volumes:
   hebdomiam-db-dev:
+  cargo-registry:
+  cargo-target:

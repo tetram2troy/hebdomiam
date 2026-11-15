@@ -1,0 +1,11 @@
+# Image de développement de l'API Rust — aucun compilateur sur le poste :
+# cargo, rustfmt, clippy et watchexec vivent ici. Utilisée par le service
+# `api` de docker-compose.dev.yml (rechargement à chaud) et par les scripts
+# npm api:* (tests, lint) via `docker compose run`.
+FROM rust:1.100-slim-bookworm
+
+RUN rustup component add rustfmt clippy \
+ && cargo install --locked watchexec-cli \
+ && rm -rf /usr/local/cargo/registry
+
+WORKDIR /app/api

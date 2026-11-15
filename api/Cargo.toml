@@ -1,0 +1,62 @@
+[package]
+name = "hebdomiam"
+version = "0.2.0"
+edition = "2024"
+rust-version = "1.100"
+publish = false
+description = "API et serveur du front statique d'Hebdomiam (planification de repas hebdomadaire)"
+license = "MIT"
+
+[[bin]]
+name = "hebdomiam"
+path = "src/main.rs"
+
+[dependencies]
+# Serveur HTTP
+axum = { version = "0.8", features = ["multipart"] }
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "signal", "net", "time", "sync"] }
+tower = "0.5"
+tower-http = { version = "0.6", features = ["fs", "set-header"] }
+
+# Base de données — requêtes paramétrées à l'exécution (pas de macros :
+# la compilation n'a jamais besoin d'une base)
+sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "postgres", "uuid", "chrono", "rust_decimal", "json", "derive"] }
+rust_decimal = "1"
+
+# Sérialisation et types
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+uuid = { version = "1", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+url = "2"
+regex = "1"
+include_dir = "0.7"
+
+# Cryptographie
+argon2 = "0.5"
+aes-gcm = "0.10"
+rand = "0.8"
+sha2 = "0.10"
+sha1 = "0.10"
+hmac = "0.12"
+hex = "0.4"
+base64 = "0.22"
+data-encoding = "2"
+qrcode = { version = "0.14", default-features = false, features = ["svg"] }
+
+# Sortant : import de recettes (garde SSRF), API Claude, courriels
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+lettre = { version = "0.11", default-features = false, features = ["builder", "smtp-transport", "tokio1", "tokio1-rustls-tls", "hostname"] }
+
+# Import photo : vérification et ré-encodage des images (supprime l'EXIF)
+image = { version = "0.25", default-features = false, features = ["jpeg", "png", "webp"] }
+
+[dev-dependencies]
+tower = { version = "0.5", features = ["util"] }
+http-body-util = "0.1"
+
+[profile.release]
+# Binaire compact pour le mini-PC du home lab.
+lto = "thin"
+codegen-units = 1
+strip = true
