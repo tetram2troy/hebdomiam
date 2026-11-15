@@ -31,6 +31,9 @@
       - SESSION_PASSWORD=${HEBDOMIAM_SESSION_PASSWORD}
       # Base des liens dans les courriels (vérification, invitation, reset)
       - PUBLIC_BASE_URL=https://recettes.${DOMAIN}
+      # Seul Traefik (réseau Docker « proxy ») peut fournir cf-connecting-ip :
+      # tout autre appelant est identifié par son IP socket.
+      - TRUSTED_PROXIES=${HEBDOMIAM_TRUSTED_PROXIES}
       # Relais SMTP partagé du serveur (Brevo) — variables existantes réutilisées
       - SMTP_HOST=${SMTP_HOST}
       - SMTP_PORT=${SMTP_PORT}

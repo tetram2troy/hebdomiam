@@ -27,7 +27,14 @@ de cache disque) — seule la base PostgreSQL a un volume.
 - Conteneur app : uid `nonroot` (65532), image distroless sans shell, aucun
   volume ; `read_only: true` + `tmpfs: /tmp` sont appliqués dans `service.yml`.
 - **Résolution de l'IP client au périmètre** : l'app lit `cf-connecting-ip`
-  (posé par Cloudflare) pour son rate limiting d'auth et ses logs de sécurité.
+  (posé par Cloudflare) pour son rate limiting d'auth et ses logs de sécurité,
+  **uniquement quand l'appelant direct est dans `TRUSTED_PROXIES`** (le
+  sous-réseau du réseau Docker `proxy` — voir `env.example`). L'app ne voit
+  que Traefik : c'est à Traefik de ne pas relayer un `cf-connecting-ip` forgé
+  par un client qui n'arrive pas par Cloudflare (accès LAN/Tailscale) —
+  middleware `headers` qui vide l'en-tête sur les entrypoints non Cloudflare,
+  ou entrypoint dédié. À défaut, les verrous par compte de l'app (10 échecs de
+  connexion / 5 codes 2FA erronés par quart d'heure) bornent le brute-force.
   Côté Traefik, vérifier que `forwardedHeaders.trustedIPs` couvre les plages
   Cloudflare et que le `sourceCriterion` des middlewares `rate-limit*` repose
   sur l'IP client réelle — sinon rate limit et CrowdSec comptent/bannissent
@@ -65,7 +72,7 @@ curl -s https://recettes.${DOMAIN}/healthz                       # {"status":"ok
 Le healthcheck (`/healthz`, alias `/api/health`) vérifie que la base répond
 (`SELECT 1`) : `503 db-unreachable` si la DB est en panne. Une variable requise
 manquante (`DATABASE_URL`, `SESSION_PASSWORD`, `PUBLIC_BASE_URL`,
-`SMTP_HOST` — les anciens noms `NUXT_*` restent acceptés) fait échouer le démarrage immédiatement avec un message
+`SMTP_HOST`, `TRUSTED_PROXIES` — les anciens noms `NUXT_*` restent acceptés) fait échouer le démarrage immédiatement avec un message
 `[config] …` explicite — `service.yml` les fournit toutes.
 
 ## 4. Mise à jour / rollback
@@ -85,7 +92,8 @@ docker compose up -d hebdomiam    # migre puis redémarre l'app
 
 ### Passage de 0.1.x (Nuxt/Nitro) à 0.2.0 (API Rust)
 
-- **`.env` du serveur : rien à changer** (mêmes variables `HEBDOMIAM_*`).
+- **`.env` du serveur** : une seule ligne à ajouter, `HEBDOMIAM_TRUSTED_PROXIES`
+  (voir `env.example`) ; les autres variables `HEBDOMIAM_*` sont inchangées.
 - Reprendre le bloc `service.yml` : noms de variables d'environnement
   (`DATABASE_URL`…), healthcheck (`/app/hebdomiam healthcheck` — plus de
   `node` dans l'image), commande du job de migration (`migrate`), tag `0.2.0`.

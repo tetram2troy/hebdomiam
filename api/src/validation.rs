@@ -128,13 +128,18 @@ pub fn email(value: String) -> Validated<String> {
     if valid { Ok(normalized) } else { invalid() }
 }
 
-/// URL absolue (WHATWG) de longueur ≤ max ; `https_only` restreint le schéma.
-pub fn url(value: String, max: usize, https_only: bool) -> Validated<String> {
+/// Schémas acceptés pour une URL fournie par l'utilisateur. Jamais de schéma
+/// libre : `javascript:` ou `data:` finiraient dans un `href` du front.
+pub const HTTPS_ONLY: &[&str] = &["https"];
+pub const WEB: &[&str] = &["http", "https"];
+
+/// URL absolue (WHATWG) avec hôte, de longueur ≤ max, au schéma autorisé.
+pub fn url(value: String, max: usize, schemes: &[&str]) -> Validated<String> {
     if len(&value) > max {
         return invalid();
     }
     match url::Url::parse(&value) {
-        Ok(parsed) if !https_only || (parsed.scheme() == "https" && parsed.host().is_some()) => Ok(value),
+        Ok(parsed) if schemes.contains(&parsed.scheme()) && parsed.host().is_some() => Ok(value),
         _ => invalid(),
     }
 }
@@ -214,10 +219,18 @@ mod tests {
 
     #[test]
     fn urls() {
-        assert!(url("https://exemple.com/img.jpg".into(), 1000, true).is_ok());
-        assert!(url("http://exemple.com/img.jpg".into(), 1000, true).is_err());
-        assert!(url("pas une url".into(), 1000, false).is_err());
-        assert!(url("http://exemple.com".into(), 500, false).is_ok());
+        assert!(url("https://exemple.com/img.jpg".into(), 1000, HTTPS_ONLY).is_ok());
+        assert!(url("http://exemple.com/img.jpg".into(), 1000, HTTPS_ONLY).is_err());
+        assert!(url("pas une url".into(), 1000, WEB).is_err());
+        assert!(url("http://exemple.com".into(), 500, WEB).is_ok());
+        for dangerous in [
+            "javascript:alert(1)",
+            "data:text/html,<script>",
+            "file:///etc/passwd",
+            "mailto:a@b.c",
+        ] {
+            assert!(url(dangerous.into(), 500, WEB).is_err(), "{dangerous}");
+        }
     }
 
     #[test]

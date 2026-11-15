@@ -7,6 +7,8 @@
 
 use std::path::PathBuf;
 
+use crate::client_ip::{Cidr, parse_cidr_list};
+
 /// Lit une variable d'environnement non vide, en essayant les noms dans l'ordre.
 fn read(get: &impl Fn(&str) -> Option<String>, names: &[&str]) -> Option<String> {
     names
@@ -44,6 +46,8 @@ pub struct Config {
     pub port: u16,
     pub static_dir: Option<PathBuf>,
     pub production: bool,
+    /// Appelants directs dont les en-têtes de transfert sont crus (client_ip.rs).
+    pub trusted_proxies: Vec<Cidr>,
     pub trust_xff: bool,
     pub import_allow_private: bool,
     pub anthropic_api_key: Option<String>,
@@ -82,10 +86,22 @@ pub fn env_problems(get: impl Fn(&str) -> Option<String>) -> Vec<String> {
         if read(&get, &["SMTP_HOST"]).is_none() {
             problems.push("SMTP_HOST manquant (relais SMTP — sans lui vérifications, invitations et réinitialisations partiraient en silence dans les logs)".to_string());
         }
+        // Derrière Traefik, sans proxy de confiance tous les clients auraient
+        // l'IP de Traefik : un seul quota d'auth partagé (auto-DoS).
+        if read(&get, &["TRUSTED_PROXIES"]).is_none() {
+            problems.push("TRUSTED_PROXIES manquant (CIDR du réseau Docker de Traefik, ex. 172.18.0.0/16 — seuls ces appelants peuvent fournir cf-connecting-ip)".to_string());
+        }
     } else if let Some(password) = read(&get, SESSION_PASSWORD)
         && password.chars().count() < 32
     {
         problems.push("SESSION_PASSWORD trop court (minimum 32 caractères)".to_string());
+    }
+    if let Some(list) = read(&get, &["TRUSTED_PROXIES"])
+        && let Err(entry) = parse_cidr_list(&list)
+    {
+        problems.push(format!(
+            "TRUSTED_PROXIES illisible : « {entry} » n'est pas un CIDR (ex. 172.18.0.0/16)"
+        ));
     }
     problems
 }
@@ -124,6 +140,9 @@ impl Config {
             port: read(&get, &["PORT"]).and_then(|p| p.parse().ok()).unwrap_or(3000),
             static_dir,
             production: is_production(&get),
+            trusted_proxies: read(&get, &["TRUSTED_PROXIES"])
+                .and_then(|list| parse_cidr_list(&list).ok())
+                .unwrap_or_default(),
             trust_xff: flag(TRUST_XFF),
             import_allow_private: flag(IMPORT_ALLOW_PRIVATE),
             anthropic_api_key: read(&get, &["ANTHROPIC_API_KEY"]),
@@ -142,6 +161,7 @@ impl Config {
             port: 0,
             static_dir: None,
             production: false,
+            trusted_proxies: parse_cidr_list("127.0.0.0/8").unwrap_or_default(),
             trust_xff: true,
             import_allow_private: false,
             anthropic_api_key: None,
@@ -168,6 +188,7 @@ mod tests {
         ("SESSION_PASSWORD", "0123456789abcdef0123456789abcdef"),
         ("PUBLIC_BASE_URL", "https://recettes.example.com"),
         ("SMTP_HOST", "smtp.example.com"),
+        ("TRUSTED_PROXIES", "172.18.0.0/16"),
     ];
 
     #[test]
@@ -185,10 +206,26 @@ mod tests {
     #[test]
     fn production_exige_secret_base_url_et_smtp() {
         let problems = env_problems(env(&[("APP_ENV", "production"), ("DATABASE_URL", "postgresql://x")]));
-        assert_eq!(problems.len(), 3);
+        assert_eq!(problems.len(), 4);
+        assert!(problems.iter().any(|p| p.contains("TRUSTED_PROXIES")));
         assert!(problems.iter().any(|p| p.contains("SESSION_PASSWORD")));
         assert!(problems.iter().any(|p| p.contains("PUBLIC_BASE_URL")));
         assert!(problems.iter().any(|p| p.contains("SMTP_HOST")));
+    }
+
+    #[test]
+    fn proxies_de_confiance_illisibles_refuses() {
+        let problems = env_problems(env(&[
+            ("DATABASE_URL", "postgresql://x"),
+            ("TRUSTED_PROXIES", "10.0.0.0/8, oups"),
+        ]));
+        assert!(problems.iter().any(|p| p.contains("oups")));
+        let config = Config::from_getter(env(&[
+            ("DATABASE_URL", "postgresql://x"),
+            ("TRUSTED_PROXIES", "10.0.0.0/8,fd00::/8"),
+        ]))
+        .unwrap();
+        assert_eq!(config.trusted_proxies.len(), 2);
     }
 
     #[test]

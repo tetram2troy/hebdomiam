@@ -15,7 +15,7 @@ use crate::import::schema_org::extract_recipe_from_html;
 use crate::logger::{log_event, log_warn};
 use crate::session::CurrentUser;
 use crate::state::AppState;
-use crate::validation::{ValidJson, Validate, Validated, url};
+use crate::validation::{ValidJson, Validate, Validated, WEB, url};
 
 const MAX_FILES: usize = 3;
 const MAX_FILE_BYTES: usize = 10 * 1024 * 1024;
@@ -28,7 +28,7 @@ pub struct UrlBody {
 impl Validate for UrlBody {
     type Output = String;
     fn validate(self) -> Validated<String> {
-        url(self.url, 2000, false)
+        url(self.url, 2000, WEB)
     }
 }
 

@@ -405,7 +405,7 @@ async fn deux_facteurs_cycle_complet() {
         twofa::activate(&t.pool, id, "123456").await.unwrap(),
         Activation::NoSetup
     ));
-    let setup = twofa::start_setup(&t.pool, id, "a@b.c").await.unwrap();
+    let setup = twofa::start_setup(&t.pool, id, "a@b.c").await.unwrap().unwrap();
     assert!(setup.otpauth_url.contains(&setup.secret));
     assert_eq!(
         twofa::verify_login(&t.pool, id, &totp::generate(&setup.secret, now()).unwrap())
@@ -448,6 +448,13 @@ async fn deux_facteurs_cycle_complet() {
         None,
         "secours à usage unique"
     );
+
+    // 2FA active : un nouveau setup est refusé et ne touche à rien (un cookie
+    // volé ne retire pas le second facteur sans le mot de passe).
+    assert!(twofa::start_setup(&t.pool, id, "a@b.c").await.unwrap().is_none());
+    let still = users::find_by_id(&t.pool, id).await.unwrap().unwrap();
+    assert_eq!(still.totp_secret.as_deref(), Some(setup.secret.as_str()));
+    assert!(still.totp_enabled_at.is_some());
 
     assert!(!twofa::disable(&t.pool, id, "faux").await.unwrap());
     assert!(twofa::disable(&t.pool, id, "mot-de-passe-2fa").await.unwrap());

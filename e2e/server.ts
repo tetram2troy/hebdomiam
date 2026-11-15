@@ -14,7 +14,8 @@ import { BASE_URL, DB_URL, E2E_PORT } from './env'
 //
 // Environnement de test commun : IMPORT_ALLOW_PRIVATE=1 autorise la
 // page-fixture locale de l'import ; TRUST_XFF=1 laisse chaque spec simuler son
-// IP (buckets de rate limiting isolés). Jamais activés hors tests.
+// IP (buckets de rate limiting isolés) — cru seulement depuis TRUSTED_PROXIES.
+// Jamais activés hors tests.
 
 const CONTAINER = 'hebdomiam-e2e'
 const IMAGE = 'hebdomiam-api:e2e'
@@ -29,6 +30,9 @@ function testEnv(databaseUrl: string): Record<string, string> {
     APP_ENV: 'test',
     IMPORT_ALLOW_PRIVATE: '1',
     TRUST_XFF: '1',
+    // Appelants directs crus pour X-Forwarded-For : boucle locale (binaire
+    // natif) et passerelles Docker (conteneur).
+    TRUSTED_PROXIES: '127.0.0.0/8,::1/128,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16',
   }
 }
 

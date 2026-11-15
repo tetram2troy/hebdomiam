@@ -67,7 +67,12 @@ async fn account_status(State(state): State<AppState>, request: Request, next: N
                 .extensions()
                 .get::<axum::extract::ConnectInfo<std::net::SocketAddr>>()
                 .map(|c| c.0);
-            let ip = resolve_client_ip(request.headers(), socket, state.config.trust_xff);
+            let ip = resolve_client_ip(
+                request.headers(),
+                socket,
+                &state.config.trusted_proxies,
+                state.config.trust_xff,
+            );
             log_warn(
                 "security.disabled_session_blocked",
                 json!({ "userId": user.id, "ip": ip }),

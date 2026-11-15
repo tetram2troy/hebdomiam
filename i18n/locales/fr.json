@@ -370,6 +370,7 @@
     "invalidImage": "Format d'image non pris en charge (JPEG, PNG ou WebP).",
     "invalidPassword": "Mot de passe incorrect.",
     "invalidCode": "Code invalide ou expiré.",
+    "totpAlreadyEnabled": "La double authentification est déjà active. Désactive-la d'abord pour la reconfigurer.",
     "invalidToken": "Lien invalide ou expiré.",
     "planExists": "Un plan existe déjà pour cette semaine.",
     "notEnoughRecipes": "Pas assez de recettes pour lancer la rotation — ajoute d'abord des recettes.",

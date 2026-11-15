@@ -2,7 +2,7 @@
 # Ce compose autonome sert de banc d'essai local du modèle de production ;
 # l'intégration réelle au serveur passe par deploy/serveur-perso/ (bloc à
 # coller dans le compose unique du serveur, image GHCR).
-# Variables requises dans .env : DOMAIN, POSTGRES_PASSWORD, SESSION_PASSWORD,
+# Variables requises dans .env : DOMAIN, POSTGRES_PASSWORD, SESSION_PASSWORD, TRUSTED_PROXIES,
 # SMTP_HOST (+ SMTP_* utiles) — l'app refuse de démarrer sans (APP_ENV=production).
 services:
   app:
@@ -18,6 +18,8 @@ services:
       DATABASE_URL: postgresql://hebdomiam:${POSTGRES_PASSWORD}@db:5432/hebdomiam
       SESSION_PASSWORD: ${SESSION_PASSWORD}
       PUBLIC_BASE_URL: https://recettes.${DOMAIN}
+      # Sous-réseau du réseau Docker « proxy » : seul Traefik transmet l'IP client.
+      TRUSTED_PROXIES: ${TRUSTED_PROXIES}
       # Relais SMTP (courriels transactionnels) — requis au démarrage en production.
       SMTP_HOST: ${SMTP_HOST}
       SMTP_PORT: ${SMTP_PORT:-587}

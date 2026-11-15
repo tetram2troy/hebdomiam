@@ -19,8 +19,8 @@ use crate::repo::recipes::{
 use crate::session::CurrentUser;
 use crate::state::AppState;
 use crate::validation::{
-    ValidJson, ValidPath, ValidQuery, Validate, Validated, int_range, opt_strict_int, opt_text, positive, query_text,
-    strict_int, text, url,
+    HTTPS_ONLY, ValidJson, ValidPath, ValidQuery, Validate, Validated, WEB, int_range, opt_strict_int, opt_text,
+    positive, query_text, strict_int, text, url,
 };
 
 #[derive(Deserialize)]
@@ -84,11 +84,11 @@ impl Validate for RecipeBody {
             description: opt_text(self.description, 0, 2000)?,
             // https seulement : une image http:// serait bloquée silencieusement
             // par le navigateur (mixed content) sur le site servi en https.
-            image_url: self.image_url.map(|u| url(u, 1000, true)).transpose()?,
+            image_url: self.image_url.map(|u| url(u, 1000, HTTPS_ONLY)).transpose()?,
             base_servings: int_range(self.base_servings, 1, 50)?,
             prep_minutes: minutes(self.prep_minutes)?,
             cook_minutes: minutes(self.cook_minutes)?,
-            source_url: self.source_url.map(|u| url(u, 500, false)).transpose()?,
+            source_url: self.source_url.map(|u| url(u, 500, WEB)).transpose()?,
             freezable: self.freezable.unwrap_or(false),
             notes: opt_text(self.notes, 0, 5000)?,
             ingredients: self

@@ -55,8 +55,12 @@ toute chaîne visible passe par i18n (`i18n/locales/*.json`), jamais en dur.
 - Messages d'erreur API = clés i18n (ex. `errors.emailTaken`), traduites côté client
   (`app/utils/error-message.ts`).
 - Quantités en `numeric` (`rust_decimal`), jamais en `float` en base.
-- Routes d'auth : rate limiting applicatif (`state.rate_limit`) + `rate-limit-auth@file`
-  côté Traefik en prod.
+- Routes d'auth : rate limiting applicatif par IP (`state.rate_limit`) + verrou par
+  compte sur les échecs (`limits.assert_not_locked` / `record_failure`) +
+  `rate-limit-auth@file` côté Traefik en prod. L'IP client vient de l'extracteur
+  `ClientIp` (en-têtes crus seulement depuis `TRUSTED_PROXIES`).
+- URL fournie par l'utilisateur : `validation::url` avec `WEB` ou `HTTPS_ONLY` —
+  jamais de schéma libre (`javascript:` finirait dans un `href`).
 - **Journalisation** : toute action critique (mutation, événement de sécurité) passe par
   `log_event`/`log_warn`/`log_error` (`api/src/logger.rs`) — une ligne JSON nommée
   `domaine.action` ; jamais de secret ni de contenu utilisateur, PII minimale (userId).

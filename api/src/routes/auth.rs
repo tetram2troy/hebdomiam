@@ -146,6 +146,15 @@ pub async fn logout() -> impl IntoResponse {
 
 // ── Connexion ───────────────────────────────────────────────────────────────
 
+/// Verrous par compte : nombre d'échecs tolérés sur 15 minutes.
+const LOGIN_ACCOUNT_BUCKET: &str = "auth:login:account";
+const TOTP_ACCOUNT_BUCKET: &str = "auth:2fa:account";
+const ACCOUNT_MAX_FAILURES: usize = 10;
+const TOTP_MAX_FAILURES: usize = 5;
+const ACCOUNT_WINDOW_MS: u64 = 15 * 60_000;
+/// Durée de vie de l'étape intermédiaire « mot de passe validé, code attendu ».
+const PENDING_TOTP_MAX_AGE_SECONDS: i64 = 10 * 60;
+
 /// Hachage factice vérifié quand le courriel est inconnu : temps de réponse
 /// comparable dans les deux cas, pas d'énumération de comptes par timing.
 static DUMMY_HASH: OnceLock<String> = OnceLock::new();
@@ -164,6 +173,13 @@ pub async fn login(
     ValidJson(body): ValidJson<LoginBody>,
 ) -> ApiResult<Response> {
     state.rate_limit("auth:login", &ip, 5, 60_000)?;
+    // Verrou par compte : le quota par IP ne résiste pas à une rotation d'adresses.
+    state.limits.assert_not_locked(
+        LOGIN_ACCOUNT_BUCKET,
+        &body.email,
+        ACCOUNT_MAX_FAILURES,
+        ACCOUNT_WINDOW_MS,
+    )?;
 
     let user = users::find_by_email(&state.db, &body.email).await?;
     let hash = match &user {
@@ -175,6 +191,13 @@ pub async fn login(
     let Some(user) = user.filter(|_| valid) else {
         // Le courriel visé (pas le mot de passe !) : détecte le brute-force ciblé.
         log_warn("auth.login_failed", json!({ "email": body.email, "ip": ip }));
+        // Compté que le compte existe ou non (pas d'énumération par le verrou).
+        state.limits.record_failure(
+            LOGIN_ACCOUNT_BUCKET,
+            &body.email,
+            ACCOUNT_MAX_FAILURES,
+            ACCOUNT_WINDOW_MS,
+        );
         return Err(ApiError::new(401, "errors.invalidCredentials"));
     };
 
@@ -215,11 +238,23 @@ pub async fn two_factor(
 ) -> ApiResult<Response> {
     state.rate_limit("auth:2fa", &ip, 5, 60_000)?;
 
-    let Some(pending_user_id) = session.and_then(|s| s.pending_totp_user_id) else {
+    // L'étape « code attendu » ne vit que quelques minutes : un cookie
+    // intermédiaire volé ne sert pas à deviner des codes pendant 7 jours.
+    let pending = session.filter(|s| chrono::Utc::now().timestamp() - s.issued_at <= PENDING_TOTP_MAX_AGE_SECONDS);
+    let Some(pending_user_id) = pending.and_then(|s| s.pending_totp_user_id) else {
         return Err(ApiError::new(401, "errors.invalidCredentials"));
     };
+    // 10^6 codes possibles : sans verrou par compte, une rotation d'IP suffit
+    // à contourner le quota par adresse.
+    let account = pending_user_id.to_string();
+    state
+        .limits
+        .assert_not_locked(TOTP_ACCOUNT_BUCKET, &account, TOTP_MAX_FAILURES, ACCOUNT_WINDOW_MS)?;
     let Some(method) = twofa::verify_login(&state.db, pending_user_id, &body.code).await? else {
         log_warn("auth.2fa_failed", json!({ "userId": pending_user_id, "ip": ip }));
+        state
+            .limits
+            .record_failure(TOTP_ACCOUNT_BUCKET, &account, TOTP_MAX_FAILURES, ACCOUNT_WINDOW_MS);
         return Err(ApiError::new(401, "errors.invalidCode"));
     };
     let Some(user) = users::find_by_id(&state.db, pending_user_id).await? else {

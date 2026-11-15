@@ -37,6 +37,11 @@ async fn call(app: &Router, method: &str, path: &str, cookie: Option<&str>, body
     let mut request = Request::builder()
         .method(method)
         .uri(path)
+        // Appelant direct = proxy de confiance local (Config::for_tests).
+        .extension(axum::extract::ConnectInfo(std::net::SocketAddr::from((
+            [127, 0, 0, 1],
+            40000,
+        ))))
         .header("x-forwarded-for", ip)
         .header("host", "127.0.0.1:3000");
     if let Some(cookie) = cookie {
@@ -427,5 +432,95 @@ async fn spa_et_en_tetes_de_securite() {
     );
 
     std::fs::remove_dir_all(dir).ok();
+    t.drop().await;
+}
+
+#[tokio::test]
+async fn verrou_par_compte_malgre_la_rotation_d_ip() {
+    let t = TestDb::new().await;
+    let app = router(&t.pool, None);
+    let email = account(&t.pool, Role::User).await;
+
+    // 10 échecs depuis 10 adresses différentes : le quota par IP ne voit rien.
+    for n in 0..10 {
+        let ip = format!("198.51.101.{n}");
+        let wrong = call(
+            &app,
+            "POST",
+            "/api/auth/login",
+            None,
+            Some(json!({ "email": email, "password": "faux" })),
+            &ip,
+        )
+        .await;
+        assert_eq!(wrong.status, StatusCode::UNAUTHORIZED);
+    }
+    // Le compte est verrouillé, même avec le bon mot de passe et une IP neuve.
+    let locked = call(
+        &app,
+        "POST",
+        "/api/auth/login",
+        None,
+        Some(json!({ "email": email, "password": PASSWORD })),
+        "198.51.101.200",
+    )
+    .await;
+    assert_eq!(
+        (locked.status, locked.body["message"].as_str()),
+        (StatusCode::TOO_MANY_REQUESTS, Some("errors.tooManyRequests"))
+    );
+    // Les autres comptes ne sont pas touchés.
+    let other = account(&t.pool, Role::User).await;
+    login(&app, &other, "198.51.101.201").await;
+    t.drop().await;
+}
+
+#[tokio::test]
+async fn setup_2fa_refuse_quand_active_et_source_url_web_seulement() {
+    let t = TestDb::new().await;
+    let app = router(&t.pool, None);
+    let email = account(&t.pool, Role::User).await;
+    let cookie = login(&app, &email, "198.51.102.1").await;
+
+    let first = call(&app, "POST", "/api/2fa/setup", Some(&cookie), None, "198.51.102.1").await;
+    assert_eq!(first.status, StatusCode::OK, "{}", first.text);
+    sqlx::query("UPDATE users SET totp_enabled_at = now() WHERE email = $1")
+        .bind(&email)
+        .execute(&t.pool)
+        .await
+        .unwrap();
+    let refused = call(&app, "POST", "/api/2fa/setup", Some(&cookie), None, "198.51.102.1").await;
+    assert_eq!(
+        (refused.status, refused.body["message"].as_str()),
+        (StatusCode::CONFLICT, Some("errors.totpAlreadyEnabled"))
+    );
+    let enabled: bool = sqlx::query_scalar("SELECT totp_enabled_at IS NOT NULL FROM users WHERE email = $1")
+        .bind(&email)
+        .fetch_one(&t.pool)
+        .await
+        .unwrap();
+    assert!(enabled, "la 2FA active n'est pas retirée par un setup");
+
+    let recipe = |source: &str| json!({ "title": "X", "baseServings": 2, "sourceUrl": source, "ingredients": [{ "quantity": 1, "name": "sel" }], "steps": ["a"] });
+    let js = call(
+        &app,
+        "POST",
+        "/api/recipes",
+        Some(&cookie),
+        Some(recipe("javascript:alert(document.cookie)")),
+        "198.51.102.1",
+    )
+    .await;
+    assert_eq!(js.status, StatusCode::BAD_REQUEST);
+    let ok = call(
+        &app,
+        "POST",
+        "/api/recipes",
+        Some(&cookie),
+        Some(recipe("http://exemple.com/recette")),
+        "198.51.102.1",
+    )
+    .await;
+    assert_eq!(ok.status, StatusCode::CREATED, "{}", ok.text);
     t.drop().await;
 }

@@ -48,7 +48,11 @@ pub async fn setup(
     ClientIp(ip): ClientIp,
 ) -> ApiResult<Json<serde_json::Value>> {
     state.rate_limit(&format!("2fa:setup:{}", user.id), &ip, 5, 60_000)?;
-    let setup = twofa::start_setup(&state.db, user.id, &user.email).await?;
+    // 2FA déjà active : la remplacer passe par /2fa/disable (mot de passe).
+    let Some(setup) = twofa::start_setup(&state.db, user.id, &user.email).await? else {
+        log_warn("auth.2fa_setup_refused", json!({ "userId": user.id, "ip": ip }));
+        return Err(ApiError::new(409, "errors.totpAlreadyEnabled"));
+    };
     Ok(Json(
         json!({ "secret": setup.secret, "otpauthUrl": setup.otpauth_url, "qrSvg": qr_svg(&setup.otpauth_url) }),
     ))

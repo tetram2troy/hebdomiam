@@ -18,17 +18,21 @@ pub struct TotpSetup {
     pub otpauth_url: String,
 }
 
-pub async fn start_setup(db: &PgPool, user_id: Uuid, email: &str) -> Result<TotpSetup, sqlx::Error> {
+/// Pose un nouveau secret en attente d'activation. `None` si la 2FA est déjà
+/// active : la remplacer exige de la désactiver d'abord (mot de passe requis)
+/// — sinon un cookie de session volé suffirait à retirer le second facteur.
+/// Condition dans l'UPDATE lui-même : pas de course entre lecture et écriture.
+pub async fn start_setup(db: &PgPool, user_id: Uuid, email: &str) -> Result<Option<TotpSetup>, sqlx::Error> {
     let secret = totp::generate_secret();
-    sqlx::query("UPDATE users SET totp_secret = $2, totp_enabled_at = NULL WHERE id = $1")
+    let updated = sqlx::query("UPDATE users SET totp_secret = $2 WHERE id = $1 AND totp_enabled_at IS NULL")
         .bind(user_id)
         .bind(&secret)
         .execute(db)
         .await?;
-    Ok(TotpSetup {
+    Ok((updated.rows_affected() == 1).then(|| TotpSetup {
         otpauth_url: totp::otpauth_uri("Hebdomiam", email, &secret),
         secret,
-    })
+    }))
 }
 
 pub enum Activation {

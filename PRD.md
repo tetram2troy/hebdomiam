@@ -324,10 +324,14 @@ si un middleware Traefik saute ou si elle est déployée ailleurs un jour).
 ### Authentification et sessions
 - Argon2id pour les mots de passe ; politique de longueur (≥ 12 caractères) sans règles arbitraires.
 - Cookies de session : `httpOnly`, `secure`, `sameSite=lax`, expiration + rotation à la connexion.
-- **Rate limiting** sur login/inscription/reset (par IP et par compte) + délai progressif.
+- **Rate limiting** sur login/inscription/reset par IP, plus un **verrou par compte**
+  sur les échecs (10 connexions / 5 codes 2FA erronés par quart d'heure). L'IP client
+  (`cf-connecting-ip`) n'est crue que depuis un proxy de confiance (`TRUSTED_PROXIES`).
 - Verrouillage temporaire après échecs répétés ; messages d'erreur non énumérants
   (« courriel ou mot de passe invalide »).
-- 2FA TOTP en option — ✅ livrée (M5), avec code de secours à usage unique.
+- 2FA TOTP en option — ✅ livrée (M5), avec code de secours à usage unique ; une 2FA
+  active ne se reconfigure qu'après désactivation par mot de passe ; l'étape
+  intermédiaire « code attendu » expire en 10 minutes.
 
 ### Application (OWASP Top 10)
 - Validation systématique de **toute** entrée (body, query, params) côté serveur
