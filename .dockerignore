@@ -10,8 +10,10 @@ coverage
 test-results
 playwright-report
 *.md
-# Fixture e2e : hors du contexte de build → hors du manifeste d'assets Nitro
-# (la supprimer après build laisserait un 500 ENOENT au lieu d'un 404).
+# Compilation Rust locale (volumes de dev) — jamais dans le contexte de build
+api/target
+# Fixture e2e : hors de l'image de production (les e2e montent le front
+# généré sur l'hôte, qui la contient).
 public/test-fixtures
 # Hors sujet dans l'image : tests, docs, bundle d'intégration, scratch
 e2e

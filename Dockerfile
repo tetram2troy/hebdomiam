@@ -1,36 +1,47 @@
 # syntax=docker/dockerfile:1
 
-FROM node:24-slim AS build
+# ── Front : SPA Nuxt générée (.output/public) ──────────────────────────────
+FROM node:24-slim AS front
 WORKDIR /app
 COPY package.json package-lock.json ./
 # --ignore-scripts : le postinstall (nuxt prepare) a besoin des sources,
-# copiées à l'étape suivante ; nuxt build refait le prepare de toute façon.
+# copiées à l'étape suivante ; nuxt generate refait le prepare de toute façon.
 RUN npm ci --ignore-scripts
 COPY . .
-RUN npm run build
+RUN npm run generate
 
-FROM node:24-slim AS runtime
-# PORT (et non NITRO_PORT, prioritaire chez Nitro) : reste surchargeable au
-# runtime par -e PORT=… (contrat docs/HOSTING.md §2.2). Arrêt propre en moins
-# de 10 s : Nitro draine puis ferme (le défaut de 30 s dépasserait la grâce
-# Docker et finirait en SIGKILL).
-ENV NODE_ENV=production \
-    NITRO_HOST=0.0.0.0 \
-    PORT=3000 \
-    NITRO_SHUTDOWN_TIMEOUT=8000
-# npm ne sert jamais au runtime (CMD = node) : on retire son arborescence.
-# C'est elle qui portait les CVE relevées par Trivy (tar, undici, ip-address…
-# livrés DANS l'image de base avec npm) — les dépendances de l'app sont saines.
-RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx
+# ── API : binaire Rust en release ───────────────────────────────────────────
+FROM rust:1.100-slim-bookworm AS api-build
 WORKDIR /app
-COPY --from=build --chown=node:node /app/.output ./.output
-# Migrations exécutables depuis cette image (job dédié au déploiement,
-# PRD §7.3) : node .output/server/migrate.mjs — le script est placé dans
-# .output/server/ pour résoudre pg/drizzle-orm depuis ses node_modules.
-COPY --from=build --chown=node:node /app/server/database/migrations ./.output/server/migrations
-COPY --from=build --chown=node:node /app/scripts/migrate.mjs ./.output/server/migrate.mjs
-USER node
+COPY api/Cargo.toml api/Cargo.lock ./
+COPY api/src ./src
+COPY api/migrations ./migrations
+# Caches BuildKit : registre cargo et dossier target survivent entre builds.
+RUN --mount=type=cache,target=/usr/local/cargo/registry \
+    --mount=type=cache,target=/app/target \
+    cargo build --release --locked \
+ && cp target/release/hebdomiam /hebdomiam
+
+# ── Runtime de l'API seule (e2e : le front est monté depuis l'hôte) ────────
+# distroless/cc : glibc + certificats + tzdata, ni shell ni gestionnaire de
+# paquets ; utilisateur non-root (uid 65532).
+FROM gcr.io/distroless/cc-debian12:nonroot AS api-runtime
+WORKDIR /app
+# PORT reste surchargeable au runtime (contrat docs/HOSTING.md §2.2).
+# APP_ENV=production active la validation stricte de la configuration.
+ENV APP_ENV=production \
+    PORT=3000 \
+    STATIC_DIR=/app/public
+COPY --from=api-build /hebdomiam /app/hebdomiam
+USER nonroot
 EXPOSE 3000
-HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
-  CMD node -e "fetch('http://127.0.0.1:'+(process.env.NITRO_PORT||process.env.PORT||3000)+'/healthz').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
-CMD ["node", ".output/server/index.mjs"]
+# Sonde intégrée au binaire (pas de curl dans l'image).
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD ["/app/hebdomiam", "healthcheck"]
+# Migrations en job dédié au déploiement (PRD §7.3) : /app/hebdomiam migrate
+ENTRYPOINT ["/app/hebdomiam"]
+CMD ["serve"]
+
+# ── Image de production : API + front ──────────────────────────────────────
+FROM api-runtime AS runtime
+COPY --from=front /app/.output/public /app/public

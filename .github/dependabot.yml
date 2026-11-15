@@ -9,6 +9,15 @@ updates:
       minor-and-patch:
         update-types: [minor, patch]
 
+  - package-ecosystem: cargo
+    directory: /api
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      minor-and-patch:
+        update-types: [minor, patch]
+
   - package-ecosystem: github-actions
     directory: /
     schedule:
@@ -17,6 +26,13 @@ updates:
 
   - package-ecosystem: docker
     directory: /
+    schedule:
+      interval: weekly
+      day: monday
+
+  # Image de développement de l'API (toolchain Rust)
+  - package-ecosystem: docker
+    directory: /api
     schedule:
       interval: weekly
       day: monday

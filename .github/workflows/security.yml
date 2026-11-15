@@ -19,11 +19,12 @@ jobs:
       # v3 dépréciée en décembre 2026 (annotation GitHub) — ne pas attendre la casse.
       - uses: github/codeql-action/init@v4
         with:
-          languages: javascript-typescript
+          # Front (TypeScript/Vue) et API (Rust).
+          languages: javascript-typescript,rust
       - uses: github/codeql-action/analyze@v4
 
   audit:
-    name: Audit des dépendances
+    name: Audit des dépendances npm
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -33,7 +34,23 @@ jobs:
           cache: npm
       - run: npm ci
       # Bloquant sur les vulnérabilités high+ des dépendances de production
+      # (le front est généré au build : aucune dépendance npm ne tourne en prod).
       - run: npm audit --omit=dev --audit-level=high
+
+  cargo-audit:
+    name: Audit des dépendances Rust (RustSec)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+      checks: write
+    steps:
+      - uses: actions/checkout@v4
+      # Action tierce épinglée par SHA (v2.0.0).
+      - uses: rustsec/audit-check@69366f33c96575abad1ee0dba8212993eecbe998 # v2.0.0
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          working-directory: api
 
   trivy:
     name: Scan Trivy de l'image

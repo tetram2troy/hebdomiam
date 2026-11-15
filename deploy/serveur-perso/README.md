@@ -1,6 +1,7 @@
 # Hebdomiam sur serveur-perso — procédure d'intégration
 
-Application de planification de repas (Nuxt/Nitro + PostgreSQL 16).
+Application de planification de repas (API Rust servant un front Nuxt SPA +
+PostgreSQL 16). Image distroless de ~50 Mo, ~3 Mo de RAM au repos.
 URL cible : **https://recettes.${DOMAIN}** — couverte par le DNS wildcard et le
 certificat wildcard existants, aucune action DNS.
 
@@ -23,8 +24,8 @@ de cache disque) — seule la base PostgreSQL a un volume.
   sudo mkdir -p /app-tetram/hebdomiam/db
   sudo chown -R 70:70 /app-tetram/hebdomiam/db
   ```
-- Conteneur app : uid `node` (1000), aucun volume ; `read_only: true` +
-  `tmpfs: /tmp` sont appliqués dans `service.yml` (validés au build).
+- Conteneur app : uid `nonroot` (65532), image distroless sans shell, aucun
+  volume ; `read_only: true` + `tmpfs: /tmp` sont appliqués dans `service.yml`.
 - **Résolution de l'IP client au périmètre** : l'app lit `cf-connecting-ip`
   (posé par Cloudflare) pour son rate limiting d'auth et ses logs de sécurité.
   Côté Traefik, vérifier que `forwardedHeaders.trustedIPs` couvre les plages
@@ -63,8 +64,8 @@ curl -s https://recettes.${DOMAIN}/healthz                       # {"status":"ok
 
 Le healthcheck (`/healthz`, alias `/api/health`) vérifie que la base répond
 (`SELECT 1`) : `503 db-unreachable` si la DB est en panne. Une variable requise
-manquante (`NUXT_DATABASE_URL`, `NUXT_SESSION_PASSWORD`, `NUXT_PUBLIC_BASE_URL`,
-`SMTP_HOST`) fait échouer le démarrage immédiatement avec un message
+manquante (`DATABASE_URL`, `SESSION_PASSWORD`, `PUBLIC_BASE_URL`,
+`SMTP_HOST` — les anciens noms `NUXT_*` restent acceptés) fait échouer le démarrage immédiatement avec un message
 `[config] …` explicite — `service.yml` les fournit toutes.
 
 ## 4. Mise à jour / rollback
@@ -81,6 +82,21 @@ docker compose up -d hebdomiam    # migre puis redémarre l'app
 # ⚠ Les migrations ne sont pas réversibles automatiquement : si la version
 # fautive a migré le schéma, restaurer d'abord le dump (voir §5).
 ```
+
+### Passage de 0.1.x (Nuxt/Nitro) à 0.2.0 (API Rust)
+
+- **`.env` du serveur : rien à changer** (mêmes variables `HEBDOMIAM_*`).
+- Reprendre le bloc `service.yml` : noms de variables d'environnement
+  (`DATABASE_URL`…), healthcheck (`/app/hebdomiam healthcheck` — plus de
+  `node` dans l'image), commande du job de migration (`migrate`), tag `0.2.0`.
+- **Migrations** : le job reprend l'historique Drizzle existant
+  (`drizzle.__drizzle_migrations`) sans rien rejouer — aucun changement de
+  schéma dans cette version. Faire tout de même un dump avant (§5).
+- **Sessions** : le format du cookie change (`hebdomiam-session`) — tout le
+  monde se reconnecte une fois. Les mots de passe et les secrets 2FA existants
+  restent valides (mêmes Argon2id et TOTP).
+- `service.security.yml` : limite inchangée (384M, marge pour l'import photo),
+  réservation abaissée à 32M.
 
 ## 5. Sauvegarde / restauration (bloc pour backup.sh)
 
@@ -154,7 +170,7 @@ la CSP restrictive convient pour `script-src`, `style-src`, `connect-src`.
 - **CSP** : tant que l'écart §7 n'est pas traité, les photos de recettes
   externes ne s'afficheront pas (placeholder illustré à la place — pas de
   casse fonctionnelle).
-- **Drapeaux de test — jamais en production** : `NUXT_IMPORT_ALLOW_PRIVATE`
-  (débranche la garde SSRF de l'import URL) et `NUXT_TRUST_XFF` (fait confiance
+- **Drapeaux de test — jamais en production** : `IMPORT_ALLOW_PRIVATE`
+  (débranche la garde SSRF de l'import URL) et `TRUST_XFF` (fait confiance
   à `X-Forwarded-For`, usurpable). Aucun des deux ne figure dans `service.yml` ;
   ne jamais les y ajouter.

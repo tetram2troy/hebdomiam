@@ -1,6 +1,9 @@
 # Limites de ressources — fichier d'override côté infra.
-# Mesuré sur le build v0.1.2 : app 185 Mo au repos, db 38 Mo (docker stats) ;
-# marge SSR sous charge → limite 384M. Postgres seul sur une petite base.
+# Mesuré sur le build v0.2.0 (API Rust) : app 2,4 Mo au repos (docker stats),
+# contre 185 Mo pour l'ancien serveur Nitro. Le pic vient de l'import photo :
+# corps multipart (≤ 35 Mo) + décodage d'une image plafonné à 160 Mo
+# (api/src/import/image.rs, ≤ 50 Mpx) → limite 384M, réservation minime.
+# Postgres seul sur une petite base.
 services:
   hebdomiam:
     deploy:
@@ -9,7 +12,7 @@ services:
           memory: 384M
           cpus: '0.75'
         reservations:
-          memory: 128M
+          memory: 32M
 
   hebdomiam-db:
     deploy:

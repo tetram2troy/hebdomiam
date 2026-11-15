@@ -10,15 +10,15 @@
 
   hebdomiam:
     # Tag immuable, jamais « latest » (migrations de schéma → mises à jour
-    # supervisées, voir README). NB : le tag git « v0.1.2 » produit l'image
-    # « 0.1.2 » (metadata-action retire le v).
-    image: ghcr.io/tetram2troy/hebdomiam:0.1.2
+    # supervisées, voir README). NB : le tag git « v0.2.0 » produit l'image
+    # « 0.2.0 » (metadata-action retire le v).
+    image: ghcr.io/tetram2troy/hebdomiam:0.2.0
     container_name: hebdomiam
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
     # Aucun état dans le conteneur : système de fichiers en lecture seule,
-    # /tmp en tmpfs (sharp peut y recourir pour le ré-encodage d'images).
+    # /tmp en tmpfs (image distroless sans shell, binaire Rust non-root).
     read_only: true
     tmpfs:
       - /tmp
@@ -27,10 +27,10 @@
       - hebdomiam-internal   # base de données
     environment:
       - TZ=${TZ:-America/Toronto}
-      - NUXT_DATABASE_URL=postgresql://hebdomiam:${HEBDOMIAM_POSTGRES_PASSWORD}@hebdomiam-db:5432/hebdomiam
-      - NUXT_SESSION_PASSWORD=${HEBDOMIAM_SESSION_PASSWORD}
+      - DATABASE_URL=postgresql://hebdomiam:${HEBDOMIAM_POSTGRES_PASSWORD}@hebdomiam-db:5432/hebdomiam
+      - SESSION_PASSWORD=${HEBDOMIAM_SESSION_PASSWORD}
       # Base des liens dans les courriels (vérification, invitation, reset)
-      - NUXT_PUBLIC_BASE_URL=https://recettes.${DOMAIN}
+      - PUBLIC_BASE_URL=https://recettes.${DOMAIN}
       # Relais SMTP partagé du serveur (Brevo) — variables existantes réutilisées
       - SMTP_HOST=${SMTP_HOST}
       - SMTP_PORT=${SMTP_PORT}
@@ -48,11 +48,12 @@
       hebdomiam-migrate:
         condition: service_completed_successfully
     healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      # Sonde intégrée au binaire (image sans shell ni curl)
+      test: ["CMD", "/app/hebdomiam", "healthcheck"]
       interval: 30s
       timeout: 5s
       retries: 3
-      start_period: 20s
+      start_period: 10s
     labels:
       - "traefik.enable=true"
       # Routeur principal
@@ -77,9 +78,9 @@
   # `docker compose up`, inoffensif quand le schéma est déjà à jour. Même image
   # que l'app — penser à changer les DEUX tags lors d'une mise à jour.
   hebdomiam-migrate:
-    image: ghcr.io/tetram2troy/hebdomiam:0.1.2
+    image: ghcr.io/tetram2troy/hebdomiam:0.2.0
     container_name: hebdomiam-migrate
-    command: ["node", ".output/server/migrate.mjs"]
+    command: ["migrate"]
     restart: "no"
     security_opt:
       - no-new-privileges:true
@@ -89,7 +90,7 @@
     networks:
       - hebdomiam-internal
     environment:
-      - NUXT_DATABASE_URL=postgresql://hebdomiam:${HEBDOMIAM_POSTGRES_PASSWORD}@hebdomiam-db:5432/hebdomiam
+      - DATABASE_URL=postgresql://hebdomiam:${HEBDOMIAM_POSTGRES_PASSWORD}@hebdomiam-db:5432/hebdomiam
     depends_on:
       hebdomiam-db:
         condition: service_healthy
