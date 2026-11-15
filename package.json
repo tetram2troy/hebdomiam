@@ -1,6 +1,6 @@
 {
   "name": "hebdomiam",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "engines": {
@@ -8,45 +8,44 @@
   },
   "scripts": {
     "dev": "nuxt dev",
-    "build": "nuxt build",
+    "build": "nuxt generate",
+    "generate": "nuxt generate",
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
     "lint": "eslint .",
     "typecheck": "nuxt typecheck",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:integration": "vitest run --config vitest.integration.config.ts",
     "test:e2e": "playwright test",
-    "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate"
+    "api:up": "docker compose -f docker-compose.dev.yml up -d",
+    "api:logs": "docker compose -f docker-compose.dev.yml logs -f api",
+    "api:test": "docker compose -f docker-compose.dev.yml run --rm api cargo test",
+    "api:lint": "docker compose -f docker-compose.dev.yml run --rm --no-deps api sh -c \"cargo fmt --check && cargo clippy --all-targets -- -D warnings\"",
+    "api:fmt": "docker compose -f docker-compose.dev.yml run --rm --no-deps api cargo fmt",
+    "api:cargo": "docker compose -f docker-compose.dev.yml run --rm api cargo"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.116.0",
-    "@node-rs/argon2": "^2.0.2",
     "@nuxtjs/i18n": "^10.6.0",
-    "drizzle-orm": "^0.45.2",
-    "nodemailer": "^9.0.5",
-    "nuxt": "^4.5.2",
-    "nuxt-auth-utils": "^0.5.30",
-    "nuxt-security": "^2.6.0",
-    "otplib": "^13.4.1",
-    "pg": "^8.22.0",
-    "qrcode": "^1.5.4",
-    "sharp": "^0.35.3",
-    "vue": "^3.5.39",
-    "zod": "^4.4.3"
+    "nuxt": "^4.6.4",
+    "vue": "^3.5.45",
+    "vue-router": "^5.5.1"
   },
   "devDependencies": {
+    "@node-rs/argon2": "^2.2.2",
     "@nuxt/eslint": "^1.17.0",
-    "@playwright/test": "^1.62.1",
-    "@types/nodemailer": "^8.0.1",
-    "@types/pg": "^8.21.0",
-    "@types/qrcode": "^1.5.6",
-    "drizzle-kit": "^0.31.10",
-    "eslint": "^10.8.1",
-    "tsx": "^4.23.11",
+    "@playwright/test": "^1.65.1",
+    "@types/pg": "^8.23.1",
+    "eslint": "^10.15.0",
+    "otplib": "^13.6.0",
+    "pg": "^8.23.1",
     "typescript": "^6.0.3",
-    "vitest": "^4.1.10",
-    "vue-tsc": "^3.3.9"
+    "vitest": "^5.1.0",
+    "vue-tsc": "^3.3.14"
+  },
+  "overrides": {
+    "@intlify/vue-i18n-extensions": {
+      "vue-i18n": "^11.4.20",
+      "@intlify/shared": "^11.4.20"
+    }
   }
 }
