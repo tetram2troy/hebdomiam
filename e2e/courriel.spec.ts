@@ -1,18 +1,16 @@
 import { createHash, randomBytes } from 'node:crypto'
 import { expect, test } from '@playwright/test'
 import pg from 'pg'
+import { DB_URL } from './env'
 import { registerFreshUser } from './helpers'
 
 // Parcours par courriel (M5) : réinitialisation de mot de passe et vérification
 // d'adresse. Seule l'empreinte SHA-256 des jetons est en base : le test insère
 // donc lui-même un jeton dont il connaît la valeur brute — exactement ce que
-// produit createEmailToken côté serveur.
+// produit email_tokens::create côté API.
 
 // IP distincte par fichier de test (rate limiting : 5 logins/min/IP).
 test.use({ extraHTTPHeaders: { 'x-forwarded-for': '203.0.113.53' } })
-
-const DB_URL = process.env.NUXT_DATABASE_URL
-  ?? 'postgresql://hebdomiam:hebdomiam@localhost:5432/hebdomiam'
 
 async function insertEmailToken(email: string, type: 'verify' | 'reset'): Promise<string> {
   const raw = randomBytes(24).toString('hex')
