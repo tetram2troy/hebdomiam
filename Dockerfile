@@ -23,10 +23,14 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
  && cp target/release/hebdomiam /hebdomiam
 
 # ── Runtime de l'API seule (e2e : le front est monté depuis l'hôte) ────────
-# distroless/cc : glibc + certificats + tzdata, ni shell ni gestionnaire de
-# paquets ; utilisateur non-root (uid 65532).
-FROM gcr.io/distroless/cc-debian12:nonroot AS api-runtime
+# distroless/base-nossl : glibc + certificats + tzdata, ni shell ni
+# gestionnaire de paquets, et PAS d'OpenSSL (le binaire fait son TLS avec
+# rustls : libssl ne serait qu'une surface d'attaque à patcher — vécu avec
+# CVE-2026-84782 remonté par Trivy). Utilisateur non-root (uid 65532).
+FROM gcr.io/distroless/base-nossl-debian12:nonroot AS api-runtime
 WORKDIR /app
+# Seule bibliothèque hors glibc requise par le binaire (déroulement de pile).
+COPY --from=api-build /lib/x86_64-linux-gnu/libgcc_s.so.1 /lib/x86_64-linux-gnu/libgcc_s.so.1
 # PORT reste surchargeable au runtime (contrat docs/HOSTING.md §2.2).
 # APP_ENV=production active la validation stricte de la configuration.
 ENV APP_ENV=production \

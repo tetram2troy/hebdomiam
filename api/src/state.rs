@@ -42,7 +42,11 @@ impl AppState {
             db,
             session_key,
             limits: Arc::new(RateLimits::default()),
-            mailer: Arc::new(Mailer::new(config.smtp.clone(), config.smtp_from.clone())),
+            mailer: Arc::new(Mailer::new(
+                config.smtp.clone(),
+                config.smtp_from.clone(),
+                config.production,
+            )),
             fetcher: Arc::new(SafeFetcher::new(config.import_allow_private)),
             claude,
             config: Arc::new(config),

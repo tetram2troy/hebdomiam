@@ -38,6 +38,16 @@ pub async fn verify_password(hash: String, password: String) -> bool {
     .unwrap_or(false)
 }
 
+/// Dérive une clé de 32 octets d'un secret de configuration (Argon2id, sel
+/// fixe propre à l'usage). Coûteux par construction : à appeler au démarrage.
+pub fn derive_key(secret: &str, salt: &[u8]) -> [u8; 32] {
+    let mut key = [0u8; 32];
+    argon2()
+        .hash_password_into(secret.as_bytes(), salt, &mut key)
+        .expect("dérivation Argon2 (sel ≥ 8 octets)");
+    key
+}
+
 pub fn sha256_hex(input: &str) -> String {
     hex::encode(Sha256::digest(input.as_bytes()))
 }
@@ -86,6 +96,14 @@ mod tests {
             "$argon2id$v=19$m=19456,t=2,p=1$T0vKXBIdSTOlBdjeVTuWsQ$fSOv76RtSA3ctE3n5bHvrAVhbJCWIR9ZzEWvwxakTa8";
         assert!(verify_password(legacy.into(), "hebdomiam-test-123".into()).await);
         assert!(!verify_password(legacy.into(), "autre".into()).await);
+    }
+
+    #[test]
+    fn derivation_de_cle_deterministe_et_separee_par_sel() {
+        let key = derive_key("secret-de-configuration", b"usage-numero-un");
+        assert_eq!(key, derive_key("secret-de-configuration", b"usage-numero-un"));
+        assert_ne!(key, derive_key("secret-de-configuration", b"usage-numero-deux"));
+        assert_ne!(key, derive_key("autre-secret", b"usage-numero-un"));
     }
 
     #[test]

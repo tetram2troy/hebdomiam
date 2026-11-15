@@ -18,10 +18,13 @@ pub struct Mail {
 pub struct Mailer {
     transport: Option<AsyncSmtpTransport<Tokio1Executor>>,
     from: String,
+    /// Repli « courriel affiché en console » : dev et tests seulement. Les
+    /// courriels portent des liens à jeton — jamais dans les logs de production.
+    console_fallback: bool,
 }
 
 impl Mailer {
-    pub fn new(smtp: Option<SmtpConfig>, from: String) -> Self {
+    pub fn new(smtp: Option<SmtpConfig>, from: String, production: bool) -> Self {
         let transport = smtp.and_then(|config| {
             let implicit_tls = config.security == "tls" || config.port == 465;
             let builder = if config.security == "none" {
@@ -43,11 +46,20 @@ impl Mailer {
             }
             Some(builder.build())
         });
-        Mailer { transport, from }
+        Mailer {
+            transport,
+            from,
+            console_fallback: !production,
+        }
     }
 
     pub async fn send(&self, mail: Mail) -> Result<(), String> {
         let Some(transport) = &self.transport else {
+            // Production sans transport (relais SMTP mal configuré) : échec
+            // explicite plutôt qu'un lien de réinitialisation dans les logs.
+            if !self.console_fallback {
+                return Err("relais SMTP indisponible".to_string());
+            }
             println!(
                 "[courriel non envoyé — SMTP absent]\nÀ: {}\nSujet: {}\n{}",
                 mail.to, mail.subject, mail.text
@@ -148,7 +160,13 @@ mod tests {
 
     #[tokio::test]
     async fn sans_smtp_journalise_sans_erreur() {
-        let mailer = Mailer::new(None, "hebdomiam@localhost".into());
+        let mailer = Mailer::new(None, "hebdomiam@localhost".into(), false);
         assert!(mailer.send(verify_email_mail("a@b.c", Locale::Fr, "l")).await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn en_production_jamais_de_courriel_dans_les_logs() {
+        let mailer = Mailer::new(None, "hebdomiam@localhost".into(), true);
+        assert!(mailer.send(verify_email_mail("a@b.c", Locale::Fr, "l")).await.is_err());
     }
 }

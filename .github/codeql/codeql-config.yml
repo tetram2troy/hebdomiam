@@ -1,0 +1,17 @@
+name: Hebdomiam
+
+# Code de test : mots de passe et secrets factices par nature.
+paths-ignore:
+  - api/tests
+  - e2e
+  - tests
+
+query-filters:
+  # Ne signalait que des faux positifs : mots de passe des tests unitaires
+  # (modules #[cfg(test)] dans api/src) et le mot de passe factice de
+  # routes/auth.rs, haché exprès pour égaliser le temps de réponse quand le
+  # courriel est inconnu. Aucun secret réel n'est en dur : ils viennent tous
+  # de l'environnement (api/src/config.rs). À réactiver si la règle apprend à
+  # ignorer le code de test.
+  - exclude:
+      id: rust/hard-coded-cryptographic-value

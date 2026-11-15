@@ -15,7 +15,6 @@ use base64::Engine;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use sha2::{Digest, Sha256};
 use uuid::Uuid;
 
 use crate::client_ip::ClientIp;
@@ -78,9 +77,12 @@ pub struct SessionKey {
 }
 
 impl SessionKey {
+    /// Dérive la clé AES du secret de session par Argon2id (une fois, au
+    /// démarrage) : même un secret trop faible ne se devine pas à la vitesse
+    /// d'un simple hachage à partir d'un cookie capturé.
     pub fn from_password(password: &str) -> Self {
-        let digest = Sha256::digest(format!("hebdomiam-session-v1:{password}").as_bytes());
-        let key = Key::<Aes256Gcm>::from_slice(&digest);
+        let derived = crate::crypto::derive_key(password, b"hebdomiam-session-v2");
+        let key = Key::<Aes256Gcm>::from_slice(&derived);
         SessionKey {
             cipher: Aes256Gcm::new(key),
         }
