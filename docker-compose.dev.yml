@@ -37,9 +37,9 @@ services:
       - --watch=src
       - --watch=migrations
       - --watch=Cargo.toml
+      # watchexec passe lui-même la commande à un shell : une seule chaîne
+      # (avec « sh -c » en plus, seul « cargo » était exécuté, sans migration).
       - --
-      - sh
-      - -c
       - cargo run -- migrate && exec cargo run -- serve
     ports:
       - "8080:8080"
