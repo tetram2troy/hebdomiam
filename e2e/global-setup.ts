@@ -1,5 +1,6 @@
 import { hash } from '@node-rs/argon2'
 import pg from 'pg'
+import { cleanupTestAccounts } from './cleanup'
 import { DB_URL } from './env'
 import { ADMIN_EMAIL, ADMIN_PASSWORD } from './helpers'
 import { startServer } from './server'
@@ -10,6 +11,8 @@ import { startServer } from './server'
 //    l'UI » : l'inscription publique est fermée, l'admin est donc provisionné
 //    directement en base — l'équivalent du provisioning d'une instance réelle.
 //    Upsert idempotent : même chemin sur la DB de dev peuplée et en CI.
+// 3. Retourne l'arrêt de fin de suite : suppression des comptes de test
+//    (e2e/cleanup.ts), puis arrêt du serveur.
 export default async function globalSetup() {
   if (!DB_URL) {
     throw new Error('DATABASE_URL manquant : charge le .env avant npm run test:e2e')
@@ -42,5 +45,15 @@ export default async function globalSetup() {
     await client.end()
   }
 
-  return stopServer
+  // Fin de suite (réussie ou non) : comptes de test supprimés, puis serveur
+  // arrêté — même si le nettoyage échoue.
+  return async () => {
+    try {
+      const deleted = await cleanupTestAccounts()
+      console.log(`[e2e] ${deleted} compte(s) de test supprimé(s)`)
+    }
+    finally {
+      await stopServer()
+    }
+  }
 }

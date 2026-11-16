@@ -48,8 +48,12 @@ La suite tourne contre un seul serveur — le binaire Rust (conteneur
    `e2e/global-setup.ts` (upsert idempotent, DB directe). Un compte ainsi créé
    est **déjà vérifié** — pour tester le flux « courriel non vérifié », remettre
    l'état par UPDATE direct (pattern `markEmailUnverified` dans `courriel.spec.ts`).
-10. **Cookie de session Secure vs contexte API** : le build de prod émet
-    `nuxt-session` avec l'attribut Secure ; le jar d'`APIRequestContext` le
+   **Fin de suite** : les comptes de test sont supprimés (`e2e/cleanup.ts`, appelé
+   par l'arrêt de `global-setup.ts`). Un spec qui crée un compte sous une NOUVELLE
+   forme d'adresse doit ajouter son motif à `GENERATED_EMAIL_PATTERNS`, sinon il
+   s'accumule dans la base de dev.
+10. **Cookie de session Secure vs contexte API** : l'API émet
+    `hebdomiam-session` avec l'attribut Secure ; le jar d'`APIRequestContext` le
     refuse sur http://127.0.0.1 (le navigateur, lui, l'accepte). Pour un appel
     API authentifié depuis un spec : `page.evaluate(fetch(...))` (cookies natifs
     du navigateur) ; côté helper : transporter le cookie explicitement
