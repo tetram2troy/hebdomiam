@@ -137,6 +137,49 @@ async fn baseline_from_drizzle(conn: &mut sqlx::PgConnection, migrations: &[Migr
     Ok(())
 }
 
+/// Rôle PostgreSQL de l'application (PRD §8 : privilèges minimaux).
+pub const APP_ROLE: &str = "hebdomiam_app";
+
+/// Crée ou met à jour le rôle applicatif : lecture et écriture des données,
+/// rien d'autre — ni DDL, ni superutilisateur (une injection SQL ou une fuite
+/// de DATABASE_URL ne donne ni `COPY … PROGRAM` ni modification du schéma).
+/// Exécuté par le job `migrate` (connecté en propriétaire) quand
+/// APP_DB_PASSWORD est défini ; le serveur se connecte ensuite avec ce rôle.
+pub async fn ensure_app_role(pool: &PgPool, password: &str) -> Result<(), sqlx::Error> {
+    let mut tx = pool.begin().await?;
+    sqlx::raw_sql(
+        "DO $$ BEGIN
+           IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'hebdomiam_app') THEN
+             CREATE ROLE hebdomiam_app LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION;
+           END IF;
+         END $$;",
+    )
+    .execute(&mut *tx)
+    .await?;
+    // Les instructions utilitaires n'acceptent pas de paramètres liés : le
+    // serveur compose lui-même l'instruction, littéral et identifiant échappés.
+    let statements: (String, String) = sqlx::query_as(
+        "SELECT format('ALTER ROLE hebdomiam_app LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE PASSWORD %L', $1::text),
+                format('GRANT CONNECT ON DATABASE %I TO hebdomiam_app', current_database())",
+    )
+    .bind(password)
+    .fetch_one(&mut *tx)
+    .await?;
+    sqlx::raw_sql(&statements.0).execute(&mut *tx).await?;
+    sqlx::raw_sql(&statements.1).execute(&mut *tx).await?;
+    sqlx::raw_sql(
+        "GRANT USAGE ON SCHEMA public TO hebdomiam_app;
+         GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO hebdomiam_app;
+         ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO hebdomiam_app;
+         REVOKE ALL ON hebdomiam_migrations FROM hebdomiam_app;",
+    )
+    .execute(&mut *tx)
+    .await?;
+    tx.commit().await?;
+    log_event("db.app_role_ready", json!({ "role": APP_ROLE }));
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

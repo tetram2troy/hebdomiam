@@ -21,8 +21,8 @@ fn read(get: &impl Fn(&str) -> Option<String>, names: &[&str]) -> Option<String>
 const DATABASE_URL: &[&str] = &["DATABASE_URL", "NUXT_DATABASE_URL"];
 const SESSION_PASSWORD: &[&str] = &["SESSION_PASSWORD", "NUXT_SESSION_PASSWORD"];
 const PUBLIC_BASE_URL: &[&str] = &["PUBLIC_BASE_URL", "NUXT_PUBLIC_BASE_URL"];
-const TRUST_XFF: &[&str] = &["TRUST_XFF", "NUXT_TRUST_XFF"];
-const IMPORT_ALLOW_PRIVATE: &[&str] = &["IMPORT_ALLOW_PRIVATE", "NUXT_IMPORT_ALLOW_PRIVATE"];
+const TRUST_XFF: &[&str] = &["TRUST_XFF"];
+const IMPORT_ALLOW_PRIVATE: &[&str] = &["IMPORT_ALLOW_PRIVATE"];
 const EXTRACTION_MODEL: &[&str] = &["EXTRACTION_MODEL", "NUXT_EXTRACTION_MODEL"];
 
 /// Modèle d'extraction par défaut (surchargeable par EXTRACTION_MODEL).
@@ -56,9 +56,12 @@ pub struct Config {
     pub smtp_from: String,
 }
 
-/// Vrai en production réelle (APP_ENV=production, posé par l'image Docker).
+/// Strict par défaut : tout est « production » sauf APP_ENV=development ou
+/// test, explicitement. Une faute de frappe (`prod`, `staging`) ou une variable
+/// absente ne doit jamais relâcher en silence les exigences de sécurité
+/// (secret de session stable, SMTP, proxies de confiance).
 fn is_production(get: &impl Fn(&str) -> Option<String>) -> bool {
-    read(get, &["APP_ENV"]).as_deref() == Some("production")
+    !matches!(read(get, &["APP_ENV"]).as_deref(), Some("development") | Some("test"))
 }
 
 /// Problèmes de configuration bloquants — fonction pure, testée en unitaire.
@@ -86,10 +89,18 @@ pub fn env_problems(get: impl Fn(&str) -> Option<String>) -> Vec<String> {
         if read(&get, &["SMTP_HOST"]).is_none() {
             problems.push("SMTP_HOST manquant (relais SMTP — sans lui vérifications, invitations et réinitialisations partiraient en silence dans les logs)".to_string());
         }
+        // Drapeaux de test : un .env de test recopié sur le serveur ne doit pas
+        // débrancher la garde SSRF ni rendre l'IP client falsifiable.
+        if read(&get, IMPORT_ALLOW_PRIVATE).is_some() {
+            problems.push("IMPORT_ALLOW_PRIVATE est réservé aux tests : à retirer en production (il débranche la garde SSRF de l'import)".to_string());
+        }
+        if read(&get, TRUST_XFF).is_some() {
+            problems.push("TRUST_XFF est réservé aux tests : à retirer en production (X-Forwarded-For est falsifiable par le client)".to_string());
+        }
         // Derrière Traefik, sans proxy de confiance tous les clients auraient
         // l'IP de Traefik : un seul quota d'auth partagé (auto-DoS).
         if read(&get, &["TRUSTED_PROXIES"]).is_none() {
-            problems.push("TRUSTED_PROXIES manquant (CIDR du réseau Docker de Traefik, ex. 172.18.0.0/16 — seuls ces appelants peuvent fournir cf-connecting-ip)".to_string());
+            problems.push("TRUSTED_PROXIES manquant (adresse de Traefik sur le réseau Docker, idéalement une IP fixe en /32, ex. 172.18.0.2/32 — seuls ces appelants peuvent fournir cf-connecting-ip)".to_string());
         }
     } else if let Some(password) = read(&get, SESSION_PASSWORD)
         && password.chars().count() < 32
@@ -198,9 +209,33 @@ mod tests {
 
     #[test]
     fn database_url_requise_partout() {
-        let problems = env_problems(env(&[]));
+        let problems = env_problems(env(&[("APP_ENV", "development")]));
         assert_eq!(problems.len(), 1);
         assert!(problems[0].contains("DATABASE_URL"));
+    }
+
+    #[test]
+    fn strict_par_defaut_sans_app_env_reconnu() {
+        // Variable absente ou faute de frappe : exigences de production.
+        for app_env in [None, Some("prod"), Some("staging"), Some("production")] {
+            let mut pairs = vec![("DATABASE_URL", "postgresql://x")];
+            if let Some(value) = app_env {
+                pairs.push(("APP_ENV", value));
+            }
+            let problems = env_problems(env(&pairs));
+            assert!(problems.iter().any(|p| p.contains("SESSION_PASSWORD")), "{app_env:?}");
+        }
+    }
+
+    #[test]
+    fn drapeaux_de_test_refuses_en_production() {
+        let mut pairs = VALID_PROD.to_vec();
+        pairs.push(("IMPORT_ALLOW_PRIVATE", "1"));
+        pairs.push(("TRUST_XFF", "1"));
+        let problems = env_problems(env(&pairs));
+        assert_eq!(problems.len(), 2);
+        assert!(problems.iter().any(|p| p.contains("IMPORT_ALLOW_PRIVATE")));
+        assert!(problems.iter().any(|p| p.contains("TRUST_XFF")));
     }
 
     #[test]
@@ -216,11 +251,13 @@ mod tests {
     #[test]
     fn proxies_de_confiance_illisibles_refuses() {
         let problems = env_problems(env(&[
+            ("APP_ENV", "test"),
             ("DATABASE_URL", "postgresql://x"),
             ("TRUSTED_PROXIES", "10.0.0.0/8, oups"),
         ]));
         assert!(problems.iter().any(|p| p.contains("oups")));
         let config = Config::from_getter(env(&[
+            ("APP_ENV", "test"),
             ("DATABASE_URL", "postgresql://x"),
             ("TRUSTED_PROXIES", "10.0.0.0/8,fd00::/8"),
         ]))
@@ -231,6 +268,7 @@ mod tests {
     #[test]
     fn secret_trop_court_refuse() {
         let problems = env_problems(env(&[
+            ("APP_ENV", "development"),
             ("DATABASE_URL", "postgresql://x"),
             ("SESSION_PASSWORD", "court"),
         ]));
@@ -243,7 +281,8 @@ mod tests {
             ("NUXT_DATABASE_URL", "postgresql://legacy"),
             ("NUXT_SESSION_PASSWORD", "0123456789abcdef0123456789abcdef"),
             ("NUXT_PUBLIC_BASE_URL", "https://recettes.example.com/"),
-            ("NUXT_TRUST_XFF", "1"),
+            ("APP_ENV", "test"),
+            ("TRUST_XFF", "1"),
         ]))
         .unwrap();
         assert_eq!(config.database_url, "postgresql://legacy");
@@ -254,7 +293,12 @@ mod tests {
 
     #[test]
     fn static_dir_vide_desactive_le_front() {
-        let config = Config::from_getter(env(&[("DATABASE_URL", "postgresql://x"), ("STATIC_DIR", "")])).unwrap();
+        let config = Config::from_getter(env(&[
+            ("APP_ENV", "test"),
+            ("DATABASE_URL", "postgresql://x"),
+            ("STATIC_DIR", ""),
+        ]))
+        .unwrap();
         assert!(config.static_dir.is_none());
     }
 }

@@ -34,7 +34,8 @@ pub fn parse_iso_duration(value: &Value) -> Option<i32> {
     let part = |i: usize| caps.get(i).and_then(|m| m.as_str().parse::<f64>().ok()).unwrap_or(0.0);
     let minutes = part(1) * 24.0 * 60.0 + part(2) * 60.0 + part(3) + part(4) / 60.0;
     let rounded = minutes.round();
-    (rounded > 0.0).then_some(rounded as i32)
+    // Borné comme la saisie (24 h) : « P99999999999D » ne produit pas i32::MAX.
+    (rounded > 0.0).then_some(rounded.min(1440.0) as i32)
 }
 
 fn named_entity(name: &str) -> Option<&'static str> {
@@ -311,6 +312,7 @@ mod tests {
         assert_eq!(parse_iso_duration(&json!("bientôt")), None);
         assert_eq!(parse_iso_duration(&Value::Null), None);
         assert_eq!(parse_iso_duration(&json!("PT")), None);
+        assert_eq!(parse_iso_duration(&json!("P99999999999D")), Some(1440));
     }
 
     #[test]

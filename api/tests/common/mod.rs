@@ -113,6 +113,11 @@ impl TestDb {
         TestDb { pool, name }
     }
 
+    /// URL de connexion de la base du test.
+    pub fn url(&self) -> String {
+        url_for(&self.name)
+    }
+
     /// Supprime la base du test (à appeler en fin de test ; une base orpheline
     /// d'un test en échec est inoffensive et disparaît avec le volume de dev).
     pub async fn drop(self) {
@@ -129,6 +134,8 @@ pub struct UserOptions {
     pub role: Role,
     pub verified: bool,
     pub disabled: bool,
+    /// Compte invité dont l'invitation n'est pas encore acceptée.
+    pub invite_pending: bool,
     pub password_hash: String,
 }
 
@@ -138,6 +145,7 @@ impl Default for UserOptions {
             role: Role::User,
             verified: true,
             disabled: false,
+            invite_pending: false,
             password_hash: "$argon2id$fake-hash-for-tests".into(),
         }
     }
@@ -147,7 +155,8 @@ pub async fn create_user(db: &PgPool, options: UserOptions) -> Uuid {
     let n = COUNTER.fetch_add(1, Ordering::SeqCst);
     let now: Option<DateTime<Utc>> = Some(Utc::now());
     sqlx::query_scalar(
-        "INSERT INTO users (email, password_hash, name, role, email_verified_at, disabled_at) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id",
+        "INSERT INTO users (email, password_hash, name, role, email_verified_at, disabled_at, invite_pending)
+         VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id",
     )
     .bind(format!("test-{n}-{}@example.com", Uuid::new_v4().simple()))
     .bind(&options.password_hash)
@@ -155,6 +164,7 @@ pub async fn create_user(db: &PgPool, options: UserOptions) -> Uuid {
     .bind(options.role)
     .bind(if options.verified { now } else { None })
     .bind(if options.disabled { now } else { None })
+    .bind(options.invite_pending)
     .fetch_one(db)
     .await
     .unwrap()

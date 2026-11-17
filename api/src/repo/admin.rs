@@ -69,7 +69,7 @@ pub async fn create_invited_user(db: &PgPool, email: &str, name: &str) -> Result
     // Transaction : pas de compte sans jeton d'invitation.
     let mut tx = db.begin().await?;
     let created: Option<AdminUserDto> = sqlx::query_as(&format!(
-        "INSERT INTO users (email, name, password_hash) VALUES ($1, $2, $3)
+        "INSERT INTO users (email, name, password_hash, invite_pending) VALUES ($1, $2, $3, true)
          ON CONFLICT (email) DO NOTHING RETURNING {DTO_COLUMNS}"
     ))
     .bind(email)
@@ -103,24 +103,28 @@ pub async fn renew_invite(db: &PgPool, target_id: Uuid) -> Result<RenewInvite, s
     struct InviteTarget {
         email: String,
         locale: Locale,
-        email_verified_at: Option<DateTime<Utc>>,
+        invite_pending: bool,
         disabled_at: Option<DateTime<Utc>>,
     }
     let row: Option<InviteTarget> =
-        sqlx::query_as("SELECT email, locale, email_verified_at, disabled_at FROM users WHERE id = $1")
+        sqlx::query_as("SELECT email, locale, invite_pending, disabled_at FROM users WHERE id = $1")
             .bind(target_id)
             .fetch_optional(db)
             .await?;
     let Some(InviteTarget {
         email,
         locale,
-        email_verified_at,
+        invite_pending,
         disabled_at,
     }) = row
     else {
         return Ok(RenewInvite::NotFound);
     };
-    if email_verified_at.is_some() {
+    // Seul un compte dont l'invitation est EN ATTENTE reçoit un nouveau lien.
+    // « Courriel non vérifié » ne suffit pas : l'admin de bootstrap ou un
+    // compte activé par « mot de passe oublié » sont en usage — leur envoyer
+    // une invitation reviendrait à offrir leur mot de passe au porteur du lien.
+    if !invite_pending {
         return Ok(RenewInvite::AlreadyActive);
     }
     // L'UI masque le bouton, mais l'API est la frontière : pas de lien

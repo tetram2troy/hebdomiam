@@ -23,6 +23,8 @@ use crate::validation::{
     positive, query_text, strict_int, text, url,
 };
 
+const MAX_ACTIVE_RECIPES: i64 = 2000;
+
 #[derive(Deserialize)]
 pub struct IngredientBody {
     quantity: f64,
@@ -172,6 +174,11 @@ pub async fn create(
     CurrentUser(user): CurrentUser,
     ValidJson(input): ValidJson<RecipeBody>,
 ) -> ApiResult<impl IntoResponse> {
+    // Plafond de volume par compte (disque de la base, mémoire de la rotation
+    // qui charge toute la collection).
+    if recipes::count_active(&state.db, user.id).await? >= MAX_ACTIVE_RECIPES {
+        return Err(ApiError::new(409, "errors.quotaExceeded"));
+    }
     let recipe = recipes::create(&state.db, user.id, &input).await?;
     log_event(
         "recipe.created",

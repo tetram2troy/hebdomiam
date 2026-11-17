@@ -6,6 +6,7 @@ use sqlx::{FromRow, PgPool};
 use uuid::Uuid;
 
 use super::email_tokens;
+use crate::crypto::hash_password;
 use crate::domain::catalog::{EmailTokenType, Locale, Role, UnitSystem};
 use crate::session::SessionUser;
 
@@ -27,6 +28,12 @@ pub struct UserRow {
     pub totp_secret: Option<String>,
     pub totp_enabled_at: Option<DateTime<Utc>>,
     pub totp_backup_hash: Option<String>,
+    /// Dernier pas TOTP accepté (anti-rejeu).
+    pub totp_last_step: Option<i64>,
+    /// Époque des sessions : un cookie scellé à une époque antérieure est refusé.
+    pub session_epoch: i32,
+    /// Invitation en attente d'acceptation (distinct de « courriel non vérifié »).
+    pub invite_pending: bool,
     pub created_at: DateTime<Utc>,
 }
 
@@ -43,7 +50,7 @@ impl UserRow {
 
 const USER_COLUMNS: &str = "id, email, password_hash, name, email_verified_at, role, disabled_at, locale, unit_system,
     default_dish_count, default_people_count, default_days_count, rotation_weeks,
-    totp_secret, totp_enabled_at, totp_backup_hash, created_at";
+    totp_secret, totp_enabled_at, totp_backup_hash, totp_last_step, session_epoch, invite_pending, created_at";
 
 pub async fn find_by_id(db: &PgPool, id: Uuid) -> Result<Option<UserRow>, sqlx::Error> {
     sqlx::query_as(&format!("SELECT {USER_COLUMNS} FROM users WHERE id = $1"))
@@ -69,10 +76,11 @@ pub async fn count_users(db: &PgPool) -> Result<i64, sqlx::Error> {
 pub struct AccountStatus {
     pub role: Role,
     pub disabled_at: Option<DateTime<Utc>>,
+    pub session_epoch: i32,
 }
 
 pub async fn get_account_status(db: &PgPool, id: Uuid) -> Result<Option<AccountStatus>, sqlx::Error> {
-    sqlx::query_as("SELECT role, disabled_at FROM users WHERE id = $1")
+    sqlx::query_as("SELECT role, disabled_at, session_epoch FROM users WHERE id = $1")
         .bind(id)
         .fetch_optional(db)
         .await
@@ -122,6 +130,16 @@ pub async fn register(
     })
 }
 
+/// Révoque toutes les sessions scellées du compte (cookie volé compris) en
+/// incrémentant son époque ; retourne la nouvelle époque, à sceller dans le
+/// cookie de la session qui doit survivre.
+pub async fn bump_session_epoch(db: &PgPool, user_id: Uuid) -> Result<i32, sqlx::Error> {
+    sqlx::query_scalar("UPDATE users SET session_epoch = session_epoch + 1 WHERE id = $1 RETURNING session_epoch")
+        .bind(user_id)
+        .fetch_one(db)
+        .await
+}
+
 pub enum AcceptInvitation {
     Accepted(Uuid),
     InvalidToken,
@@ -130,42 +148,90 @@ pub enum AcceptInvitation {
 }
 
 /// Acceptation d'une invitation : fixe le mot de passe et marque le courriel
-/// vérifié (la possession du lien en est la preuve). Refusée si le compte est
-/// déjà actif — un jeton remplacé mais pas encore expiré ne doit jamais servir
-/// à écraser le mot de passe d'un compte en usage. Le jeton est consommé même
-/// en cas de refus : c'est voulu, un lien caduc doit mourir au premier clic.
+/// vérifié (la possession du lien en est la preuve). Refusée si le compte n'a
+/// pas d'invitation en attente — un jeton remplacé mais pas encore expiré ne
+/// doit jamais servir à écraser le mot de passe d'un compte en usage. Le jeton
+/// est consommé même en cas de refus : c'est voulu, un lien caduc doit mourir
+/// au premier clic. Une seule transaction : pas de jeton brûlé sans activation
+/// sur une erreur de base. Le mot de passe n'est haché (coûteux) qu'une fois
+/// le jeton reconnu.
 pub async fn accept_invitation(
     db: &PgPool,
     raw_token: &str,
-    password_hash: &str,
+    password: String,
 ) -> Result<AcceptInvitation, sqlx::Error> {
-    let Some(user_id) = email_tokens::consume(db, EmailTokenType::Invite, raw_token).await? else {
+    let mut tx = db.begin().await?;
+    let Some(user_id) = email_tokens::consume(&mut tx, EmailTokenType::Invite, raw_token).await? else {
         return Ok(AcceptInvitation::InvalidToken);
     };
-    let Some(user) = find_by_id(db, user_id).await? else {
-        return Ok(AcceptInvitation::InvalidToken);
+    let row: Option<(bool, Option<DateTime<Utc>>)> =
+        sqlx::query_as("SELECT invite_pending, disabled_at FROM users WHERE id = $1 FOR UPDATE")
+            .bind(user_id)
+            .fetch_optional(&mut *tx)
+            .await?;
+    let refusal = match row {
+        None => Some(AcceptInvitation::InvalidToken),
+        Some((false, _)) => Some(AcceptInvitation::AlreadyActive),
+        Some((true, Some(_))) => Some(AcceptInvitation::Disabled),
+        Some((true, None)) => None,
     };
-    if user.email_verified_at.is_some() {
-        return Ok(AcceptInvitation::AlreadyActive);
+    if let Some(refusal) = refusal {
+        tx.commit().await?; // le jeton reste brûlé
+        return Ok(refusal);
     }
-    if user.disabled_at.is_some() {
-        return Ok(AcceptInvitation::Disabled);
-    }
-    sqlx::query("UPDATE users SET password_hash = $2, email_verified_at = now() WHERE id = $1")
-        .bind(user_id)
-        .bind(password_hash)
-        .execute(db)
-        .await?;
+    let password_hash = hash_password(password).await;
+    sqlx::query(
+        "UPDATE users SET password_hash = $2, email_verified_at = now(), invite_pending = false,
+                session_epoch = session_epoch + 1 WHERE id = $1",
+    )
+    .bind(user_id)
+    .bind(password_hash)
+    .execute(&mut *tx)
+    .await?;
+    tx.commit().await?;
     Ok(AcceptInvitation::Accepted(user_id))
 }
 
-pub async fn set_password_hash(db: &PgPool, user_id: Uuid, password_hash: &str) -> Result<(), sqlx::Error> {
-    sqlx::query("UPDATE users SET password_hash = $2 WHERE id = $1")
-        .bind(user_id)
-        .bind(password_hash)
-        .execute(db)
-        .await?;
-    Ok(())
+/// Réinitialisation par lien : consomme le jeton, fixe le mot de passe et, dans
+/// la même transaction, ferme tout ce que l'ancien état laissait ouvert —
+/// sessions existantes (époque), autres liens de réinitialisation, invitation
+/// en attente (le lien d'invitation ne doit plus pouvoir écraser le mot de
+/// passe). La possession du lien vaut vérification du courriel.
+pub async fn reset_password(db: &PgPool, raw_token: &str, password: String) -> Result<Option<Uuid>, sqlx::Error> {
+    let mut tx = db.begin().await?;
+    let Some(user_id) = email_tokens::consume(&mut tx, EmailTokenType::Reset, raw_token).await? else {
+        return Ok(None);
+    };
+    let password_hash = hash_password(password).await;
+    sqlx::query(
+        "UPDATE users SET password_hash = $2, email_verified_at = COALESCE(email_verified_at, now()),
+                invite_pending = false, session_epoch = session_epoch + 1 WHERE id = $1",
+    )
+    .bind(user_id)
+    .bind(password_hash)
+    .execute(&mut *tx)
+    .await?;
+    email_tokens::invalidate(&mut tx, user_id, EmailTokenType::Reset).await?;
+    email_tokens::invalidate(&mut tx, user_id, EmailTokenType::Invite).await?;
+    tx.commit().await?;
+    Ok(Some(user_id))
+}
+
+/// Changement de mot de passe depuis les réglages : révoque les autres
+/// sessions et les liens de réinitialisation en circulation. Retourne la
+/// nouvelle époque de session.
+pub async fn change_password_hash(db: &PgPool, user_id: Uuid, password_hash: &str) -> Result<i32, sqlx::Error> {
+    let mut tx = db.begin().await?;
+    let epoch: i32 = sqlx::query_scalar(
+        "UPDATE users SET password_hash = $2, session_epoch = session_epoch + 1 WHERE id = $1 RETURNING session_epoch",
+    )
+    .bind(user_id)
+    .bind(password_hash)
+    .fetch_one(&mut *tx)
+    .await?;
+    email_tokens::invalidate(&mut tx, user_id, EmailTokenType::Reset).await?;
+    tx.commit().await?;
+    Ok(epoch)
 }
 
 pub async fn mark_email_verified(db: &PgPool, user_id: Uuid) -> Result<(), sqlx::Error> {

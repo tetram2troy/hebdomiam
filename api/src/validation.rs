@@ -92,9 +92,19 @@ fn len(text: &str) -> usize {
     text.chars().count()
 }
 
+/// Caractères de contrôle refusés (sauts de ligne et tabulation exceptés) :
+/// PostgreSQL rejette l'octet nul dans un `text` (500 à la demande), et les
+/// autres n'ont rien à faire dans un titre ou une étape.
+fn has_forbidden_control(text: &str) -> bool {
+    text.chars().any(|c| c.is_control() && !matches!(c, '\n' | '\r' | '\t'))
+}
+
 /// Chaîne obligatoire : trim puis longueur dans [min, max].
 pub fn text(value: String, min: usize, max: usize) -> Validated<String> {
     let trimmed = value.trim().to_string();
+    if has_forbidden_control(&trimmed) {
+        return invalid();
+    }
     if (min..=max).contains(&len(&trimmed)) {
         Ok(trimmed)
     } else {
@@ -104,6 +114,9 @@ pub fn text(value: String, min: usize, max: usize) -> Validated<String> {
 
 /// Chaîne sans trim (mots de passe : les espaces comptent).
 pub fn raw_text(value: String, min: usize, max: usize) -> Validated<String> {
+    if value.contains('\0') {
+        return invalid();
+    }
     if (min..=max).contains(&len(&value)) {
         Ok(value)
     } else {
@@ -215,6 +228,18 @@ mod tests {
         assert_eq!(text("  Fabrice ".into(), 1, 100).unwrap(), "Fabrice");
         assert!(text("   ".into(), 1, 100).is_err());
         assert!(text("x".repeat(101), 1, 100).is_err());
+    }
+
+    #[test]
+    fn caracteres_de_controle_refuses() {
+        assert!(text("a\0b".into(), 1, 100).is_err());
+        assert!(text("a\u{1b}[31m".into(), 1, 100).is_err());
+        assert!(raw_text("mot\0de-passe".into(), 1, 100).is_err());
+        assert!(query_text(Some("\0".into()), 1, 100).is_err());
+        assert_eq!(
+            text("ligne 1\nligne 2\tfin".into(), 1, 100).unwrap(),
+            "ligne 1\nligne 2\tfin"
+        );
     }
 
     #[test]

@@ -7,12 +7,13 @@ use axum::response::{IntoResponse, Response};
 use serde::Deserialize;
 use serde_json::json;
 
+use super::auth::{password_attempt_succeeded, reserve_password_attempt};
 use crate::client_ip::ClientIp;
 use crate::domain::catalog::{Locale, UnitSystem};
 use crate::error::{ApiError, ApiResult};
 use crate::logger::{log_event, log_warn};
 use crate::repo::settings::{self, PasswordCheck, ProfileDto, ProfilePatch};
-use crate::session::{self, CurrentUser, SessionData, SessionUser};
+use crate::session::{self, CurrentSession, CurrentUser, SessionUser};
 use crate::state::AppState;
 use crate::validation::{ValidJson, Validate, Validated, int_range, opt_strict_int, opt_text, raw_text};
 
@@ -81,9 +82,10 @@ pub async fn get_profile(State(state): State<AppState>, CurrentUser(user): Curre
 
 pub async fn update_profile(
     State(state): State<AppState>,
-    CurrentUser(user): CurrentUser,
+    current: CurrentSession,
     ValidJson(patch): ValidJson<ProfileBody>,
 ) -> ApiResult<Response> {
+    let user = current.user.clone();
     let profile = settings::update_profile(&state.db, user.id, &patch)
         .await?
         .ok_or_else(ApiError::not_found)?;
@@ -91,9 +93,14 @@ pub async fn update_profile(
         "settings.updated",
         json!({ "userId": user.id, "fields": patch.fields() }),
     );
-    // Le nom affiché vit aussi dans la session : on la re-scelle.
+    // Le nom affiché vit aussi dans la session : on la re-scelle SANS la
+    // rajeunir (même date de connexion, même époque) — sinon ce PATCH
+    // prolongerait indéfiniment un cookie volé.
     if let Some(name) = patch.name {
-        let refreshed = SessionData::for_user(SessionUser { name, ..user });
+        let epoch = crate::repo::users::get_account_status(&state.db, user.id)
+            .await?
+            .map_or(0, |s| s.session_epoch);
+        let refreshed = current.resealed(SessionUser { name, ..user }, epoch);
         let cookie = session::set_cookie(&state.session_key.seal(&refreshed));
         return Ok(([(SET_COOKIE, cookie)], Json(profile)).into_response());
     }
@@ -102,15 +109,20 @@ pub async fn update_profile(
 
 pub async fn change_password(
     State(state): State<AppState>,
-    CurrentUser(user): CurrentUser,
+    current: CurrentSession,
     ClientIp(ip): ClientIp,
     ValidJson(body): ValidJson<PasswordChangeBody>,
-) -> ApiResult<Json<serde_json::Value>> {
+) -> ApiResult<Response> {
+    let user = current.user.clone();
     state.rate_limit(&format!("settings:password:{}", user.id), &ip, 5, 60_000)?;
+    reserve_password_attempt(&state, &user.email)?;
     match settings::change_password(&state.db, user.id, &body.current_password, &body.new_password).await? {
-        PasswordCheck::Ok => {
+        PasswordCheck::Ok(epoch) => {
+            password_attempt_succeeded(&state, &user.email);
             log_event("auth.password_changed", json!({ "userId": user.id, "ip": ip }));
-            Ok(Json(json!({ "ok": true })))
+            // Les autres sessions sont révoquées ; celle-ci continue à la nouvelle époque.
+            let cookie = session::set_cookie(&state.session_key.seal(&current.resealed(user, epoch)));
+            Ok(([(SET_COOKIE, cookie)], Json(json!({ "ok": true }))).into_response())
         }
         failure => {
             log_warn("auth.password_change_failed", json!({ "userId": user.id, "ip": ip }));

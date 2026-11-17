@@ -5,7 +5,7 @@ use std::collections::{HashMap, HashSet};
 
 use chrono::{DateTime, NaiveDate, Utc};
 use serde::Serialize;
-use sqlx::{FromRow, PgPool};
+use sqlx::{FromRow, PgConnection, PgPool};
 use uuid::Uuid;
 
 use super::grocery::generate_grocery_list;
@@ -167,6 +167,28 @@ async fn find_plan(db: &PgPool, user_id: Uuid, plan_id: Uuid) -> Result<Option<L
     }
 }
 
+/// Charge le plan en le VERROUILLANT (FOR UPDATE) dans la transaction de la
+/// mutation : contrôle d'état et écriture voient le même état. Deux actions
+/// simultanées (deux « Cuisinée ✓ », validation pendant un échange) se
+/// sérialisent au lieu de se croiser.
+async fn lock_plan(conn: &mut PgConnection, user_id: Uuid, plan_id: Uuid) -> Result<Option<LoadedPlan>, sqlx::Error> {
+    let plan: Option<PlanRow> = sqlx::query_as(&format!(
+        "SELECT {PLAN_COLUMNS} FROM meal_plans WHERE id = $1 AND user_id = $2 FOR UPDATE"
+    ))
+    .bind(plan_id)
+    .bind(user_id)
+    .fetch_optional(&mut *conn)
+    .await?;
+    let Some(plan) = plan else { return Ok(None) };
+    let items = sqlx::query_as(
+        "SELECT id, recipe_id, position, target_servings, status, cooked_at FROM meal_plan_recipes WHERE meal_plan_id = $1",
+    )
+    .bind(plan.id)
+    .fetch_all(&mut *conn)
+    .await?;
+    Ok(Some(LoadedPlan { plan, items }))
+}
+
 async fn find_plan_for_week(db: &PgPool, user_id: Uuid, week: NaiveDate) -> Result<Option<LoadedPlan>, sqlx::Error> {
     let plan: Option<PlanRow> = sqlx::query_as(&format!(
         "SELECT {PLAN_COLUMNS} FROM meal_plans WHERE user_id = $1 AND week_start_date = $2"
@@ -315,11 +337,19 @@ pub async fn create(
     week: NaiveDate,
     now: DateTime<Utc>,
 ) -> PlanResult<MealPlanDto> {
+    // Sérialise les créations concurrentes du même utilisateur (double clic,
+    // deux onglets) : sans ce verrou, les deux lisaient « pas de plan » et la
+    // seconde échouait en 500 sur la contrainte d'unicité.
+    let mut tx = db.begin().await?;
+    sqlx::query("SELECT pg_advisory_xact_lock(hashtextextended($1::text, 0))")
+        .bind(user_id)
+        .execute(&mut *tx)
+        .await?;
     let existing: Option<Uuid> =
         sqlx::query_scalar("SELECT id FROM meal_plans WHERE user_id = $1 AND week_start_date = $2")
             .bind(user_id)
             .bind(week)
-            .fetch_optional(db)
+            .fetch_optional(&mut *tx)
             .await?;
     if existing.is_some() && !input.replace {
         return Ok(Err(PlanError::PlanExists));
@@ -340,7 +370,6 @@ pub async fn create(
         },
     );
 
-    let mut tx = db.begin().await?;
     if let Some(existing_id) = existing {
         sqlx::query("DELETE FROM meal_plans WHERE id = $1 AND user_id = $2")
             .bind(existing_id)
@@ -380,7 +409,8 @@ pub async fn update_recipe_status(
     item_id: Uuid,
     action: PlanRecipeAction,
 ) -> PlanResult<MealPlanDto> {
-    let Some(loaded) = find_plan(db, user_id, plan_id).await? else {
+    let mut tx = db.begin().await?;
+    let Some(loaded) = lock_plan(&mut tx, user_id, plan_id).await? else {
         return Ok(Err(PlanError::NotFound));
     };
     let Some(item) = loaded.items.iter().find(|i| i.id == item_id) else {
@@ -401,7 +431,6 @@ pub async fn update_recipe_status(
         return Ok(Err(PlanError::InvalidState));
     }
 
-    let mut tx = db.begin().await?;
     match action {
         PlanRecipeAction::Cook => {
             sqlx::query("UPDATE meal_plan_recipes SET status = 'cooked', cooked_at = now() WHERE id = $1")
@@ -447,7 +476,8 @@ pub async fn swap_recipe(
     item_id: Uuid,
     now: DateTime<Utc>,
 ) -> PlanResult<MealPlanDto> {
-    let Some(loaded) = find_plan(db, user_id, plan_id).await? else {
+    let mut tx = db.begin().await?;
+    let Some(loaded) = lock_plan(&mut tx, user_id, plan_id).await? else {
         return Ok(Err(PlanError::NotFound));
     };
     let Some(item) = loaded.items.iter().find(|i| i.id == item_id).cloned() else {
@@ -477,7 +507,6 @@ pub async fn swap_recipe(
         return Ok(Err(PlanError::NoMoreSuggestions));
     };
 
-    let mut tx = db.begin().await?;
     sqlx::query("UPDATE meal_plan_recipes SET status = 'swapped' WHERE id = $1")
         .bind(item_id)
         .execute(&mut *tx)
@@ -502,7 +531,8 @@ pub async fn replace_recipe(
     item_id: Uuid,
     recipe_id: Uuid,
 ) -> PlanResult<MealPlanDto> {
-    let Some(loaded) = find_plan(db, user_id, plan_id).await? else {
+    let mut tx = db.begin().await?;
+    let Some(loaded) = lock_plan(&mut tx, user_id, plan_id).await? else {
         return Ok(Err(PlanError::NotFound));
     };
     let Some(item) = loaded.items.iter().find(|i| i.id == item_id).cloned() else {
@@ -528,7 +558,6 @@ pub async fn replace_recipe(
         return Ok(Err(PlanError::InvalidState));
     }
 
-    let mut tx = db.begin().await?;
     sqlx::query("UPDATE meal_plan_recipes SET status = 'swapped' WHERE id = $1")
         .bind(item_id)
         .execute(&mut *tx)
@@ -548,7 +577,8 @@ pub async fn replace_recipe(
 }
 
 pub async fn validate(db: &PgPool, user_id: Uuid, plan_id: Uuid) -> PlanResult<MealPlanDto> {
-    let Some(loaded) = find_plan(db, user_id, plan_id).await? else {
+    let mut tx = db.begin().await?;
+    let Some(loaded) = lock_plan(&mut tx, user_id, plan_id).await? else {
         return Ok(Err(PlanError::NotFound));
     };
     if loaded.plan.status != PlanStatus::Draft {
@@ -562,7 +592,6 @@ pub async fn validate(db: &PgPool, user_id: Uuid, plan_id: Uuid) -> PlanResult<M
         return Ok(Err(PlanError::InvalidState));
     }
 
-    let mut tx = db.begin().await?;
     sqlx::query("UPDATE meal_plan_recipes SET status = 'accepted' WHERE meal_plan_id = $1 AND status = 'suggested'")
         .bind(plan_id)
         .execute(&mut *tx)

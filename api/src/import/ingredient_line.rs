@@ -148,7 +148,9 @@ fn read_quantity(text: &str) -> Option<(f64, &str)> {
     if let Some(range) = RANGE.find(rest) {
         rest = &rest[range.end()..];
     }
-    (value > 0.0).then(|| (round2(value), rest))
+    // Borné comme la saisie : une quantité de 400 chiffres (f64 infini) ou
+    // démesurée n'est pas une quantité — la ligne sera « à vérifier ».
+    (value > 0.0 && value <= 99_999.0).then(|| (round2(value), rest))
 }
 
 pub fn guess_aisle(name: &str) -> Aisle {
@@ -254,6 +256,14 @@ mod tests {
             (parsed.quantity, parsed.unit, parsed.name.as_str(), parsed.aisle),
             (2.0, None, "oignons jaunes", Aisle::Produce)
         );
+    }
+
+    #[test]
+    fn quantite_demesuree_non_lue() {
+        let huge = format!("{} g de riz", "9".repeat(400));
+        let parsed = parse_ingredient_line(&huge);
+        assert_eq!((parsed.quantity, parsed.parsed), (1.0, false));
+        assert!(!parse_ingredient_line("100000 g de riz").parsed);
     }
 
     #[test]

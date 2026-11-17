@@ -53,20 +53,20 @@ async fn jetons_usage_unique_type_et_expiration() {
     assert_eq!(stored, sha256_hex(&raw), "seule l'empreinte est stockée");
 
     assert_eq!(
-        email_tokens::consume(&t.pool, EmailTokenType::Reset, &raw)
+        email_tokens::consume(&mut conn, EmailTokenType::Reset, &raw)
             .await
             .unwrap(),
         None,
         "mauvais type"
     );
     assert_eq!(
-        email_tokens::consume(&t.pool, EmailTokenType::Verify, &raw)
+        email_tokens::consume(&mut conn, EmailTokenType::Verify, &raw)
             .await
             .unwrap(),
         Some(id)
     );
     assert_eq!(
-        email_tokens::consume(&t.pool, EmailTokenType::Verify, &raw)
+        email_tokens::consume(&mut conn, EmailTokenType::Verify, &raw)
             .await
             .unwrap(),
         None,
@@ -83,7 +83,7 @@ async fn jetons_usage_unique_type_et_expiration() {
         .await
         .unwrap();
     assert_eq!(
-        email_tokens::consume(&t.pool, EmailTokenType::Reset, &expired)
+        email_tokens::consume(&mut conn, EmailTokenType::Reset, &expired)
             .await
             .unwrap(),
         None
@@ -117,13 +117,12 @@ async fn invitation_creee_acceptee_puis_brulee() {
         panic!("renouvellement refusé");
     };
     assert!(matches!(
-        users::accept_invitation(&t.pool, &token, "h").await.unwrap(),
+        users::accept_invitation(&t.pool, &token, "h".into()).await.unwrap(),
         AcceptInvitation::InvalidToken
     ));
 
-    let hash = hash_password("mot-de-passe-tres-long".into()).await;
     assert!(
-        matches!(users::accept_invitation(&t.pool, &renewed, &hash).await.unwrap(), AcceptInvitation::Accepted(id) if id == invited.id)
+        matches!(users::accept_invitation(&t.pool, &renewed, "mot-de-passe-tres-long".into()).await.unwrap(), AcceptInvitation::Accepted(id) if id == invited.id)
     );
     let row = users::find_by_id(&t.pool, invited.id).await.unwrap().unwrap();
     assert!(row.email_verified_at.is_some());
@@ -139,7 +138,9 @@ async fn invitation_creee_acceptee_puis_brulee() {
         .await
         .unwrap();
     assert!(matches!(
-        users::accept_invitation(&t.pool, &survivor, "autre").await.unwrap(),
+        users::accept_invitation(&t.pool, &survivor, "autre".into())
+            .await
+            .unwrap(),
         AcceptInvitation::AlreadyActive
     ));
     drop(conn);
@@ -154,6 +155,7 @@ async fn invitation_refusee_pour_compte_desactive() {
         UserOptions {
             verified: false,
             disabled: true,
+            invite_pending: true,
             ..Default::default()
         },
     )
@@ -167,7 +169,7 @@ async fn invitation_refusee_pour_compte_desactive() {
         .await
         .unwrap();
     assert!(matches!(
-        users::accept_invitation(&t.pool, &token, "h").await.unwrap(),
+        users::accept_invitation(&t.pool, &token, "h".into()).await.unwrap(),
         AcceptInvitation::Disabled
     ));
     drop(conn);
@@ -316,7 +318,7 @@ async fn reglages_profil_mot_de_passe_et_suppression() {
         settings::change_password(&t.pool, id, "ancien-mot-de-passe", "nouveau-mot-de-passe")
             .await
             .unwrap(),
-        PasswordCheck::Ok
+        PasswordCheck::Ok(1)
     ));
 
     recipe(&t.pool, id, "Chili").await;
@@ -402,7 +404,9 @@ async fn deux_facteurs_cycle_complet() {
     let now = || Utc::now().timestamp() as u64;
 
     assert!(matches!(
-        twofa::activate(&t.pool, id, "123456").await.unwrap(),
+        twofa::activate(&t.pool, id, "mot-de-passe-2fa", "123456")
+            .await
+            .unwrap(),
         Activation::NoSetup
     ));
     let setup = twofa::start_setup(&t.pool, id, "a@b.c").await.unwrap().unwrap();
@@ -415,29 +419,64 @@ async fn deux_facteurs_cycle_complet() {
         "pas encore active"
     );
     assert!(matches!(
-        twofa::activate(&t.pool, id, "000000").await.unwrap(),
+        twofa::activate(&t.pool, id, "mot-de-passe-2fa", "000000")
+            .await
+            .unwrap(),
         Activation::InvalidCode
     ));
 
-    let Activation::Activated { backup_code } =
-        twofa::activate(&t.pool, id, &totp::generate(&setup.secret, now()).unwrap())
+    // Sans le mot de passe, un cookie volé ne peut pas enrôler son authenticateur.
+    assert!(matches!(
+        twofa::activate(&t.pool, id, "faux", &totp::generate(&setup.secret, now()).unwrap())
             .await
-            .unwrap()
+            .unwrap(),
+        Activation::InvalidPassword
+    ));
+    let Activation::Activated {
+        backup_code,
+        session_epoch,
+    } = twofa::activate(
+        &t.pool,
+        id,
+        "mot-de-passe-2fa",
+        &totp::generate(&setup.secret, now()).unwrap(),
+    )
+    .await
+    .unwrap()
     else {
         panic!("activation refusée");
     };
     assert_eq!(backup_code.len(), 12);
+    assert_eq!(session_epoch, 1, "les autres sessions sont révoquées à l'activation");
     assert!(matches!(
-        twofa::activate(&t.pool, id, &totp::generate(&setup.secret, now()).unwrap())
-            .await
-            .unwrap(),
+        twofa::activate(
+            &t.pool,
+            id,
+            "mot-de-passe-2fa",
+            &totp::generate(&setup.secret, now()).unwrap()
+        )
+        .await
+        .unwrap(),
         Activation::NoSetup
     ));
 
-    let code = totp::generate(&setup.secret, now()).unwrap();
+    // Anti-rejeu : le code qui a servi à l'activation ne reconnecte pas…
+    let used = totp::generate(&setup.secret, now()).unwrap();
     assert_eq!(
-        twofa::verify_login(&t.pool, id, &code).await.unwrap(),
+        twofa::verify_login(&t.pool, id, &used).await.unwrap(),
+        None,
+        "code déjà utilisé"
+    );
+    // …mais le code du pas suivant, oui — une seule fois.
+    let next = totp::generate(&setup.secret, now() + 30).unwrap();
+    assert_eq!(
+        twofa::verify_login(&t.pool, id, &next).await.unwrap(),
         Some(LoginMethod::Totp)
+    );
+    assert_eq!(
+        twofa::verify_login(&t.pool, id, &next).await.unwrap(),
+        None,
+        "rejeu refusé"
     );
     assert_eq!(
         twofa::verify_login(&t.pool, id, &backup_code).await.unwrap(),
@@ -456,9 +495,96 @@ async fn deux_facteurs_cycle_complet() {
     assert_eq!(still.totp_secret.as_deref(), Some(setup.secret.as_str()));
     assert!(still.totp_enabled_at.is_some());
 
-    assert!(!twofa::disable(&t.pool, id, "faux").await.unwrap());
-    assert!(twofa::disable(&t.pool, id, "mot-de-passe-2fa").await.unwrap());
+    assert!(twofa::disable(&t.pool, id, "faux").await.unwrap().is_none());
+    assert_eq!(twofa::disable(&t.pool, id, "mot-de-passe-2fa").await.unwrap(), Some(2));
     let row = users::find_by_id(&t.pool, id).await.unwrap().unwrap();
     assert!(row.totp_secret.is_none() && row.totp_enabled_at.is_none() && row.totp_backup_hash.is_none());
+    t.drop().await;
+}
+
+#[tokio::test]
+async fn reinitialisation_ferme_sessions_liens_et_invitation() {
+    let t = TestDb::new().await;
+    // Compte invité qui s'active par « mot de passe oublié » plutôt que par le lien.
+    let CreateInvited::Created {
+        user: invited,
+        token: invite,
+    } = admin_repo::create_invited_user(&t.pool, "invite2@example.com", "Invité")
+        .await
+        .unwrap()
+    else {
+        panic!("création refusée");
+    };
+    let mut conn = t.pool.acquire().await.unwrap();
+    let reset_a = email_tokens::create(&mut conn, invited.id, EmailTokenType::Reset, 60)
+        .await
+        .unwrap();
+    let reset_b = email_tokens::create(&mut conn, invited.id, EmailTokenType::Reset, 60)
+        .await
+        .unwrap();
+    drop(conn);
+
+    assert_eq!(
+        users::reset_password(&t.pool, "jeton-inconnu", "x".into())
+            .await
+            .unwrap(),
+        None
+    );
+    let reset = users::reset_password(&t.pool, &reset_a, "nouveau-mot-de-passe-long".into())
+        .await
+        .unwrap();
+    assert_eq!(reset, Some(invited.id));
+
+    let row = users::find_by_id(&t.pool, invited.id).await.unwrap().unwrap();
+    assert!(verify_password(row.password_hash.clone(), "nouveau-mot-de-passe-long".into()).await);
+    assert_eq!(row.session_epoch, 1, "sessions existantes révoquées");
+    assert!(
+        row.email_verified_at.is_some(),
+        "le lien prouve la possession du courriel"
+    );
+    assert!(!row.invite_pending);
+
+    // L'autre lien de réinitialisation et le lien d'invitation sont morts :
+    // aucun ne peut plus écraser le mot de passe du compte désormais en usage.
+    assert_eq!(
+        users::reset_password(&t.pool, &reset_b, "pirate-mot-de-passe".into())
+            .await
+            .unwrap(),
+        None
+    );
+    assert!(matches!(
+        users::accept_invitation(&t.pool, &invite, "pirate-mot-de-passe".into())
+            .await
+            .unwrap(),
+        AcceptInvitation::InvalidToken
+    ));
+    assert!(matches!(
+        admin_repo::renew_invite(&t.pool, invited.id).await.unwrap(),
+        RenewInvite::AlreadyActive
+    ));
+    let after = users::find_by_id(&t.pool, invited.id).await.unwrap().unwrap();
+    assert_eq!(after.password_hash, row.password_hash);
+    t.drop().await;
+}
+
+#[tokio::test]
+async fn pas_d_invitation_pour_un_compte_en_usage_au_courriel_non_verifie() {
+    // L'admin de bootstrap n'a jamais cliqué son lien de vérification : un
+    // autre admin ne doit pas pouvoir lui « renvoyer une invitation » pour
+    // choisir son mot de passe à sa place.
+    let t = TestDb::new().await;
+    let bootstrap = create_user(
+        &t.pool,
+        UserOptions {
+            role: Role::Admin,
+            verified: false,
+            ..Default::default()
+        },
+    )
+    .await;
+    assert!(matches!(
+        admin_repo::renew_invite(&t.pool, bootstrap).await.unwrap(),
+        RenewInvite::AlreadyActive
+    ));
     t.drop().await;
 }

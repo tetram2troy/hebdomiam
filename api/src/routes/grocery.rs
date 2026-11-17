@@ -19,6 +19,8 @@ use crate::session::CurrentUser;
 use crate::state::AppState;
 use crate::validation::{ValidJson, ValidPath, Validate, Validated, double_option, positive, text};
 
+const MAX_LIST_ITEMS: i64 = 500;
+
 #[derive(Deserialize)]
 pub struct CreateBody {
     label: String,
@@ -115,6 +117,10 @@ pub async fn add_item(
     CurrentUser(user): CurrentUser,
     ValidJson(input): ValidJson<CreateBody>,
 ) -> ApiResult<impl IntoResponse> {
+    // Plafond de volume : un compte ne remplit pas la base à coups d'articles.
+    if grocery::item_count_for_week(&state.db, user.id, current_week()).await? >= MAX_LIST_ITEMS {
+        return Err(ApiError::new(409, "errors.quotaExceeded"));
+    }
     let list = grocery::add_manual_item(&state.db, user.id, &input, current_week())
         .await?
         .ok_or_else(ApiError::not_found)?;

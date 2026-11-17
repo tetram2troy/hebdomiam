@@ -7,7 +7,6 @@ use base64::engine::general_purpose::STANDARD;
 use serde::Deserialize;
 use serde_json::json;
 
-use crate::client_ip::ClientIp;
 use crate::error::{ApiError, ApiResult};
 use crate::import::claude::{ExtractionFailure, ExtractionInput};
 use crate::import::image::{reencode, sniff};
@@ -16,6 +15,13 @@ use crate::logger::{log_event, log_warn};
 use crate::session::CurrentUser;
 use crate::state::AppState;
 use crate::validation::{ValidJson, Validate, Validated, WEB, url};
+
+/// Plafond quotidien d'appels IA facturés par compte (PRD D9 : protection
+/// contre l'abus de coût), en plus des quotas par minute. En mémoire : remis à
+/// zéro au redémarrage.
+const AI_DAILY_BUCKET: &str = "import:ai:day";
+const AI_DAILY_MAX: usize = 40;
+const DAY_MS: u64 = 24 * 60 * 60 * 1000;
 
 const MAX_FILES: usize = 3;
 const MAX_FILE_BYTES: usize = 10 * 1024 * 1024;
@@ -42,12 +48,13 @@ fn extraction_error(failure: ExtractionFailure) -> ApiError {
 pub async fn from_url(
     State(state): State<AppState>,
     CurrentUser(user): CurrentUser,
-    ClientIp(ip): ClientIp,
     ValidJson(raw_url): ValidJson<UrlBody>,
 ) -> ApiResult<Json<serde_json::Value>> {
     // Quota par utilisateur : l'import déclenche des fetchs sortants et, en
     // repli, des appels IA facturés (PRD D9).
-    state.rate_limit(&format!("import:url:{}", user.id), &ip, 10, 60_000)?;
+    // Compté par COMPTE (et non par IP : changer d'adresse ouvrait un compteur neuf).
+    let account = user.id.to_string();
+    state.rate_limit("import:url", &account, 10, 60_000)?;
 
     // Le domaine suffit à l'audit — l'URL complète peut être longue et parlante.
     let host = url::Url::parse(&raw_url)
@@ -80,6 +87,8 @@ pub async fn from_url(
         );
         return Err(ApiError::new(422, "errors.importFailed"));
     };
+    // Seul le repli IA est facturé : le plafond quotidien ne compte que lui.
+    state.rate_limit(AI_DAILY_BUCKET, &account, AI_DAILY_MAX, DAY_MS)?;
     let draft = claude
         .extract(ExtractionInput {
             html: Some(page.html),
@@ -105,13 +114,14 @@ pub async fn from_url(
 pub async fn from_photo(
     State(state): State<AppState>,
     CurrentUser(user): CurrentUser,
-    ClientIp(ip): ClientIp,
     mut multipart: Multipart,
 ) -> ApiResult<Json<serde_json::Value>> {
-    state.rate_limit(&format!("import:photo:{}", user.id), &ip, 5, 60_000)?;
+    let account = user.id.to_string();
+    state.rate_limit("import:photo", &account, 5, 60_000)?;
     let Some(claude) = state.claude.clone() else {
         return Err(ApiError::new(503, "errors.importUnavailable"));
     };
+    state.rate_limit(AI_DAILY_BUCKET, &account, AI_DAILY_MAX, DAY_MS)?;
 
     let mut photos: Vec<Vec<u8>> = Vec::new();
     while let Some(field) = multipart
@@ -122,17 +132,27 @@ pub async fn from_photo(
         if field.name() != Some("photos") {
             continue;
         }
-        let data = field
-            .bytes()
+        // Lecture par morceaux, coupée dès le plafond : un champ de 35 Mo
+        // n'est jamais tenu entier en mémoire avant d'être refusé.
+        let mut field = field;
+        let mut data: Vec<u8> = Vec::new();
+        while let Some(chunk) = field
+            .chunk()
             .await
-            .map_err(|_| ApiError::new(413, "errors.fileTooLarge"))?;
+            .map_err(|_| ApiError::new(413, "errors.fileTooLarge"))?
+        {
+            if data.len() + chunk.len() > MAX_FILE_BYTES {
+                return Err(ApiError::new(413, "errors.fileTooLarge"));
+            }
+            data.extend_from_slice(&chunk);
+        }
         if data.is_empty() {
             continue;
         }
         if photos.len() == MAX_FILES {
             return Err(ApiError::new(400, "errors.invalidImage"));
         }
-        photos.push(data.to_vec());
+        photos.push(data);
     }
     if photos.is_empty() {
         return Err(ApiError::new(400, "errors.invalidImage"));
@@ -148,10 +168,19 @@ pub async fn from_photo(
         }
         // Ré-encodage systématique : supprime EXIF/métadonnées et neutralise les
         // charges utiles cachées ; borne aussi la taille envoyée au fournisseur.
-        let reencoded = tokio::task::spawn_blocking(move || reencode(&photo))
+        let permit = state
+            .image_decoding
+            .clone()
+            .acquire_owned()
             .await
-            .map_err(|_| ApiError::internal())?
-            .map_err(|_| ApiError::new(415, "errors.invalidImage"))?;
+            .map_err(|_| ApiError::internal())?;
+        let reencoded = tokio::task::spawn_blocking(move || {
+            let _permit = permit; // rendu à la fin du décodage
+            reencode(&photo)
+        })
+        .await
+        .map_err(|_| ApiError::internal())?
+        .map_err(|_| ApiError::new(415, "errors.invalidImage"))?;
         images_base64.push(STANDARD.encode(reencoded));
     }
 

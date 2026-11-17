@@ -117,7 +117,8 @@ pub async fn update_profile(
 }
 
 pub enum PasswordCheck {
-    Ok,
+    /// Mot de passe changé ; porte la nouvelle époque de session.
+    Ok(i32),
     InvalidPassword,
     NotFound,
 }
@@ -134,8 +135,8 @@ pub async fn change_password(
     if !verify_password(user.password_hash, current.to_string()).await {
         return Ok(PasswordCheck::InvalidPassword);
     }
-    super::users::set_password_hash(db, user_id, &hash_password(new.to_string()).await).await?;
-    Ok(PasswordCheck::Ok)
+    let epoch = super::users::change_password_hash(db, user_id, &hash_password(new.to_string()).await).await?;
+    Ok(PasswordCheck::Ok(epoch))
 }
 
 pub enum DeleteAccount {

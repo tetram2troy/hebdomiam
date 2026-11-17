@@ -24,7 +24,10 @@ use crate::logger::log_warn;
 use crate::repo::users;
 use crate::state::AppState;
 
-pub const COOKIE_NAME: &str = "hebdomiam-session";
+/// Préfixe `__Host-` : le navigateur n'accepte ce cookie que posé par cet hôte
+/// exact, en HTTPS, sans attribut Domain — une autre application du même
+/// domaine (sous-domaine voisin du home lab) ne peut pas en glisser un.
+pub const COOKIE_NAME: &str = "__Host-hebdomiam-session";
 pub const MAX_AGE_SECONDS: i64 = 7 * 24 * 60 * 60;
 
 /// Copie publique de l'utilisateur dans la session — le rôle ne sert qu'à
@@ -45,16 +48,22 @@ pub struct SessionData {
     /// Mot de passe validé, code TOTP attendu — pas encore connecté.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub pending_totp_user_id: Option<Uuid>,
-    /// Instant de scellement (secondes Unix).
+    /// Instant de la CONNEXION (secondes Unix) — conservé quand le cookie est
+    /// re-scellé : la durée de vie de 7 jours est absolue, non renouvelable.
     pub issued_at: i64,
+    /// Époque de session du compte au scellement (users.session_epoch) : une
+    /// époque dépassée = session révoquée (voir le middleware account_status).
+    #[serde(default)]
+    pub epoch: i32,
 }
 
 impl SessionData {
-    pub fn for_user(user: SessionUser) -> Self {
+    pub fn for_user(user: SessionUser, epoch: i32) -> Self {
         SessionData {
             user: Some(user),
             pending_totp_user_id: None,
             issued_at: now(),
+            epoch,
         }
     }
 
@@ -63,6 +72,7 @@ impl SessionData {
             user: None,
             pending_totp_user_id: Some(user_id),
             issued_at: now(),
+            epoch: 0,
         }
     }
 }
@@ -153,6 +163,38 @@ impl FromRequestParts<AppState> for MaybeSession {
     }
 }
 
+/// Session connectée complète (utilisateur, date de connexion, époque) — pour
+/// les routes qui re-scellent le cookie sans le rajeunir.
+pub struct CurrentSession {
+    pub user: SessionUser,
+    pub issued_at: i64,
+}
+
+impl CurrentSession {
+    /// Même session (même date de connexion), nom ou époque mis à jour.
+    pub fn resealed(&self, user: SessionUser, epoch: i32) -> SessionData {
+        SessionData {
+            user: Some(user),
+            pending_totp_user_id: None,
+            issued_at: self.issued_at,
+            epoch,
+        }
+    }
+}
+
+impl FromRequestParts<AppState> for CurrentSession {
+    type Rejection = ApiError;
+
+    async fn from_request_parts(parts: &mut Parts, state: &AppState) -> Result<Self, Self::Rejection> {
+        let session = read_session(&parts.headers, &state.session_key).ok_or_else(ApiError::unauthorized)?;
+        let user = session.user.ok_or_else(ApiError::unauthorized)?;
+        Ok(CurrentSession {
+            user,
+            issued_at: session.issued_at,
+        })
+    }
+}
+
 /// Utilisateur connecté exigé (équivalent de `requireUserSession`).
 pub struct CurrentUser(pub SessionUser);
 
@@ -205,13 +247,13 @@ mod tests {
     #[test]
     fn scelle_puis_ouvre() {
         let key = SessionKey::from_password("0123456789abcdef0123456789abcdef");
-        let data = SessionData::for_user(user());
+        let data = SessionData::for_user(user(), 0);
         assert_eq!(key.unseal(&key.seal(&data)), Some(data));
     }
 
     #[test]
     fn autre_cle_refusee() {
-        let sealed = SessionKey::from_password("a".repeat(32).as_str()).seal(&SessionData::for_user(user()));
+        let sealed = SessionKey::from_password("a".repeat(32).as_str()).seal(&SessionData::for_user(user(), 0));
         assert!(
             SessionKey::from_password("b".repeat(32).as_str())
                 .unseal(&sealed)
@@ -222,7 +264,7 @@ mod tests {
     #[test]
     fn sceau_falsifie_refuse() {
         let key = SessionKey::from_password("0123456789abcdef0123456789abcdef");
-        let mut sealed = key.seal(&SessionData::for_user(user()));
+        let mut sealed = key.seal(&SessionData::for_user(user(), 0));
         let last = sealed.pop().unwrap();
         sealed.push(if last == 'A' { 'B' } else { 'A' });
         assert!(key.unseal(&sealed).is_none());
@@ -232,7 +274,7 @@ mod tests {
     #[test]
     fn expiration_dans_le_sceau() {
         let key = SessionKey::from_password("0123456789abcdef0123456789abcdef");
-        let data = SessionData::for_user(user());
+        let data = SessionData::for_user(user(), 0);
         let sealed = key.seal(&data);
         assert!(key.unseal_at(&sealed, data.issued_at + MAX_AGE_SECONDS).is_some());
         assert!(key.unseal_at(&sealed, data.issued_at + MAX_AGE_SECONDS + 1).is_none());
@@ -241,7 +283,12 @@ mod tests {
     #[test]
     fn lecture_du_cookie_parmi_d_autres() {
         let mut headers = HeaderMap::new();
-        headers.insert("cookie", "theme=dark; hebdomiam-session=abc; autre=1".parse().unwrap());
+        headers.insert(
+            "cookie",
+            "theme=dark; hebdomiam-session=faux; __Host-hebdomiam-session=abc; autre=1"
+                .parse()
+                .unwrap(),
+        );
         assert_eq!(cookie_value(&headers).as_deref(), Some("abc"));
     }
 

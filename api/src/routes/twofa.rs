@@ -2,19 +2,21 @@
 
 use axum::Json;
 use axum::extract::State;
+use axum::http::header::SET_COOKIE;
+use axum::response::{IntoResponse, Response};
 use qrcode::QrCode;
 use qrcode::render::svg;
 use serde::Deserialize;
 use serde_json::json;
 
-use super::auth::CodeBody;
+use super::auth::{password_attempt_succeeded, reserve_password_attempt};
 use crate::client_ip::ClientIp;
 use crate::error::{ApiError, ApiResult};
 use crate::logger::{log_event, log_warn};
 use crate::repo::twofa::{self, Activation};
-use crate::session::CurrentUser;
+use crate::session::{self, CurrentSession, CurrentUser};
 use crate::state::AppState;
-use crate::validation::{ValidJson, Validate, Validated, raw_text};
+use crate::validation::{ValidJson, Validate, Validated, raw_text, text};
 
 /// Corps `{ password }` (désactivation 2FA, suppression du compte).
 #[derive(Deserialize)]
@@ -58,48 +60,90 @@ pub async fn setup(
     ))
 }
 
+/// Corps de l'activation : mot de passe du compte + premier code.
+#[derive(Deserialize)]
+pub struct ActivateBody {
+    password: String,
+    code: String,
+}
+
+impl Validate for ActivateBody {
+    type Output = Self;
+    fn validate(self) -> Validated<Self> {
+        Ok(ActivateBody {
+            password: raw_text(self.password, 1, 128)?,
+            code: text(self.code, 6, 16)?,
+        })
+    }
+}
+
+/// Réponse JSON qui re-scelle la session courante à la nouvelle époque (les
+/// autres sessions du compte viennent d'être révoquées).
+fn resealed(state: &AppState, current: &CurrentSession, epoch: i32, body: serde_json::Value) -> Response {
+    let data = current.resealed(current.user.clone(), epoch);
+    let cookie = session::set_cookie(&state.session_key.seal(&data));
+    ([(SET_COOKIE, cookie)], Json(body)).into_response()
+}
+
 pub async fn activate(
     State(state): State<AppState>,
-    CurrentUser(user): CurrentUser,
+    current: CurrentSession,
     ClientIp(ip): ClientIp,
-    ValidJson(body): ValidJson<CodeBody>,
-) -> ApiResult<Json<serde_json::Value>> {
+    ValidJson(body): ValidJson<ActivateBody>,
+) -> ApiResult<Response> {
+    let user = &current.user;
     state.rate_limit(&format!("2fa:activate:{}", user.id), &ip, 5, 60_000)?;
-    match twofa::activate(&state.db, user.id, &body.code).await? {
-        Activation::Activated { backup_code } => {
+    reserve_password_attempt(&state, &user.email)?;
+    let (reason, error) = match twofa::activate(&state.db, user.id, &body.password, &body.code).await? {
+        Activation::Activated {
+            backup_code,
+            session_epoch,
+        } => {
+            password_attempt_succeeded(&state, &user.email);
             log_event("auth.2fa_enabled", json!({ "userId": user.id, "ip": ip }));
-            Ok(Json(json!({ "backupCode": backup_code })))
+            return Ok(resealed(
+                &state,
+                &current,
+                session_epoch,
+                json!({ "backupCode": backup_code }),
+            ));
         }
-        failure => {
-            let reason = if matches!(failure, Activation::InvalidCode) {
+        Activation::InvalidPassword => ("invalidPassword", ApiError::new(403, "errors.invalidPassword")),
+        other => {
+            // Mot de passe bon : seul le code (ou l'absence de setup) est en cause.
+            password_attempt_succeeded(&state, &user.email);
+            let reason = if matches!(other, Activation::InvalidCode) {
                 "invalidCode"
             } else {
                 "noSetup"
             };
-            log_warn(
-                "auth.2fa_activation_failed",
-                json!({ "userId": user.id, "reason": reason }),
-            );
-            Err(ApiError::new(403, "errors.invalidCode"))
+            (reason, ApiError::new(403, "errors.invalidCode"))
         }
-    }
+    };
+    log_warn(
+        "auth.2fa_activation_failed",
+        json!({ "userId": user.id, "reason": reason }),
+    );
+    Err(error)
 }
 
 pub async fn disable(
     State(state): State<AppState>,
-    CurrentUser(user): CurrentUser,
+    current: CurrentSession,
     ClientIp(ip): ClientIp,
     ValidJson(body): ValidJson<PasswordBody>,
-) -> ApiResult<Json<serde_json::Value>> {
+) -> ApiResult<Response> {
+    let user = &current.user;
     state.rate_limit(&format!("2fa:disable:{}", user.id), &ip, 5, 60_000)?;
-    if !twofa::disable(&state.db, user.id, &body.password).await? {
+    reserve_password_attempt(&state, &user.email)?;
+    let Some(session_epoch) = twofa::disable(&state.db, user.id, &body.password).await? else {
         log_warn("auth.2fa_disable_failed", json!({ "userId": user.id, "ip": ip }));
         return Err(ApiError::new(403, "errors.invalidPassword"));
-    }
+    };
+    password_attempt_succeeded(&state, &user.email);
     log_event("auth.2fa_disabled", json!({ "userId": user.id, "ip": ip }));
-    Ok(Json(json!({ "ok": true })))
+    Ok(resealed(&state, &current, session_epoch, json!({ "ok": true })))
 }
-
 #[cfg(test)]
 mod tests {
     use super::*;

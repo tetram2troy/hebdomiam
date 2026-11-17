@@ -140,8 +140,34 @@ pub async fn me(CurrentUser(user): CurrentUser) -> Json<serde_json::Value> {
     Json(json!({ "user": user }))
 }
 
-pub async fn logout() -> impl IntoResponse {
-    ([(SET_COOKIE, session::clear_cookie())], Json(json!({ "ok": true })))
+/// Déconnexion : efface le cookie ET révoque toutes les sessions du compte
+/// (époque incrémentée) — un cookie copié ailleurs ne survit pas à un
+/// « Déconnexion ». Contrepartie assumée : les autres appareils sont
+/// déconnectés aussi.
+pub async fn logout(
+    State(state): State<AppState>,
+    MaybeSession(session): MaybeSession,
+) -> ApiResult<impl IntoResponse> {
+    if let Some(user) = session.and_then(|s| s.user) {
+        // Compte supprimé entre-temps : rien à révoquer.
+        let _ = users::bump_session_epoch(&state.db, user.id).await;
+        log_event("auth.logout", json!({ "userId": user.id }));
+    }
+    Ok(([(SET_COOKIE, session::clear_cookie())], Json(json!({ "ok": true }))))
+}
+
+/// Verrou par compte pour toute vérification de mot de passe faite derrière
+/// une session (changement de mot de passe, 2FA, suppression du compte) : le
+/// détenteur d'un cookie volé ne devine pas le mot de passe à volonté. Même
+/// compteur que la connexion. Appeler `password_attempt_succeeded` ensuite.
+pub fn reserve_password_attempt(state: &AppState, email: &str) -> Result<(), ApiError> {
+    state
+        .limits
+        .reserve_attempt(LOGIN_ACCOUNT_BUCKET, email, ACCOUNT_MAX_FAILURES, ACCOUNT_WINDOW_MS)
+}
+
+pub fn password_attempt_succeeded(state: &AppState, email: &str) {
+    state.limits.refund_attempt(LOGIN_ACCOUNT_BUCKET, email);
 }
 
 // ── Connexion ───────────────────────────────────────────────────────────────
@@ -222,7 +248,7 @@ pub async fn login(
     log_event("auth.login", json!({ "userId": user.id, "ip": ip }));
     Ok(with_session(
         &state,
-        &SessionData::for_user(public_user.clone()),
+        &SessionData::for_user(public_user.clone(), user.session_epoch),
         StatusCode::OK,
         json!({ "user": public_user }),
     ))
@@ -270,7 +296,7 @@ pub async fn two_factor(
     );
     Ok(with_session(
         &state,
-        &SessionData::for_user(public_user.clone()),
+        &SessionData::for_user(public_user.clone(), user.session_epoch),
         StatusCode::OK,
         json!({ "user": public_user }),
     ))
@@ -319,7 +345,7 @@ pub async fn register(
             .await
             .map_err(|e| e.to_string())?;
         let link = format!(
-            "{}/verifier-courriel?token={token}",
+            "{}/verifier-courriel#token={token}",
             app_base_url(&state.config, &headers)
         );
         // locale du compte à la création = fr (défaut du schéma)
@@ -335,7 +361,7 @@ pub async fn register(
 
     Ok(with_session(
         &state,
-        &SessionData::for_user(user.clone()),
+        &SessionData::for_user(user.clone(), 0),
         StatusCode::CREATED,
         json!({ "user": user }),
     ))
@@ -349,8 +375,7 @@ pub async fn accept_invitation(
     ValidJson(body): ValidJson<TokenPasswordBody>,
 ) -> ApiResult<Json<serde_json::Value>> {
     state.rate_limit("auth:invitation", &ip, 5, 60_000)?;
-    let password_hash = hash_password(body.password).await;
-    let refusal = match users::accept_invitation(&state.db, &body.token, &password_hash).await? {
+    let refusal = match users::accept_invitation(&state.db, &body.token, body.password).await? {
         AcceptInvitation::Accepted(user_id) => {
             log_event("auth.invite_accepted", json!({ "userId": user_id, "ip": ip }));
             return Ok(Json(json!({ "ok": true })));
@@ -375,39 +400,52 @@ pub async fn forgot_password(
 ) -> ApiResult<Json<serde_json::Value>> {
     state.rate_limit("password:forgot", &ip, 3, 10 * 60_000)?;
 
-    // Réponse identique que le compte existe ou non (anti-énumération).
-    match users::find_by_email(&state.db, &body.email).await? {
-        Some(user) => {
-            let mut conn = state.db.acquire().await?;
-            let token = email_tokens::create(&mut conn, user.id, EmailTokenType::Reset, 60).await?;
-            let link = format!("{}/reinitialiser?token={token}", app_base_url(&state.config, &headers));
-            state
-                .mailer
-                .send(reset_password_mail(&user.email, user.locale, &link))
-                .await
-                .map_err(|error| {
-                    log_error("mailer.reset_send_failed", &error, json!({ "userId": user.id }));
-                    ApiError::internal()
-                })?;
-            log_event("auth.reset_requested", json!({ "userId": user.id, "ip": ip }));
+    // Réponse identique ET immédiate que le compte existe ou non : la création
+    // du jeton et l'envoi SMTP (lents, faillibles) partent en tâche de fond —
+    // ni l'écart de temps ni un 500 du relais ne révèlent l'existence du compte.
+    let base_url = app_base_url(&state.config, &headers);
+    tokio::spawn(async move {
+        let user = match users::find_by_email(&state.db, &body.email).await {
+            Ok(Some(user)) => user,
+            // Courriel sans compte : du probing, ou une faute de frappe.
+            Ok(None) => return log_warn("auth.reset_requested_unknown", json!({ "email": body.email, "ip": ip })),
+            Err(error) => return log_error("auth.reset_lookup_failed", &error, json!({})),
+        };
+        let token = async {
+            let mut tx = state.db.begin().await?;
+            // Un seul lien de réinitialisation vivant à la fois.
+            email_tokens::invalidate(&mut tx, user.id, EmailTokenType::Reset).await?;
+            let token = email_tokens::create(&mut tx, user.id, EmailTokenType::Reset, 60).await?;
+            tx.commit().await?;
+            Ok::<String, sqlx::Error>(token)
         }
-        // Courriel sans compte : du probing, ou un utilisateur qui se trompe d'adresse.
-        None => log_warn("auth.reset_requested_unknown", json!({ "email": body.email, "ip": ip })),
-    }
+        .await;
+        let token = match token {
+            Ok(token) => token,
+            Err(error) => return log_error("auth.reset_token_failed", &error, json!({ "userId": user.id })),
+        };
+        let link = format!("{base_url}/reinitialiser#token={token}");
+        match state
+            .mailer
+            .send(reset_password_mail(&user.email, user.locale, &link))
+            .await
+        {
+            Ok(()) => log_event("auth.reset_requested", json!({ "userId": user.id, "ip": ip })),
+            Err(error) => log_error("mailer.reset_send_failed", &error, json!({ "userId": user.id })),
+        }
+    });
     Ok(Json(json!({ "ok": true })))
 }
-
 pub async fn reset_password(
     State(state): State<AppState>,
     ClientIp(ip): ClientIp,
     ValidJson(body): ValidJson<TokenPasswordBody>,
 ) -> ApiResult<Json<serde_json::Value>> {
     state.rate_limit("password:reset", &ip, 5, 60_000)?;
-    let Some(user_id) = email_tokens::consume(&state.db, EmailTokenType::Reset, &body.token).await? else {
+    let Some(user_id) = users::reset_password(&state.db, &body.token, body.password).await? else {
         log_warn("auth.reset_invalid_token", json!({ "ip": ip }));
         return Err(ApiError::new(400, "errors.invalidToken"));
     };
-    users::set_password_hash(&state.db, user_id, &hash_password(body.password).await).await?;
     log_event("auth.password_reset", json!({ "userId": user_id, "ip": ip }));
     Ok(Json(json!({ "ok": true })))
 }
@@ -420,7 +458,8 @@ pub async fn verify_confirm(
     ValidJson(body): ValidJson<TokenBody>,
 ) -> ApiResult<Json<serde_json::Value>> {
     state.rate_limit("verify:confirm", &ip, 10, 60_000)?;
-    let Some(user_id) = email_tokens::consume(&state.db, EmailTokenType::Verify, &body.token).await? else {
+    let mut conn = state.db.acquire().await?;
+    let Some(user_id) = email_tokens::consume(&mut conn, EmailTokenType::Verify, &body.token).await? else {
         log_warn("auth.verify_invalid_token", json!({ "ip": ip }));
         return Err(ApiError::new(400, "errors.invalidToken"));
     };
@@ -445,7 +484,7 @@ pub async fn verify_request(
     let mut conn = state.db.acquire().await?;
     let token = email_tokens::create(&mut conn, user.id, EmailTokenType::Verify, 24 * 60).await?;
     let link = format!(
-        "{}/verifier-courriel?token={token}",
+        "{}/verifier-courriel#token={token}",
         app_base_url(&state.config, &headers)
     );
     state

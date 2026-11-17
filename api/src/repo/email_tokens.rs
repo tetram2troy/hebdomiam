@@ -3,7 +3,7 @@
 
 use axum::http::HeaderMap;
 use chrono::{Duration, Utc};
-use sqlx::{PgConnection, PgPool};
+use sqlx::PgConnection;
 use uuid::Uuid;
 
 use crate::config::Config;
@@ -41,7 +41,7 @@ pub async fn create(
 }
 
 /// Consomme un jeton valide (bon type, non expiré, non utilisé) → userId.
-pub async fn consume(db: &PgPool, kind: EmailTokenType, raw: &str) -> Result<Option<Uuid>, sqlx::Error> {
+pub async fn consume(conn: &mut PgConnection, kind: EmailTokenType, raw: &str) -> Result<Option<Uuid>, sqlx::Error> {
     sqlx::query_scalar(
         "UPDATE email_tokens SET used_at = now()
          WHERE token_hash = $1 AND type = $2 AND used_at IS NULL AND expires_at > now()
@@ -49,7 +49,7 @@ pub async fn consume(db: &PgPool, kind: EmailTokenType, raw: &str) -> Result<Opt
     )
     .bind(sha256_hex(raw))
     .bind(kind)
-    .fetch_optional(db)
+    .fetch_optional(conn)
     .await
 }
 

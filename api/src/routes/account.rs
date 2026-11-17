@@ -6,6 +6,7 @@ use axum::http::header::SET_COOKIE;
 use axum::response::IntoResponse;
 use serde_json::json;
 
+use super::auth::{password_attempt_succeeded, reserve_password_attempt};
 use super::twofa::PasswordBody;
 use crate::client_ip::ClientIp;
 use crate::error::{ApiError, ApiResult};
@@ -22,8 +23,10 @@ pub async fn delete_account(
     ValidJson(body): ValidJson<PasswordBody>,
 ) -> ApiResult<impl IntoResponse> {
     state.rate_limit(&format!("account:delete:{}", user.id), &ip, 3, 60_000)?;
+    reserve_password_attempt(&state, &user.email)?;
     let (reason, error) = match delete(&state.db, user.id, &body.password).await? {
         DeleteAccount::Ok => {
+            password_attempt_succeeded(&state, &user.email);
             log_event("account.deleted", json!({ "userId": user.id, "ip": ip }));
             return Ok(([(SET_COOKIE, clear_cookie())], Json(json!({ "ok": true }))));
         }
@@ -31,7 +34,10 @@ pub async fn delete_account(
         DeleteAccount::NotFound => ("notFound", ApiError::not_found()),
         // Le dernier admin actif ne peut pas s'auto-supprimer : l'instance
         // deviendrait ingérable (même garde-fou que les routes admin).
-        DeleteAccount::LastAdmin => ("lastAdmin", ApiError::new(409, "errors.lastAdmin")),
+        DeleteAccount::LastAdmin => {
+            password_attempt_succeeded(&state, &user.email);
+            ("lastAdmin", ApiError::new(409, "errors.lastAdmin"))
+        }
     };
     log_warn(
         "account.delete_failed",

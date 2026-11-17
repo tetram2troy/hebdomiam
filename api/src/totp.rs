@@ -44,16 +44,21 @@ pub fn generate(secret: &str, unix_seconds: u64) -> Option<String> {
 
 /// Vérifie un code avec une tolérance de ±1 pas.
 pub fn verify(secret: &str, token: &str, unix_seconds: u64) -> bool {
+    verify_step(secret, token, unix_seconds).is_some()
+}
+
+/// Comme `verify`, mais retourne le pas de temps du code accepté — à mémoriser
+/// pour refuser tout rejeu de ce code (ou d'un code plus ancien).
+pub fn verify_step(secret: &str, token: &str, unix_seconds: u64) -> Option<i64> {
     let token = token.trim();
     if token.len() != DIGITS as usize || !token.bytes().all(|b| b.is_ascii_digit()) {
-        return false;
+        return None;
     }
-    let Some(key) = decode_secret(secret) else { return false };
+    let key = decode_secret(secret)?;
     let counter = (unix_seconds / STEP_SECONDS) as i64;
-    (-SKEW_STEPS..=SKEW_STEPS).any(|delta| {
-        let candidate = counter + delta;
-        candidate >= 0 && crate::crypto::constant_time_eq(&code_at(&key, candidate as u64), token)
-    })
+    (-SKEW_STEPS..=SKEW_STEPS)
+        .map(|delta| counter + delta)
+        .find(|step| *step >= 0 && crate::crypto::constant_time_eq(&code_at(&key, *step as u64), token))
 }
 
 fn percent_encode(input: &str) -> String {

@@ -114,7 +114,7 @@ pub async fn generate_grocery_list(conn: &mut PgConnection, plan_id: Uuid) -> Re
         )
         .bind(list_id)
         .bind(item.label)
-        .bind(f64_to_decimal(item.quantity))
+        .bind(stored_decimal(item.quantity))
         .bind(item.unit)
         .bind(item.aisle)
         .bind(Json(item.sources))
@@ -206,6 +206,31 @@ pub async fn list_for_week(db: &PgPool, user_id: Uuid, week: NaiveDate) -> Resul
     }))
 }
 
+/// Plafond de la colonne grocery_items.quantity, numeric(12,2). Une quantité
+/// agrégée absurde (99 999 kg × 168 portions) est écrêtée plutôt que de faire
+/// échouer la validation du plan en 500.
+fn max_stored_quantity() -> Decimal {
+    Decimal::new(999_999_999_999, 2)
+}
+
+fn stored_decimal(quantity: f64) -> Decimal {
+    f64_to_decimal(quantity.min(9_999_999_999.0)).min(max_stored_quantity())
+}
+
+/// Nombre d'articles de la liste de la semaine (plafond des ajouts manuels).
+pub async fn item_count_for_week(db: &PgPool, user_id: Uuid, week: NaiveDate) -> Result<i64, sqlx::Error> {
+    sqlx::query_scalar(
+        "SELECT count(gi.id) FROM meal_plans mp
+         JOIN grocery_lists gl ON gl.meal_plan_id = mp.id
+         JOIN grocery_items gi ON gi.grocery_list_id = gl.id
+         WHERE mp.user_id = $1 AND mp.week_start_date = $2",
+    )
+    .bind(user_id)
+    .bind(week)
+    .fetch_one(db)
+    .await
+}
+
 /// Vérifie que l'article appartient bien à une liste de l'utilisateur.
 async fn owns_item(db: &PgPool, user_id: Uuid, item_id: Uuid) -> Result<bool, sqlx::Error> {
     let found: Option<Uuid> = sqlx::query_scalar(
@@ -224,7 +249,7 @@ async fn owns_item(db: &PgPool, user_id: Uuid, item_id: Uuid) -> Result<bool, sq
 /// Quantité saisie (dans l'unité choisie) → stockage en unité de base.
 fn stored_quantity(quantity: Option<f64>, unit: Option<Unit>) -> (Option<Decimal>, Option<Unit>) {
     match quantity {
-        Some(q) => (Some(f64_to_decimal(to_base(q, unit))), base_unit_of(dimension_of(unit))),
+        Some(q) => (Some(stored_decimal(to_base(q, unit))), base_unit_of(dimension_of(unit))),
         None => (None, None),
     }
 }
@@ -372,7 +397,13 @@ pub async fn merge_items(
 
     let units: HashSet<Option<Unit>> = ordered.iter().map(|r| r.unit).collect();
     let summable = units.len() == 1 && ordered.iter().all(|r| r.quantity.is_some());
-    let quantity: Option<Decimal> = summable.then(|| ordered.iter().filter_map(|r| r.quantity).sum());
+    let quantity: Option<Decimal> = summable.then(|| {
+        ordered
+            .iter()
+            .filter_map(|r| r.quantity)
+            .sum::<Decimal>()
+            .min(max_stored_quantity())
+    });
     let sources: Vec<GroceryItemSource> = ordered
         .iter()
         .flat_map(|r| r.sources.as_ref().map(|Json(s)| s.clone()).unwrap_or_default())

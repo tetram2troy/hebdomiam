@@ -45,7 +45,7 @@ async fn call(app: &Router, method: &str, path: &str, cookie: Option<&str>, body
         .header("x-forwarded-for", ip)
         .header("host", "127.0.0.1:3000");
     if let Some(cookie) = cookie {
-        request = request.header("cookie", format!("hebdomiam-session={cookie}"));
+        request = request.header("cookie", format!("__Host-hebdomiam-session={cookie}"));
     }
     let request = match body {
         Some(json) => request
@@ -62,7 +62,7 @@ async fn call(app: &Router, method: &str, path: &str, cookie: Option<&str>, body
         .iter()
         .filter_map(|v| v.to_str().ok())
         .find_map(|v| {
-            v.strip_prefix("hebdomiam-session=")
+            v.strip_prefix("__Host-hebdomiam-session=")
                 .map(|rest| rest.split(';').next().unwrap_or("").to_string())
         });
     let bytes = response.into_body().collect().await.unwrap().to_bytes();
@@ -228,7 +228,7 @@ async fn role_admin_relu_en_base() {
         created.body["inviteUrl"]
             .as_str()
             .unwrap()
-            .starts_with("http://127.0.0.1:3000/invitation?token=")
+            .starts_with("http://127.0.0.1:3000/invitation#token=")
     );
 
     // Rétrogradé en base : le cookie (rôle admin) ne suffit plus.
@@ -522,5 +522,175 @@ async fn setup_2fa_refuse_quand_active_et_source_url_web_seulement() {
     )
     .await;
     assert_eq!(ok.status, StatusCode::CREATED, "{}", ok.text);
+    t.drop().await;
+}
+
+#[tokio::test]
+async fn changement_de_mot_de_passe_et_deconnexion_revoquent_les_sessions() {
+    let t = TestDb::new().await;
+    let app = router(&t.pool, None);
+    let email = account(&t.pool, Role::User).await;
+    // Deux sessions du même compte : la légitime et une copie « volée ».
+    let mine = login(&app, &email, "198.51.103.1").await;
+    let stolen = login(&app, &email, "198.51.103.2").await;
+
+    let changed = call(
+        &app,
+        "POST",
+        "/api/settings/password",
+        Some(&mine),
+        Some(json!({ "currentPassword": PASSWORD, "newPassword": "nouveau-mot-de-passe-long-456" })),
+        "198.51.103.1",
+    )
+    .await;
+    assert_eq!(changed.status, StatusCode::OK, "{}", changed.text);
+    let renewed = changed.cookie.expect("la session courante est re-scellée");
+
+    // La copie est morte, la session courante continue.
+    let blocked = call(&app, "GET", "/api/recipes", Some(&stolen), None, "198.51.103.2").await;
+    assert_eq!(blocked.status, StatusCode::UNAUTHORIZED);
+    assert_eq!(blocked.cookie.as_deref(), Some(""), "cookie révoqué purgé");
+    assert_eq!(
+        call(&app, "GET", "/api/recipes", Some(&mine), None, "198.51.103.1")
+            .await
+            .status,
+        StatusCode::UNAUTHORIZED
+    );
+    assert_eq!(
+        call(&app, "GET", "/api/recipes", Some(&renewed), None, "198.51.103.1")
+            .await
+            .status,
+        StatusCode::OK
+    );
+
+    // Renommer ne rajeunit pas la session et ne la détache pas de son époque.
+    let renamed = call(
+        &app,
+        "PATCH",
+        "/api/settings",
+        Some(&renewed),
+        Some(json!({ "name": "Nouveau nom" })),
+        "198.51.103.1",
+    )
+    .await;
+    let after_rename = renamed.cookie.expect("cookie re-scellé avec le nouveau nom");
+    assert_eq!(
+        call(&app, "GET", "/api/recipes", Some(&after_rename), None, "198.51.103.1")
+            .await
+            .status,
+        StatusCode::OK
+    );
+
+    // Déconnexion : un cookie copié avant ne sert plus à rien.
+    call(
+        &app,
+        "POST",
+        "/api/auth/logout",
+        Some(&after_rename),
+        None,
+        "198.51.103.1",
+    )
+    .await;
+    assert_eq!(
+        call(&app, "GET", "/api/recipes", Some(&after_rename), None, "198.51.103.1")
+            .await
+            .status,
+        StatusCode::UNAUTHORIZED
+    );
+    t.drop().await;
+}
+
+#[tokio::test]
+async fn requetes_d_une_autre_origine_refusees() {
+    let t = TestDb::new().await;
+    let app = router(&t.pool, None);
+    let email = account(&t.pool, Role::User).await;
+    let cookie = login(&app, &email, "198.51.104.1").await;
+
+    let post = |site: Option<&'static str>, origin: Option<&'static str>| {
+        let mut request = Request::builder()
+            .method("POST")
+            .uri("/api/2fa/setup")
+            .header("host", "127.0.0.1:3000")
+            .header("cookie", format!("__Host-hebdomiam-session={cookie}"))
+            .extension(axum::extract::ConnectInfo(std::net::SocketAddr::from((
+                [127, 0, 0, 1],
+                40000,
+            ))));
+        if let Some(site) = site {
+            request = request.header("sec-fetch-site", site);
+        }
+        if let Some(origin) = origin {
+            request = request.header("origin", origin);
+        }
+        app.clone().oneshot(request.body(Body::empty()).unwrap())
+    };
+    // Formulaire soumis depuis un sous-domaine voisin (même site, autre origine).
+    assert_eq!(
+        post(Some("same-site"), None).await.unwrap().status(),
+        StatusCode::FORBIDDEN
+    );
+    assert_eq!(
+        post(Some("cross-site"), None).await.unwrap().status(),
+        StatusCode::FORBIDDEN
+    );
+    assert_eq!(
+        post(None, Some("https://autre.example.com")).await.unwrap().status(),
+        StatusCode::FORBIDDEN
+    );
+    // Notre propre front, ou un client non-navigateur.
+    assert_eq!(post(Some("same-origin"), None).await.unwrap().status(), StatusCode::OK);
+    assert_eq!(
+        post(None, Some("http://127.0.0.1:3000")).await.unwrap().status(),
+        StatusCode::OK
+    );
+    assert_eq!(post(None, None).await.unwrap().status(), StatusCode::OK);
+    // Les lectures ne sont pas concernées.
+    let get = Request::builder()
+        .uri("/api/auth/registration-open")
+        .header("sec-fetch-site", "cross-site")
+        .body(Body::empty())
+        .unwrap();
+    assert_eq!(app.clone().oneshot(get).await.unwrap().status(), StatusCode::OK);
+    t.drop().await;
+}
+
+#[tokio::test]
+async fn csp_avec_empreintes_des_scripts_inline_et_api_jamais_en_cache() {
+    let t = TestDb::new().await;
+    let dir = std::env::temp_dir().join(format!("hebdomiam-csp-{}", uuid::Uuid::new_v4()));
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(
+        dir.join("index.html"),
+        r#"<!doctype html><script type="importmap">{"imports":{}}</script><script src="/_nuxt/a.js"></script><script>window.__NUXT__={}</script><div id=__nuxt></div>"#,
+    )
+    .unwrap();
+    let app = router(&t.pool, Some(dir.clone()));
+
+    let page = call(&app, "GET", "/login", None, None, "198.51.105.1").await;
+    let csp = page.headers["content-security-policy"].to_str().unwrap();
+    assert!(csp.contains("script-src 'self' 'sha256-"), "{csp}");
+    assert_eq!(
+        csp.matches("'sha256-").count(),
+        2,
+        "un hash par script inline, aucun pour le script externe"
+    );
+    assert!(
+        !csp.contains("script-src 'self' 'unsafe-inline'") && !csp.contains("unsafe-eval"),
+        "{csp}"
+    );
+    for directive in [
+        "frame-ancestors 'none'",
+        "object-src 'none'",
+        "base-uri 'self'",
+        "form-action 'self'",
+    ] {
+        assert!(csp.contains(directive), "{directive}");
+    }
+    assert_eq!(page.headers["x-frame-options"], "DENY");
+
+    let api = call(&app, "GET", "/api/session", None, None, "198.51.105.1").await;
+    assert_eq!(api.headers["cache-control"], "no-store");
+    std::fs::remove_dir_all(dir).ok();
     t.drop().await;
 }

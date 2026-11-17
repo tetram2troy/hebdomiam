@@ -73,7 +73,7 @@ fn refusal_error(refusal: &AdminRefusal) -> (&'static str, ApiError) {
 }
 
 fn invite_url(state: &AppState, headers: &HeaderMap, token: &str) -> String {
-    format!("{}/invitation?token={token}", app_base_url(&state.config, headers))
+    format!("{}/invitation#token={token}", app_base_url(&state.config, headers))
 }
 
 pub async fn list_users(State(state): State<AppState>, _admin: AdminUser) -> ApiResult<Json<Vec<AdminUserDto>>> {

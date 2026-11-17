@@ -128,11 +128,26 @@ pub struct SafeFetcher {
     /// Les tests E2E servent une page-fixture locale : bascule explicite,
     /// jamais active par défaut (IMPORT_ALLOW_PRIVATE=1).
     allow_private: bool,
+    /// Domaine parent du site lui-même (ex. `example.com` pour
+    /// `recettes.example.com`) : l'import ne doit pas viser les autres services
+    /// du même domaine — la requête y arriverait avec l'IP publique de la
+    /// maison, au-delà du geoblock et des listes d'adresses autorisées.
+    own_domain: Option<String>,
+}
+
+/// Domaine parent d'une URL de base (hôte privé de son premier libellé).
+fn parent_domain(base_url: &str) -> Option<String> {
+    let host = Url::parse(base_url).ok()?.host_str()?.to_ascii_lowercase();
+    let (_, parent) = host.split_once('.')?;
+    parent.contains('.').then(|| parent.to_string())
 }
 
 impl SafeFetcher {
-    pub fn new(allow_private: bool) -> Self {
+    pub fn new(allow_private: bool, public_base_url: Option<&str>) -> Self {
         let mut builder = reqwest::Client::builder()
+            // Jamais de proxy d'environnement (HTTP_PROXY…) : la garde
+            // porterait sur le proxy, pas sur la cible.
+            .no_proxy()
             .redirect(reqwest::redirect::Policy::none())
             .timeout(TIMEOUT)
             .connect_timeout(TIMEOUT);
@@ -142,6 +157,7 @@ impl SafeFetcher {
         SafeFetcher {
             client: builder.build().expect("client HTTP"),
             allow_private,
+            own_domain: public_base_url.and_then(parent_domain),
         }
     }
 
@@ -149,8 +165,15 @@ impl SafeFetcher {
         if self.allow_private {
             return matches!(url.scheme(), "https" | "http");
         }
-        if url.scheme() != "https" {
+        // https sur le port standard seulement : pas de balayage de ports.
+        if url.scheme() != "https" || url.port_or_known_default() != Some(443) {
             return false;
+        }
+        if let (Some(own), Some(host)) = (&self.own_domain, url.host_str()) {
+            let host = host.to_ascii_lowercase();
+            if host == *own || host.ends_with(&format!(".{own}")) {
+                return false;
+            }
         }
         match url.host() {
             Some(Host::Ipv4(ip)) => !is_private_addr(IpAddr::V4(ip)),
@@ -285,7 +308,7 @@ mod tests {
 
     #[tokio::test]
     async fn schemas_et_ip_litterales_refuses() {
-        let fetcher = SafeFetcher::new(false);
+        let fetcher = SafeFetcher::new(false, Some("https://recettes.example.com"));
         assert_eq!(
             fetcher.fetch("http://exemple.com/").await.unwrap_err(),
             FetchFailure::Blocked
@@ -309,8 +332,27 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn port_non_standard_et_propre_domaine_refuses() {
+        let fetcher = SafeFetcher::new(false, Some("https://recettes.example.com"));
+        for url in [
+            "https://1.1.1.1:8443/",
+            "https://photos.example.com/",
+            "https://example.com/",
+            "https://recettes.example.com/",
+        ] {
+            assert_eq!(fetcher.fetch(url).await.unwrap_err(), FetchFailure::Blocked, "{url}");
+        }
+        assert_eq!(
+            parent_domain("https://recettes.example.com"),
+            Some("example.com".into())
+        );
+        assert_eq!(parent_domain("http://localhost:3000"), None);
+        assert_eq!(parent_domain("https://example.com"), None);
+    }
+
+    #[tokio::test]
     async fn localhost_refuse_par_dns() {
-        let fetcher = SafeFetcher::new(false);
+        let fetcher = SafeFetcher::new(false, Some("https://recettes.example.com"));
         assert_eq!(
             fetcher.fetch("https://localhost/").await.unwrap_err(),
             FetchFailure::Blocked

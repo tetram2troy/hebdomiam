@@ -19,6 +19,10 @@ pub struct AppState {
     pub limits: Arc<RateLimits>,
     pub mailer: Arc<Mailer>,
     pub fetcher: Arc<SafeFetcher>,
+    /// Un seul décodage d'image à la fois : chaque photo peut occuper jusqu'à
+    /// 160 Mo décodée, et des imports simultanés feraient tuer le conteneur
+    /// (limite mémoire) — avec lui, les compteurs de rate limiting en mémoire.
+    pub image_decoding: Arc<tokio::sync::Semaphore>,
     /// Fournisseur d'extraction « claude » — absent sans ANTHROPIC_API_KEY.
     pub claude: Option<Arc<ClaudeClient>>,
 }
@@ -47,7 +51,11 @@ impl AppState {
                 config.smtp_from.clone(),
                 config.production,
             )),
-            fetcher: Arc::new(SafeFetcher::new(config.import_allow_private)),
+            fetcher: Arc::new(SafeFetcher::new(
+                config.import_allow_private,
+                config.public_base_url.as_deref(),
+            )),
+            image_decoding: Arc::new(tokio::sync::Semaphore::new(1)),
             claude,
             config: Arc::new(config),
         }

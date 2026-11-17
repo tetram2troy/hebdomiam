@@ -114,6 +114,20 @@ async fn run_migrations() -> Result<(), ExitCode> {
         ExitCode::FAILURE
     })?;
     log_event("db.migrations_done", json!({ "applied": applied.len() }));
+    // Rôle applicatif à privilèges minimaux (voir migrate::ensure_app_role).
+    match std::env::var("APP_DB_PASSWORD") {
+        Ok(password) if password.len() >= 16 => {
+            migrate::ensure_app_role(&pool, &password).await.map_err(|error| {
+                log_error("db.app_role_failed", &error, json!({}));
+                ExitCode::FAILURE
+            })?;
+        }
+        Ok(_) => {
+            eprintln!("[config] APP_DB_PASSWORD trop court (minimum 16 caractères)");
+            return Err(ExitCode::FAILURE);
+        }
+        Err(_) => {}
+    }
     pool.close().await;
     Ok(())
 }
