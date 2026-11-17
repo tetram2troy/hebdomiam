@@ -38,10 +38,16 @@ La suite tourne contre un seul serveur — le binaire Rust (conteneur
 6. **Assertions de géométrie** : pour une exigence de mise en page (largeur,
    position), verrouiller par `boundingBox()` — c'est ce qui distingue « le code
    a changé » de « l'écran a changé ».
-7. Les jetons de courriel sont stockés hachés : pour tester un lien, **insérer un
+7. Les liens de courriel portent le jeton dans le **fragment** (`/reinitialiser#token=…`) :
+   un `page.goto` qui ne change que le fragment ne recharge pas le document —
+   passer par une autre page avant de rejouer un lien.
+   Les jetons de courriel sont stockés hachés : pour tester un lien, **insérer un
    jeton connu en DB** depuis le spec (pattern dans `e2e/courriel.spec.ts`).
 8. Les codes TOTP se génèrent avec `generateSync({ secret })` d'otplib, secret
    récupéré depuis l'écran d'activation (pattern dans `e2e/securite-2fa.spec.ts`).
+   **Anti-rejeu** : un code déjà accepté (activation comprise) est refusé — pour
+   la connexion suivante, attendre la fenêtre de 30 s suivante (`nextTotpCode`).
+   L'activation exige aussi le mot de passe (`totp-password`).
 9. **L'inscription publique est fermée** : tout compte de test naît par
    `registerFreshUser(page, name?)` de `e2e/helpers.ts` (API admin + invitation),
    jamais par la page /register. L'admin de la suite est seedé par
@@ -53,7 +59,7 @@ La suite tourne contre un seul serveur — le binaire Rust (conteneur
    forme d'adresse doit ajouter son motif à `GENERATED_EMAIL_PATTERNS`, sinon il
    s'accumule dans la base de dev.
 10. **Cookie de session Secure vs contexte API** : l'API émet
-    `hebdomiam-session` avec l'attribut Secure ; le jar d'`APIRequestContext` le
+    `__Host-hebdomiam-session` avec l'attribut Secure (obligatoire avec ce préfixe) ; le jar d'`APIRequestContext` le
     refuse sur http://127.0.0.1 (le navigateur, lui, l'accepte). Pour un appel
     API authentifié depuis un spec : `page.evaluate(fetch(...))` (cookies natifs
     du navigateur) ; côté helper : transporter le cookie explicitement

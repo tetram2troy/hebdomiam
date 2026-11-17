@@ -323,7 +323,10 @@ si un middleware Traefik saute ou si elle est déployée ailleurs un jour).
 
 ### Authentification et sessions
 - Argon2id pour les mots de passe ; politique de longueur (≥ 12 caractères) sans règles arbitraires.
-- Cookies de session : `httpOnly`, `secure`, `sameSite=lax`, expiration + rotation à la connexion.
+- Cookies de session : `__Host-`, `httpOnly`, `secure`, `sameSite=lax`, durée de vie
+  absolue de 7 jours (non renouvelable). **Révocation** : changement ou réinitialisation
+  de mot de passe, 2FA activée/désactivée et déconnexion invalident toutes les sessions
+  antérieures du compte (`users.session_epoch`).
 - **Rate limiting** sur login/inscription/reset par IP, plus un **verrou par compte**
   sur les échecs (10 connexions / 5 codes 2FA erronés par quart d'heure). L'IP client
   (`cf-connecting-ip`) n'est crue que depuis un proxy de confiance (`TRUSTED_PROXIES`).
@@ -351,7 +354,12 @@ si un middleware Traefik saute ou si elle est déployée ailleurs un jour).
   lab applique déjà sa propre CSP stricte : **une seule couche doit être propriétaire
   de chaque en-tête** (à arbitrer dès M0, valider en M5) pour éviter des en-têtes
   contradictoires qui casseraient le front.
-- Protection CSRF sur les mutations (token ou vérification d'origine).
+- Protection CSRF sur les mutations : vérification d'origine (`Sec-Fetch-Site`, repli
+  `Origin`) sur toute méthode à effet, en plus de `SameSite=Lax` et du corps JSON exigé.
+- **CSP posée par l'app** (empreintes SHA-256 des scripts inline, jamais
+  `unsafe-inline` pour les scripts) ; réponses `/api` en `no-store`.
+- Jetons des liens de courriel dans le fragment d'URL (jamais journalisés) ; un seul lien
+  de réinitialisation vivant ; invitation réservée aux comptes « en attente ».
 - ORM paramétré (pas de SQL concaténé) ; échappement automatique côté rendu (XSS).
 
 ### Spécifique aux fonctionnalités
@@ -362,13 +370,15 @@ si un middleware Traefik saute ou si elle est déployée ailleurs un jour).
 - **Upload photo** : vérification du type réel (magic bytes), taille max, ré-encodage
   de l'image (supprime les métadonnées/EXIF et neutralise les payloads), stockage hors racine web.
 - **Appels IA** : la clé API (fournisseur `claude`) ne transite jamais côté client ;
-  quotas par utilisateur (protection contre l'abus de coût) ; le contenu extrait —
+  quotas par compte, par minute et par jour (protection contre l'abus de coût) ; le contenu extrait —
   qu'il vienne d'Ollama ou de Claude — est traité comme non fiable (sorties structurées
   JSON Schema côté API, puis désérialisation stricte et bornage côté serveur).
 
 ### Infrastructure et chaîne d'approvisionnement
-- Conteneurs non-root, système de fichiers en lecture seule quand possible, réseau
-  interne pour la DB, utilisateur PostgreSQL aux privilèges minimaux.
+- Conteneurs non-root, système de fichiers en lecture seule, réseau interne pour la DB,
+  **rôle PostgreSQL applicatif aux privilèges minimaux** (`hebdomiam_app`, créé par le job
+  de migration — seul à se connecter en propriétaire). Images et actions CI épinglées par
+  empreinte ; drapeaux de test refusés au démarrage hors `development`/`test`.
 - **Dependabot** (npm, cargo, actions, Docker) + `npm audit` et `cargo audit` (RustSec) en CI.
 - **Scan des images Docker (Trivy)** et **analyse statique (CodeQL)** en CI.
 - Sauvegardes automatiques de la DB (pg_dump quotidien, rétention 30 jours) et procédure de restauration testée.

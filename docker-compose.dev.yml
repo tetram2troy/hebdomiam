@@ -8,7 +8,9 @@ services:
     image: postgres:16-alpine
     restart: unless-stopped
     ports:
-      - "5432:5432"
+      # Liés à la machine seulement : identifiants de dev triviaux, jamais
+      # exposés au réseau local (Wi-Fi partagé).
+      - "127.0.0.1:5432:5432"
     environment:
       POSTGRES_USER: hebdomiam
       POSTGRES_PASSWORD: hebdomiam
@@ -42,7 +44,7 @@ services:
       - --
       - cargo run -- migrate && exec cargo run -- serve
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
     environment:
       DATABASE_URL: postgresql://hebdomiam:hebdomiam@db:5432/hebdomiam
       TEST_DATABASE_URL: postgresql://hebdomiam:hebdomiam@db:5432/hebdomiam_test

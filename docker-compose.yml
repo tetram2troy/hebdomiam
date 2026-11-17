@@ -2,7 +2,7 @@
 # Ce compose autonome sert de banc d'essai local du modèle de production ;
 # l'intégration réelle au serveur passe par deploy/serveur-perso/ (bloc à
 # coller dans le compose unique du serveur, image GHCR).
-# Variables requises dans .env : DOMAIN, POSTGRES_PASSWORD, SESSION_PASSWORD, TRUSTED_PROXIES,
+# Variables requises dans .env : DOMAIN, POSTGRES_PASSWORD, APP_DB_PASSWORD, SESSION_PASSWORD, TRUSTED_PROXIES,
 # SMTP_HOST (+ SMTP_* utiles) — l'app refuse de démarrer sans (APP_ENV=production).
 services:
   app:
@@ -13,9 +13,14 @@ services:
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
     environment:
       TZ: ${TZ:-America/Toronto}
-      DATABASE_URL: postgresql://hebdomiam:${POSTGRES_PASSWORD}@db:5432/hebdomiam
+      # Rôle applicatif à privilèges minimaux, créé par le job migrate
+      # (lecture/écriture des données ; ni DDL ni superutilisateur).
+      DATABASE_URL: postgresql://hebdomiam_app:${APP_DB_PASSWORD}@db:5432/hebdomiam
       SESSION_PASSWORD: ${SESSION_PASSWORD}
       PUBLIC_BASE_URL: https://recettes.${DOMAIN}
       # Sous-réseau du réseau Docker « proxy » : seul Traefik transmet l'IP client.
@@ -61,8 +66,14 @@ services:
       target: runtime
     image: hebdomiam:latest
     command: ["migrate"]
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
     environment:
+      # Seul ce job se connecte en propriétaire de la base ; il crée aussi le
+      # rôle hebdomiam_app utilisé par l'app.
       DATABASE_URL: postgresql://hebdomiam:${POSTGRES_PASSWORD}@db:5432/hebdomiam
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD}
     depends_on:
       db:
         condition: service_healthy

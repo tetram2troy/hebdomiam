@@ -1,3 +1,8 @@
+> **DOCUMENT HISTORIQUE — version 0.1.2 (serveur Nuxt/Nitro).** Ne pas l'utiliser pour
+> déployer : depuis la 0.2.0 (API Rust), la référence est [README.md](README.md) avec
+> `service.yml` et `env.example` de ce dossier (variables renommées, `TRUSTED_PROXIES`,
+> rôle base de données applicatif, healthcheck et migrations sans Node).
+
 # Rapport final — mission hébergement (docs/HOSTING.md §9)
 
 À transmettre au repo d'infra de serveur-perso avec le reste de ce dossier.

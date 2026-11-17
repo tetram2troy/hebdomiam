@@ -1,7 +1,9 @@
 # syntax=docker/dockerfile:1
 
 # ── Front : SPA Nuxt générée (.output/public) ──────────────────────────────
-FROM node:24-slim AS front
+# Images de base épinglées par empreinte (Dependabot les fait suivre) : une
+# release est reproductible et un tag amont déplacé n'entre pas dans l'image.
+FROM node:24-slim@sha256:dc26ae92c9fb15cf6b1d63e20f0944b2efe0f115b20e00be48fb23fceb061c54 AS front
 WORKDIR /app
 COPY package.json package-lock.json ./
 # --ignore-scripts : le postinstall (nuxt prepare) a besoin des sources,
@@ -11,7 +13,7 @@ COPY . .
 RUN npm run generate
 
 # ── API : binaire Rust en release ───────────────────────────────────────────
-FROM rust:1.100-slim-bookworm AS api-build
+FROM rust:1.100-slim-bookworm@sha256:7c7d4eb4d05b7781187a327809466cfddf29753f6defdc3d19a0e291951b7a37 AS api-build
 WORKDIR /app
 COPY api/Cargo.toml api/Cargo.lock ./
 COPY api/src ./src
@@ -27,7 +29,7 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
 # gestionnaire de paquets, et PAS d'OpenSSL (le binaire fait son TLS avec
 # rustls : libssl ne serait qu'une surface d'attaque à patcher — vécu avec
 # CVE-2026-84782 remonté par Trivy). Utilisateur non-root (uid 65532).
-FROM gcr.io/distroless/base-nossl-debian12:nonroot AS api-runtime
+FROM gcr.io/distroless/base-nossl-debian12:nonroot@sha256:be40c00dfabd86576d92666e87e406714d5618342de1a0c213ad232de255172e AS api-runtime
 WORKDIR /app
 # Seule bibliothèque hors glibc requise par le binaire (déroulement de pile).
 COPY --from=api-build /lib/x86_64-linux-gnu/libgcc_s.so.1 /lib/x86_64-linux-gnu/libgcc_s.so.1

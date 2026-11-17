@@ -52,6 +52,16 @@ toute chaîne visible passe par i18n (`i18n/locales/*.json`), jamais en dur.
   `e2e/global-setup.ts`), jamais par la page /register — voir la skill `e2e-stable`.
 - Mots de passe : Argon2id via `crypto::hash_password` / `verify_password`
   (`api/src/crypto.rs`, mêmes paramètres et format PHC que l'ancien backend).
+- **Sessions** : un changement d'état d'authentification (mot de passe, 2FA,
+  déconnexion) incrémente `users.session_epoch` et révoque les cookies antérieurs ;
+  re-sceller la session courante avec `CurrentSession::resealed` (jamais
+  `SessionData::for_user`, qui la rajeunirait). Toute vérification de mot de passe
+  derrière une session passe par `reserve_password_attempt`.
+- **Liens par courriel** : jeton dans le fragment (`#token=`), lu côté front par
+  `useLinkToken()` — jamais dans la query string (journaux d'accès).
+- **CSP** : posée par l'API (`content_security_policy`, `api/src/app.rs`) ; aucun
+  script inline écrit à la main (`public/*.js` + `app.head.script`), pas de `v-html`
+  sur une donnée utilisateur.
 - Messages d'erreur API = clés i18n (ex. `errors.emailTaken`), traduites côté client
   (`app/utils/error-message.ts`).
 - Quantités en `numeric` (`rust_decimal`), jamais en `float` en base.

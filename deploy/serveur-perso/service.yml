@@ -27,12 +27,15 @@
       - hebdomiam-internal   # base de données
     environment:
       - TZ=${TZ:-America/Toronto}
-      - DATABASE_URL=postgresql://hebdomiam:${HEBDOMIAM_POSTGRES_PASSWORD}@hebdomiam-db:5432/hebdomiam
+      # Rôle applicatif à privilèges minimaux (créé par hebdomiam-migrate) :
+      # lecture/écriture des données, ni DDL ni superutilisateur.
+      - DATABASE_URL=postgresql://hebdomiam_app:${HEBDOMIAM_APP_DB_PASSWORD}@hebdomiam-db:5432/hebdomiam
       - SESSION_PASSWORD=${HEBDOMIAM_SESSION_PASSWORD}
       # Base des liens dans les courriels (vérification, invitation, reset)
       - PUBLIC_BASE_URL=https://recettes.${DOMAIN}
-      # Seul Traefik (réseau Docker « proxy ») peut fournir cf-connecting-ip :
-      # tout autre appelant est identifié par son IP socket.
+      # Seul Traefik peut fournir cf-connecting-ip : son adresse sur le réseau
+      # « proxy », en /32 (lui donner une IP fixe). Tout autre appelant — y
+      # compris un autre conteneur du réseau — est identifié par son IP socket.
       - TRUSTED_PROXIES=${HEBDOMIAM_TRUSTED_PROXIES}
       # Relais SMTP partagé du serveur (Brevo) — variables existantes réutilisées
       - SMTP_HOST=${SMTP_HOST}
@@ -93,7 +96,10 @@
     networks:
       - hebdomiam-internal
     environment:
+      # Seul ce job se connecte en propriétaire ; il crée/actualise le rôle
+      # hebdomiam_app avec ce mot de passe.
       - DATABASE_URL=postgresql://hebdomiam:${HEBDOMIAM_POSTGRES_PASSWORD}@hebdomiam-db:5432/hebdomiam
+      - APP_DB_PASSWORD=${HEBDOMIAM_APP_DB_PASSWORD}
     depends_on:
       hebdomiam-db:
         condition: service_healthy
