@@ -74,7 +74,7 @@ async function removeRecipe() {
           <span v-if="recipe.freezable" class="frz">❄ {{ $t('recipes.freezable') }}</span>
         </p>
         <p v-if="recipe.sourceUrl" class="meta">
-          {{ $t('recipes.source') }} : <a :href="recipe.sourceUrl" rel="noopener nofollow" target="_blank">{{ recipe.sourceUrl }}</a>
+          {{ $t('recipes.source') }} : <a :href="recipe.sourceUrl" rel="noopener noreferrer nofollow" target="_blank">{{ recipe.sourceUrl }}</a>
         </p>
         <div class="actions">
           <NuxtLink :to="localePath(`/recettes/${recipe.id}/modifier`)" class="btn btn-outline" data-testid="edit-recipe">

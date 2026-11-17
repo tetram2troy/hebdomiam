@@ -1,6 +1,6 @@
 <script setup lang="ts">
 const localePath = useLocalePath()
-const route = useRoute()
+const token = useLinkToken()
 const { t } = useI18n()
 
 const password = ref('')
@@ -14,7 +14,7 @@ async function submit() {
   try {
     await $fetch('/api/auth/password/reset', {
       method: 'POST',
-      body: { token: String(route.query.token ?? ''), password: password.value },
+      body: { token: token, password: password.value },
     })
     done.value = true
   }

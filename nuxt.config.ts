@@ -15,6 +15,9 @@ export default defineNuxtConfig({
     head: {
       // Sans favicon déclaré, chaque navigateur demande /favicon.ico.
       link: [{ rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' }],
+      // Thème appliqué avant la peinture — fichier externe (bloquant, minuscule)
+      // et non script inline : la CSP posée par l'API n'en autorise aucun.
+      script: [{ src: '/theme-init.js' }],
     },
   },
 

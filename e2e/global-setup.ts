@@ -1,7 +1,7 @@
 import { hash } from '@node-rs/argon2'
 import pg from 'pg'
 import { cleanupTestAccounts } from './cleanup'
-import { DB_URL } from './env'
+import { DB_URL, assertLocalDatabase } from './env'
 import { ADMIN_EMAIL, ADMIN_PASSWORD } from './helpers'
 import { startServer } from './server'
 
@@ -14,17 +14,10 @@ import { startServer } from './server'
 // 3. Retourne l'arrêt de fin de suite : suppression des comptes de test
 //    (e2e/cleanup.ts), puis arrêt du serveur.
 export default async function globalSetup() {
-  if (!DB_URL) {
-    throw new Error('DATABASE_URL manquant : charge le .env avant npm run test:e2e')
-  }
-
   // Garde-fou : ce seed écrit un admin dont le mot de passe est public (dans le
-  // dépôt). Refuser toute base non locale — un .env pointant sur le home lab ne
-  // doit jamais y créer une porte dérobée.
-  const host = new URL(DB_URL).hostname
-  if (!['localhost', '127.0.0.1', '::1'].includes(host) && process.env.HEBDOMIAM_E2E_ALLOW_REMOTE_DB !== '1') {
-    throw new Error(`global-setup e2e refuse la base non locale « ${host} » : il y sèmerait un admin à mot de passe connu`)
-  }
+  // dépôt) — un .env pointant sur le home lab ne doit jamais y créer une porte
+  // dérobée.
+  assertLocalDatabase('le seed de l\'admin e2e')
 
   const stopServer = await startServer()
 

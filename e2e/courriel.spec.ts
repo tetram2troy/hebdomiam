@@ -61,14 +61,16 @@ test('mot de passe oublié : demande anonyme puis réinitialisation par jeton', 
   // Suivre le lien du courriel (jeton inséré en base, valeur brute connue du test)
   const token = await insertEmailToken(email, 'reset')
   const newPassword = 'encore-plus-solide-456'
-  await page.goto(`/reinitialiser?token=${token}`)
+  await page.goto(`/reinitialiser#token=${token}`)
   await page.waitForLoadState('networkidle') // hydratation avant de remplir
   await page.getByLabel('Mot de passe').fill(newPassword)
   await page.getByTestId('reset-submit').click()
   await expect(page.getByTestId('reset-done')).toBeVisible()
 
-  // Usage unique : rejouer le même lien échoue
-  await page.goto(`/reinitialiser?token=${token}`)
+  // Usage unique : rejouer le même lien échoue. Passage par une autre page :
+  // un goto qui ne change que le fragment ne recharge pas le document.
+  await page.goto('/login')
+  await page.goto(`/reinitialiser#token=${token}`)
   await page.waitForLoadState('networkidle')
   await page.getByLabel('Mot de passe').fill('troisieme-mot-de-passe-789')
   await page.getByTestId('reset-submit').click()
@@ -91,7 +93,7 @@ test('vérification du courriel : le lien confirme et les réglages l\'affichent
   await expect(page.getByText('non vérifié')).toBeVisible()
 
   const token = await insertEmailToken(email, 'verify')
-  await page.goto(`/verifier-courriel?token=${token}`)
+  await page.goto(`/verifier-courriel#token=${token}`)
   await expect(page.getByTestId('verify-done')).toBeVisible()
 
   await page.goto('/reglages')
@@ -100,6 +102,6 @@ test('vérification du courriel : le lien confirme et les réglages l\'affichent
 })
 
 test('vérification du courriel : lien falsifié refusé', async ({ page }) => {
-  await page.goto(`/verifier-courriel?token=${'f'.repeat(48)}`)
+  await page.goto(`/verifier-courriel#token=${'f'.repeat(48)}`)
   await expect(page.getByTestId('verify-failed')).toBeVisible()
 })

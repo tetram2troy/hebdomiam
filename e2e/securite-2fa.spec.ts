@@ -16,8 +16,15 @@ async function login(page: Page, email: string) {
   await page.getByRole('button', { name: 'Se connecter' }).click()
 }
 
+/** Code TOTP de la PROCHAINE fenêtre de 30 s (attend son ouverture). */
+async function nextTotpCode(secret: string): Promise<string> {
+  const msIntoStep = Date.now() % 30_000
+  await new Promise(resolve => setTimeout(resolve, 30_000 - msIntoStep + 1_000))
+  return generateSync({ secret })
+}
+
 test('2FA : activation, connexion avec code, code de secours puis désactivation', async ({ page }) => {
-  test.setTimeout(90_000) // parcours long : 4 connexions successives
+  test.setTimeout(150_000) // parcours long : 4 connexions successives
 
   const email = await registerFreshUser(page, 'Prudente')
 
@@ -33,6 +40,9 @@ test('2FA : activation, connexion avec code, code de secours puis désactivation
   const secret = /([A-Z2-7]{16,})/.exec(secretText)?.[1]
   expect(secret, 'secret base32 affiché').toBeTruthy()
 
+  // Mot de passe exigé à l'activation (une session volée ne peut pas enrôler
+  // son propre authenticateur).
+  await page.getByTestId('totp-password').fill(PASSWORD)
   await page.getByLabel('Code', { exact: true }).fill(generateSync({ secret: secret! }))
   await page.getByTestId('totp-confirm').click()
 
@@ -53,8 +63,9 @@ test('2FA : activation, connexion avec code, code de secours puis désactivation
   await page.getByTestId('totp-login-submit').click()
   await expect(page.getByRole('alert')).toContainText('Code invalide')
 
-  // Bon code → connecté
-  await page.getByTestId('totp-login-code').fill(generateSync({ secret: secret! }))
+  // Bon code → connecté. Anti-rejeu : le code qui a servi à l'activation est
+  // refusé — comme une vraie app, on attend le code de la fenêtre suivante.
+  await page.getByTestId('totp-login-code').fill(await nextTotpCode(secret!))
   await page.getByTestId('totp-login-submit').click()
   await expect(page.getByTestId('welcome')).toBeVisible()
 

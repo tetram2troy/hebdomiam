@@ -26,8 +26,8 @@ function helperIp(): string {
     (Le navigateur, lui, traite 127.0.0.1 comme origine de confiance.) */
 function sessionCookie(response: APIResponse): string {
   const setCookie = response.headersArray()
-    .find(header => header.name.toLowerCase() === 'set-cookie' && header.value.startsWith('hebdomiam-session='))
-  const value = /^hebdomiam-session=([^;]+)/.exec(setCookie?.value ?? '')?.[1]
+    .find(header => header.name.toLowerCase() === 'set-cookie' && header.value.startsWith('__Host-hebdomiam-session='))
+  const value = /^__Host-hebdomiam-session=([^;]+)/.exec(setCookie?.value ?? '')?.[1]
   expect(value, 'cookie de session présent dans la réponse').toBeTruthy()
   return value!
 }
@@ -48,11 +48,12 @@ export async function registerFreshUser(page: Page, name = 'Testeuse'): Promise<
   expect(adminLogin.ok(), 'connexion admin e2e (global-setup exécuté ?)').toBeTruthy()
   const created = await api.post('/api/admin/users', {
     data: { email, name },
-    headers: { cookie: `hebdomiam-session=${sessionCookie(adminLogin)}` },
+    headers: { cookie: `__Host-hebdomiam-session=${sessionCookie(adminLogin)}` },
   })
   expect(created.status(), 'création du compte invité').toBe(201)
   const { inviteUrl } = await created.json() as { inviteUrl: string }
-  const token = new URL(inviteUrl).searchParams.get('token')!
+  // Le jeton voyage dans le fragment (jamais envoyé au serveur ni journalisé).
+  const token = new URLSearchParams(new URL(inviteUrl).hash.slice(1)).get('token')!
 
   // 2. L'invité choisit son mot de passe puis se connecte.
   const accepted = await api.post('/api/auth/invitation', {
@@ -64,13 +65,16 @@ export async function registerFreshUser(page: Page, name = 'Testeuse'): Promise<
   })
   expect(login.ok(), 'connexion du compte frais').toBeTruthy()
 
-  // 3. Le cookie de session passe au navigateur — sans attribut Secure, pour
-  //    que Chromium l'envoie sur http://127.0.0.1 sans condition.
+  // 3. Le cookie de session passe au navigateur. Préfixe __Host- : Secure
+  //    obligatoire (Chromium traite 127.0.0.1 comme une origine sûre).
   await page.context().addCookies([{
-    name: 'hebdomiam-session',
+    name: '__Host-hebdomiam-session',
     value: sessionCookie(login),
     domain: '127.0.0.1',
     path: '/',
+    secure: true,
+    httpOnly: true,
+    sameSite: 'Lax',
   }])
   await api.dispose()
 

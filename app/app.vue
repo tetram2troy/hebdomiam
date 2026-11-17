@@ -8,14 +8,6 @@ const { locale } = useI18n()
 // une instance vierge (bootstrap du premier admin).
 const { data: registration } = useFetch<{ open: boolean }>('/api/auth/registration-open')
 
-// Applique le thème choisi avant la peinture (évite l'éclair clair→sombre).
-useHead({
-  script: [{
-    innerHTML: '(function(){try{var t=localStorage.getItem("hb-theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}})()',
-    tagPosition: 'head',
-  }],
-})
-
 const otherLocale = computed(() => (locale.value === 'fr' ? 'en' : 'fr'))
 
 async function switchLanguage() {

@@ -1,5 +1,5 @@
 import pg from 'pg'
-import { DB_URL } from './env'
+import { DB_URL, assertLocalDatabase } from './env'
 import { ADMIN_EMAIL } from './helpers'
 
 // Comptes créés par la suite e2e — et SEULEMENT eux : les motifs reprennent
@@ -17,6 +17,7 @@ export const GENERATED_EMAIL_PATTERNS = [
 
 /** Supprime les comptes de test ; retourne le nombre de comptes supprimés. */
 export async function cleanupTestAccounts(): Promise<number> {
+  assertLocalDatabase('la suppression des comptes de test')
   const client = new pg.Client({ connectionString: DB_URL })
   await client.connect()
   try {
