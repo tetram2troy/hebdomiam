@@ -97,9 +97,9 @@ pub async fn update_profile(
     // rajeunir (même date de connexion, même époque) — sinon ce PATCH
     // prolongerait indéfiniment un cookie volé.
     if let Some(name) = patch.name {
-        let epoch = crate::repo::users::get_account_status(&state.db, user.id)
-            .await?
-            .map_or(0, |s| s.session_epoch);
+        // Époque du COOKIE, pas celle relue en base : si la session a été
+        // révoquée pendant la requête, le cookie re-scellé l'est aussi.
+        let epoch = current.epoch;
         let refreshed = current.resealed(SessionUser { name, ..user }, epoch);
         let cookie = session::set_cookie(&state.session_key.seal(&refreshed));
         return Ok(([(SET_COOKIE, cookie)], Json(profile)).into_response());

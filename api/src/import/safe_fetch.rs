@@ -170,7 +170,9 @@ impl SafeFetcher {
             return false;
         }
         if let (Some(own), Some(host)) = (&self.own_domain, url.host_str()) {
-            let host = host.to_ascii_lowercase();
+            // Forme canonique : `url` a déjà mis l'hôte en minuscules et en
+            // punycode ; reste le point final (« example.com. » = même hôte).
+            let host = host.trim_end_matches('.').to_ascii_lowercase();
             if host == *own || host.ends_with(&format!(".{own}")) {
                 return false;
             }
@@ -339,6 +341,8 @@ mod tests {
             "https://photos.example.com/",
             "https://example.com/",
             "https://recettes.example.com/",
+            "https://photos.example.com./",
+            "https://PHOTOS.Example.COM/",
         ] {
             assert_eq!(fetcher.fetch(url).await.unwrap_err(), FetchFailure::Blocked, "{url}");
         }

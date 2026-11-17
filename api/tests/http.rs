@@ -551,6 +551,13 @@ async fn changement_de_mot_de_passe_et_deconnexion_revoquent_les_sessions() {
     assert_eq!(blocked.status, StatusCode::UNAUTHORIZED);
     assert_eq!(blocked.cookie.as_deref(), Some(""), "cookie révoqué purgé");
     assert_eq!(
+        call(&app, "GET", "/api/auth/me", Some(&stolen), None, "198.51.103.2")
+            .await
+            .status,
+        StatusCode::UNAUTHORIZED,
+        "les routes d'auth à session sont contrôlées aussi"
+    );
+    assert_eq!(
         call(&app, "GET", "/api/recipes", Some(&mine), None, "198.51.103.1")
             .await
             .status,

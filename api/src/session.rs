@@ -168,6 +168,8 @@ impl FromRequestParts<AppState> for MaybeSession {
 pub struct CurrentSession {
     pub user: SessionUser,
     pub issued_at: i64,
+    /// Époque scellée dans le cookie (vérifiée par le middleware account_status).
+    pub epoch: i32,
 }
 
 impl CurrentSession {
@@ -191,6 +193,7 @@ impl FromRequestParts<AppState> for CurrentSession {
         Ok(CurrentSession {
             user,
             issued_at: session.issued_at,
+            epoch: session.epoch,
         })
     }
 }

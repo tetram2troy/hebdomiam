@@ -58,7 +58,11 @@ async fn api_not_found() -> ApiError {
 async fn account_status(State(state): State<AppState>, request: Request, next: Next) -> Response {
     let path = request.uri().path();
     // Monté sous /api : le chemin vu ici est relatif (« /auth/login »).
-    if path.starts_with("/auth/") {
+    // Exemptées : les routes d'auth PUBLIQUES (connexion, invitation, mot de
+    // passe oublié…) — un cookie périmé ne doit pas empêcher de se reconnecter.
+    // Celles qui exigent une session restent contrôlées.
+    let session_required = matches!(path, "/auth/me" | "/auth/verify/request");
+    if path.starts_with("/auth/") && !session_required {
         return next.run(request).await;
     }
     let Some(session) = read_session(request.headers(), &state.session_key) else {
