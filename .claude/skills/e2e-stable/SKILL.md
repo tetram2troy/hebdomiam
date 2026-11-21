@@ -67,6 +67,11 @@ La suite tourne contre un seul serveur — le binaire Rust (conteneur
 11. **Locale du navigateur** : `locale: 'fr-CA'` dans `playwright.config.ts` —
     sans elle, la détection de langue redirige le premier passage à la racine
     vers /en et tous les sélecteurs français échouent.
+12. **Style calculé sous transition** : `base.css` anime `box-shadow`, `border-color`
+    et `background-color` des contrôles. Un `getComputedStyle` lu juste après
+    `focus()` ou un survol renvoie parfois la valeur de départ : lire par
+    `await expect.poll(() => style(el, 'box-shadow')).toContain(…)`, jamais par une
+    lecture unique (vécu avec le test de focus visible de `design.spec.ts`).
 
 ## Avant de lancer
 
