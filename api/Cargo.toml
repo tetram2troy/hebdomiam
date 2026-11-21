@@ -35,7 +35,7 @@ include_dir = "0.7"
 # Cryptographie
 argon2 = "0.5"
 aes-gcm = "0.10"
-rand = "0.8"
+rand = "0.10"
 sha2 = "0.10"
 sha1 = "0.10"
 hmac = "0.12"

@@ -774,7 +774,7 @@ dependencies = [
  "include_dir",
  "lettre",
  "qrcode",
- "rand 0.8.8",
+ "rand 0.10.4",
  "regex",
  "reqwest",
  "rust_decimal",
