@@ -69,6 +69,40 @@ test.describe('thème clair', () => {
     expect(searchBox!.height).toBeGreaterThanOrEqual(44)
   })
 
+  test('éditeur de recette : texte en colonne large, panneau latéral, champs qui grandissent', async ({ page }) => {
+    await registerFreshUser(page)
+    await page.goto('/recettes/nouvelle')
+    await page.waitForLoadState('networkidle')
+
+    // Desktop (1280 px) : contenu à gauche, panneau des champs courts à droite.
+    const content = (await page.getByTestId('form-content').boundingBox())!
+    const side = (await page.getByTestId('form-side').boundingBox())!
+    expect(content.width).toBeGreaterThanOrEqual(650)
+    expect(side.x).toBeGreaterThanOrEqual(content.x + content.width)
+    expect(side.width).toBeLessThanOrEqual(330)
+
+    // Le nom d'ingrédient garde une vraie largeur…
+    const name = page.getByTestId('ingredient-name').first()
+    const before = (await name.boundingBox())!
+    expect(before.width).toBeGreaterThanOrEqual(250)
+
+    // …et un nom long passe à la ligne : le champ grandit, rien n'est coupé.
+    await name.fill('boîtes de 540 ml de haricots blancs, rincés et égouttés, ou 1 kg de haricots secs trempés la veille')
+    const after = (await name.boundingBox())!
+    expect(after.height).toBeGreaterThan(before.height + 10)
+    expect(await name.evaluate(el => el.scrollHeight - el.clientHeight)).toBeLessThanOrEqual(1)
+
+    // Entrée ne crée pas de saut de ligne dans un nom.
+    await name.press('End')
+    await name.press('Enter')
+    await expect(name).not.toHaveValue(/\n/)
+
+    // La description importée se lit en entier.
+    const description = page.getByTestId('description')
+    await description.fill('Une casserole tout-en-un. '.repeat(30))
+    expect(await description.evaluate(el => el.scrollHeight - el.clientHeight)).toBeLessThanOrEqual(1)
+  })
+
   test('cartes recette : coins arrondis « large » et placeholder illustré tokenisé', async ({ page }) => {
     await registerFreshUser(page)
     await page.goto('/recettes/nouvelle')
