@@ -52,8 +52,9 @@ test.describe('thème clair', () => {
     await page.goto('/login')
     const email = page.getByLabel('Courriel')
     await email.focus()
-    const shadow = await style(email, 'box-shadow')
-    expect(shadow).toContain('30, 122, 61')
+    // box-shadow est animé (transition de base.css) : une lecture immédiate
+    // tombe parfois sur la valeur de départ, transparente.
+    await expect.poll(() => style(email, 'box-shadow')).toContain('30, 122, 61')
   })
 
   test('cibles tactiles : boutons et chips-filtres ≥ 44 px', async ({ page }) => {
