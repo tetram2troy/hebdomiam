@@ -83,7 +83,7 @@ manquante (`DATABASE_URL`, `SESSION_PASSWORD`, `PUBLIC_BASE_URL`,
 Tag immuable + migrations de schéma ⇒ **jamais de Watchtower** (label déjà posé).
 
 ```bash
-# Mise à jour : changer le tag dans le compose (ex. 0.2.0) — sur les DEUX
+# Mise à jour : changer le tag dans le compose (ex. 0.3.0) — sur les DEUX
 # services hebdomiam et hebdomiam-migrate — puis
 docker compose pull hebdomiam hebdomiam-migrate
 docker compose up -d hebdomiam    # migre puis redémarre l'app
