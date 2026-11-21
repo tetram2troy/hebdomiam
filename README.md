@@ -59,6 +59,24 @@ cp .env.example .env   # renseigner DOMAIN, POSTGRES_PASSWORD, SESSION_PASSWORD
 docker compose up -d --build
 ```
 
+## Importer une recette avec Claude Code
+
+Certaines pages ne passent pas l'import par URL (contenu rendu en JavaScript,
+blocage des robots — ex. Radio-Canada). Claude Code peut alors lire la page,
+structurer la recette et l'enregistrer par l'**API à clé** :
+
+1. Dans l'app : **Réglages → Clés d'API → Nouvelle clé** (mot de passe demandé ;
+   la clé `hbd_…` n'est montrée qu'une fois).
+2. Sur le poste : variables d'environnement `HEBDOMIAM_URL` (ex.
+   `https://recettes.example.com`) et `HEBDOMIAM_API_KEY` — jamais dans le repo.
+3. Dans Claude Code : `/importer-recette <url>` (skill
+   `.claude/skills/importer-recette/` ; la copier dans `~/.claude/skills/` pour
+   l'utiliser hors de ce dépôt).
+
+Une clé n'ouvre que `POST /api/v1/recipes` et `GET /api/v1/tags` : elle ne lit
+pas la collection et ne touche pas au compte. Révocable à tout moment dans les
+réglages ; refusée dès que le compte est désactivé.
+
 ## Structure
 
 ```

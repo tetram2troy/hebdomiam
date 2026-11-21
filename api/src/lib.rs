@@ -2,13 +2,14 @@
 //!
 //! Organisation :
 //! - `config`, `logger`, `error`, `state` : socle transverse ;
-//! - `session`, `client_ip`, `rate_limit`, `validation` : frontière HTTP ;
+//! - `session`, `api_key`, `client_ip`, `rate_limit`, `validation` : frontière HTTP ;
 //! - `domain` : logique métier pure (unités, agrégation, rotation…), testée unitairement ;
 //! - `repo` : couche d'accès unique à la base — l'isolation multi-utilisateur
 //!   (filtre par userId) est garantie ICI, jamais dans les handlers (PRD §6/§8) ;
 //! - `import` : extraction de recettes (schema.org, API Claude, fetch durci SSRF) ;
 //! - `routes` : handlers HTTP, `app` : assemblage du routeur.
 
+pub mod api_key;
 pub mod app;
 pub mod client_ip;
 pub mod config;

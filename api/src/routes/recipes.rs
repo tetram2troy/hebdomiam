@@ -174,17 +174,29 @@ pub async fn create(
     CurrentUser(user): CurrentUser,
     ValidJson(input): ValidJson<RecipeBody>,
 ) -> ApiResult<impl IntoResponse> {
+    let recipe = create_recipe(&state, user.id, &input, None).await?;
+    Ok((StatusCode::CREATED, Json(recipe)))
+}
+
+/// Création commune à la session et aux clés d'API (`routes::v1`) : même
+/// plafond, même journalisation — `api_key_id` trace l'origine dans l'audit.
+pub async fn create_recipe(
+    state: &AppState,
+    user_id: Uuid,
+    input: &RecipeInput,
+    api_key_id: Option<Uuid>,
+) -> ApiResult<RecipeDetail> {
     // Plafond de volume par compte (disque de la base, mémoire de la rotation
     // qui charge toute la collection).
-    if recipes::count_active(&state.db, user.id).await? >= MAX_ACTIVE_RECIPES {
+    if recipes::count_active(&state.db, user_id).await? >= MAX_ACTIVE_RECIPES {
         return Err(ApiError::new(409, "errors.quotaExceeded"));
     }
-    let recipe = recipes::create(&state.db, user.id, &input).await?;
+    let recipe = recipes::create(&state.db, user_id, input).await?;
     log_event(
         "recipe.created",
-        json!({ "userId": user.id, "recipeId": recipe.summary.id }),
+        json!({ "userId": user_id, "recipeId": recipe.summary.id, "apiKeyId": api_key_id }),
     );
-    Ok((StatusCode::CREATED, Json(recipe)))
+    Ok(recipe)
 }
 
 pub async fn update(

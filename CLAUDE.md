@@ -34,6 +34,8 @@ toute chaîne visible passe par i18n (`i18n/locales/*.json`), jamais en dur.
   pyramide de tests → validation → doc → commits). À suivre pour toute demande de feature.
 - `/verifier-ui` — capture Playwright inspectée avant d'annoncer un changement visuel.
 - `/e2e-stable` — pièges connus de la suite Playwright et méthode de diagnostic.
+- `/importer-recette <url>` — structurer une recette d'une page web et l'enregistrer
+  par l'API à clé (`HEBDOMIAM_URL`, `HEBDOMIAM_API_KEY` dans l'environnement).
 
 ## Conventions
 
@@ -50,6 +52,9 @@ toute chaîne visible passe par i18n (`i18n/locales/*.json`), jamais en dur.
 - **Inscription publique fermée** (bootstrap seulement) : les comptes de test e2e se
   créent via `registerFreshUser` de `e2e/helpers.ts` (admin seedé par
   `e2e/global-setup.ts`), jamais par la page /register — voir la skill `e2e-stable`.
+- **Clés d'API** : extracteur `ApiKeyUser` (`api/src/api_key.rs`), réservé aux routes
+  `/api/v1/*` — une clé n'ouvre jamais une route de session, et une session n'ouvre
+  pas `/api/v1/*`. Élargir la portée d'une clé est une décision PRD, pas un détail.
 - Mots de passe : Argon2id via `crypto::hash_password` / `verify_password`
   (`api/src/crypto.rs`, mêmes paramètres et format PHC que l'ancien backend).
 - **Sessions** : un changement d'état d'authentification (mot de passe, 2FA,
