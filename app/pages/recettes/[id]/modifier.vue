@@ -22,10 +22,6 @@ const { data: recipe, error: fetchError } = await useFetch<RecipeDetail>(`/api/r
 </template>
 
 <style scoped>
-.form-page {
-  max-width: 960px;
-}
-
 .empty {
   text-align: center;
   margin: var(--hb-space-12) auto;

@@ -30,8 +30,15 @@ toute chaîne visible passe par i18n (`i18n/locales/*.json`), jamais en dur.
 
 ## Skills projet (`.claude/skills/`)
 
-- `/nouvelle-feature` — workflow complet d'une fonctionnalité (PRD → conventions →
-  pyramide de tests → validation → doc → commits). À suivre pour toute demande de feature.
+- `/nouvelle-feature` — workflow complet d'une fonctionnalité, à deux arrêts : qualifier →
+  conception ⏸ → développement → tests → capture → tests manuels ⏸ → relecture →
+  livraison. À suivre pour toute demande de feature ou correctif non trivial.
+- `/conception` — cadrer une feature structurante contre le PRD (modèle, contrat JSON,
+  impacts, plan, découpage, questions) ; ne modifie aucun fichier.
+- `/relecture` — avant tout commit : suites complètes, revue du diff par un sous-agent
+  indépendant (sécurité PRD §8, règles de codage, IDOR), corrections, doc, verdict.
+- `/livraison` — commits conventionnels en français, push, PR GitHub (`gh`), suivi CI ;
+  accord de Fabrice avant chaque commit, push et PR.
 - `/verifier-ui` — capture Playwright inspectée avant d'annoncer un changement visuel.
 - `/e2e-stable` — pièges connus de la suite Playwright et méthode de diagnostic.
 - `/importer-recette <url>` — structurer une recette d'une page web et l'enregistrer

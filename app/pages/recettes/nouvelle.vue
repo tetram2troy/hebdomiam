@@ -28,10 +28,6 @@ draftState.value = null
 </template>
 
 <style scoped>
-.form-page {
-  max-width: 960px;
-}
-
 .draftbar {
   background: var(--md-sys-color-tertiary-container);
   color: var(--md-sys-color-on-tertiary-container);

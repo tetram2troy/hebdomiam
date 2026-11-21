@@ -1,7 +1,7 @@
 # Règles de codage Hebdomiam
 
-Référentiel des étapes 2 (code) et 7 (revue de conformité) de la skill
-`nouvelle-feature`. Chaque règle vient d'une leçon du projet.
+Référentiel de l'étape 2 (développement) de la skill `nouvelle-feature` et de la
+revue de la skill `relecture`. Chaque règle vient d'une leçon du projet.
 
 ## API (Rust, `api/`)
 
@@ -48,6 +48,9 @@ Référentiel des étapes 2 (code) et 7 (revue de conformité) de la skill
       l'administration) ; le middleware client n'est qu'un garde d'affichage,
       la vraie autorisation est côté serveur.
 - [ ] `data-testid` en kebab-case sur tout élément qu'un test cible.
+- [ ] Zone de texte pouvant recevoir un texte long (import, étape, nom) : directive
+      `v-autogrow` (`app/plugins/autogrow.ts`) plutôt qu'un `rows` fixe — un texte
+      importé doit se relire sans défiler dans un petit cadre.
 - [ ] Modèle de page : la fonctionnalité voisine la plus proche (ex. `reglages.vue`
       pour un écran à sections `.panel`/`.srow`) — pas de nouveau pattern quand un
       existe.
