@@ -28,6 +28,7 @@ export const KNOWN_KEYS = new Set([
   'errors.lastAdmin',
   'errors.adminSelf',
   'errors.inviteAlreadyActive',
+  'errors.apiKeyLimit',
 ])
 
 export function errorMessage(err: unknown, t: (key: string) => string): string {

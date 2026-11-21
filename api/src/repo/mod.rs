@@ -4,6 +4,7 @@
 //! Les fonctions retournent des résultats métier ; les routes les traduisent en HTTP.
 
 pub mod admin;
+pub mod api_keys;
 pub mod email_tokens;
 pub mod grocery;
 pub mod plans;

@@ -1,11 +1,12 @@
 <script setup lang="ts">
+import type { ApiKeyDto, NewApiKey } from '#shared/types/api-key'
 import type { ProfileDto } from '#shared/types/settings'
 
 definePageMeta({ middleware: 'auth' })
 
 const localePath = useLocalePath()
 const switchLocalePath = useSwitchLocalePath()
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const { clear } = useUserSession()
 const { theme, apply: applyTheme } = useTheme()
 
@@ -130,6 +131,73 @@ async function disableTotp() {
     totpBackup.value = ''
     if (profile.value) profile.value = { ...profile.value, totpEnabled: false }
     notice.value = t('settings.saved')
+  }
+  catch (err) {
+    error.value = errorMessage(err, t)
+  }
+}
+
+// ── Clés d'API ──────────────────────────────────────────────────────────────
+const { data: apiKeys } = await useFetch<ApiKeyDto[]>('/api/api-keys', { default: () => [] })
+const showApiKeyForm = ref(false)
+const apiKeyName = ref('')
+const apiKeyPassword = ref('')
+// Secret complet : rendu une seule fois par le serveur, gardé en mémoire le
+// temps que l'utilisateur le copie, jamais persisté côté client.
+const newApiKey = ref('')
+const apiKeyCopied = ref(false)
+const revokeTarget = ref<ApiKeyDto | null>(null)
+const revokeDialog = ref<{ open: () => void } | null>(null)
+
+function formatDate(iso: string) {
+  return new Intl.DateTimeFormat(locale.value === 'fr' ? 'fr-CA' : 'en-CA', { dateStyle: 'medium' }).format(new Date(iso))
+}
+
+async function createApiKey() {
+  error.value = ''
+  notice.value = ''
+  try {
+    const created = await $fetch<NewApiKey>('/api/api-keys', {
+      method: 'POST',
+      body: { name: apiKeyName.value, password: apiKeyPassword.value },
+    })
+    newApiKey.value = created.token
+    apiKeyCopied.value = false
+    showApiKeyForm.value = false
+    apiKeyName.value = ''
+    apiKeyPassword.value = ''
+    apiKeys.value = [created.key, ...apiKeys.value]
+  }
+  catch (err) {
+    error.value = errorMessage(err, t)
+  }
+}
+
+async function copyApiKey() {
+  try {
+    await navigator.clipboard.writeText(newApiKey.value)
+    apiKeyCopied.value = true
+  }
+  catch {
+    // Presse-papiers refusé (permission, contexte non sécurisé) : la clé
+    // reste affichée et sélectionnable à la main.
+  }
+}
+
+function askRevoke(key: ApiKeyDto) {
+  revokeTarget.value = key
+  revokeDialog.value?.open()
+}
+
+async function revokeApiKey() {
+  const target = revokeTarget.value
+  if (!target) return
+  error.value = ''
+  notice.value = ''
+  try {
+    await $fetch(`/api/api-keys/${target.id}`, { method: 'DELETE' })
+    apiKeys.value = apiKeys.value.filter(key => key.id !== target.id)
+    notice.value = t('settings.apiKeyRevoked')
   }
   catch (err) {
     error.value = errorMessage(err, t)
@@ -330,6 +398,63 @@ async function deleteAccount() {
       </div>
     </section>
 
+    <!-- Clés d'API -->
+    <section class="panel" data-testid="api-keys">
+      <h2>{{ $t('settings.apiKeys') }}</h2>
+      <div class="srow">
+        <span class="lab"><span class="hint">{{ $t('settings.apiKeysHint') }}</span></span>
+        <button type="button" class="btn-outline small" data-testid="api-key-new" @click="showApiKeyForm = !showApiKeyForm">
+          {{ $t('settings.apiKeyNew') }}
+        </button>
+      </div>
+      <form v-if="showApiKeyForm" class="subform" @submit.prevent="createApiKey">
+        <label>
+          {{ $t('settings.apiKeyName') }}
+          <input v-model="apiKeyName" type="text" required maxlength="60" :placeholder="$t('settings.apiKeyNamePlaceholder')" data-testid="api-key-name">
+        </label>
+        <!-- Mot de passe exigé : une session volée ne peut pas se créer un accès durable. -->
+        <label>
+          {{ $t('auth.password') }}
+          <input v-model="apiKeyPassword" type="password" autocomplete="current-password" required data-testid="api-key-password">
+        </label>
+        <button type="submit" data-testid="api-key-create">{{ $t('settings.apiKeyCreateSubmit') }}</button>
+      </form>
+      <div v-if="newApiKey" class="reveal" data-testid="api-key-reveal">
+        <p>{{ $t('settings.apiKeyCreated') }}</p>
+        <code class="token" data-testid="api-key-token">{{ newApiKey }}</code>
+        <div class="reveal-actions">
+          <button type="button" class="btn-tonal small" data-testid="api-key-copy" @click="copyApiKey">
+            {{ apiKeyCopied ? $t('settings.apiKeyCopied') : $t('settings.apiKeyCopy') }}
+          </button>
+          <button type="button" class="btn-text small" data-testid="api-key-done" @click="newApiKey = ''">
+            {{ $t('settings.apiKeyDone') }}
+          </button>
+        </div>
+      </div>
+      <p v-if="!apiKeys.length" class="meta empty" data-testid="api-keys-empty">{{ $t('settings.apiKeysEmpty') }}</p>
+      <div v-for="key in apiKeys" :key="key.id" class="srow" data-testid="api-key-row">
+        <span class="lab">
+          <b>{{ key.name }}</b>
+          <span class="hint">
+            <code>{{ key.prefix }}…</code>
+            · {{ $t('settings.apiKeyCreatedOn', { date: formatDate(key.createdAt) }) }}
+            · {{ key.lastUsedAt ? $t('settings.apiKeyLastUsed', { date: formatDate(key.lastUsedAt) }) : $t('settings.apiKeyNeverUsed') }}
+          </span>
+        </span>
+        <button type="button" class="btn-outline small" data-testid="api-key-revoke" @click="askRevoke(key)">
+          {{ $t('settings.apiKeyRevoke') }}
+        </button>
+      </div>
+      <HbConfirmDialog
+        ref="revokeDialog"
+        :title="$t('settings.apiKeyRevokeTitle', { name: revokeTarget?.name ?? '' })"
+        :body="$t('settings.apiKeyRevokeBody')"
+        :confirm-label="$t('settings.apiKeyRevoke')"
+        danger
+        @confirm="revokeApiKey"
+      />
+    </section>
+
     <!-- Zone sensible -->
     <section class="panel danger">
       <h2>{{ $t('settings.danger') }}</h2>
@@ -479,6 +604,41 @@ async function deleteAccount() {
 
 .secret {
   overflow-wrap: anywhere;
+}
+
+.reveal {
+  display: grid;
+  gap: var(--hb-space-2);
+  background: var(--md-sys-color-tertiary-container);
+  color: var(--md-sys-color-on-tertiary-container);
+  border-radius: var(--md-sys-shape-corner-medium);
+  padding: var(--hb-space-3) var(--hb-space-4);
+  margin: var(--hb-space-2) 0;
+}
+
+.reveal p {
+  margin: 0;
+  font-weight: 600;
+}
+
+.token {
+  font-family: ui-monospace, monospace;
+  overflow-wrap: anywhere;
+  user-select: all;
+  background: var(--md-sys-color-surface-container-lowest);
+  color: var(--md-sys-color-on-surface);
+  border-radius: var(--md-sys-shape-corner-small);
+  padding: var(--hb-space-2) var(--hb-space-3);
+}
+
+.reveal-actions {
+  display: flex;
+  gap: var(--hb-space-2);
+  flex-wrap: wrap;
+}
+
+.empty {
+  margin: var(--hb-space-2) 0 0;
 }
 
 .backup {
