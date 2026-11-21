@@ -10,9 +10,9 @@
 
   hebdomiam:
     # Tag immuable, jamais « latest » (migrations de schéma → mises à jour
-    # supervisées, voir README). NB : le tag git « v0.2.0 » produit l'image
-    # « 0.2.0 » (metadata-action retire le v).
-    image: ghcr.io/tetram2troy/hebdomiam:0.2.0
+    # supervisées, voir README). NB : le tag git « v0.3.0 » produit l'image
+    # « 0.3.0 » (metadata-action retire le v).
+    image: ghcr.io/tetram2troy/hebdomiam:0.3.0
     container_name: hebdomiam
     restart: unless-stopped
     security_opt:
@@ -84,7 +84,7 @@
   # `docker compose up`, inoffensif quand le schéma est déjà à jour. Même image
   # que l'app — penser à changer les DEUX tags lors d'une mise à jour.
   hebdomiam-migrate:
-    image: ghcr.io/tetram2troy/hebdomiam:0.2.0
+    image: ghcr.io/tetram2troy/hebdomiam:0.3.0
     container_name: hebdomiam-migrate
     command: ["migrate"]
     restart: "no"
