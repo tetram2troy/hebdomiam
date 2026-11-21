@@ -4,6 +4,7 @@
 
 pub mod account;
 pub mod admin;
+pub mod api_keys;
 pub mod auth;
 pub mod grocery;
 pub mod health;
@@ -12,6 +13,7 @@ pub mod plans;
 pub mod recipes;
 pub mod settings;
 pub mod twofa;
+pub mod v1;
 
 use axum::Router;
 use axum::extract::DefaultBodyLimit;
@@ -49,6 +51,12 @@ pub fn api_router() -> Router<AppState> {
         .route("/account", delete(account::delete_account))
         .route("/settings", get(settings::get_profile).patch(settings::update_profile))
         .route("/settings/password", post(settings::change_password))
+        // Clés d'API (gérées depuis une session)
+        .route("/api-keys", get(api_keys::list).post(api_keys::create))
+        .route("/api-keys/{id}", delete(api_keys::revoke))
+        // Routes ouvertes aux clés d'API (Authorization: Bearer) — et à elles seules
+        .route("/v1/recipes", post(v1::create_recipe_with_key))
+        .route("/v1/tags", get(v1::tags))
         // Administration
         .route("/admin/users", get(admin::list_users).post(admin::create_user))
         .route(
