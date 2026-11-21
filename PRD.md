@@ -120,6 +120,18 @@ Autres candidats écartés : Popote, Mijote, Tambouille, Semainier, Batchy.
   avant sauvegarde (l'extraction n'écrit jamais directement en base).
 - L'URL source est conservée sur la recette (attribution).
 
+#### F3b — Import assisté par un outil externe (clés d'API) — ✅ livré
+- Pour les pages que F3 ne sait pas lire (rendu JavaScript, blocage des robots),
+  l'utilisateur confie le lien à **Claude Code** (skill `importer-recette`), qui
+  structure la recette et l'enregistre via `POST /api/v1/recipes`.
+- **Clés d'API personnelles** gérées dans les réglages : création avec
+  revérification du mot de passe, secret `hbd_…` montré une seule fois (seule
+  l'empreinte SHA-256 est stockée), 10 clés max par compte, dernière utilisation
+  affichée, révocation immédiate. Pas d'expiration ; un changement de mot de
+  passe ne révoque pas les clés (comme les jetons d'accès GitHub).
+- **Portée minimale** : une clé n'ouvre que la création de recette et la liste
+  des tags — aucune route de session, aucune lecture de la collection.
+
 #### F4 — Import de recettes par photo
 - Upload d'une ou plusieurs photos (livre de cuisine, fiche manuscrite, capture d'écran).
 - Envoi au **fournisseur d'extraction configuré** (voir §7.4 : auto-hébergé via Ollama
@@ -369,6 +381,12 @@ si un middleware Traefik saute ou si elle est déployée ailleurs un jour).
   (https), timeout et taille de réponse max.
 - **Upload photo** : vérification du type réel (magic bytes), taille max, ré-encodage
   de l'image (supprime les métadonnées/EXIF et neutralise les payloads), stockage hors racine web.
+- **Clés d'API (F3b)** : en-tête `Authorization: Bearer`, routes `/api/v1/*`
+  seulement ; clé et statut du compte relus en base à chaque appel (compte
+  désactivé ou invitation en attente → refus) ; échecs limités par IP
+  (20 / 15 min, succès non comptés), créations limitées à 30 / heure / compte ;
+  événements `apikey.created`, `apikey.revoked`, `security.api_key_rejected`
+  journalisés sans le secret.
 - **Appels IA** : la clé API (fournisseur `claude`) ne transite jamais côté client ;
   quotas par compte, par minute et par jour (protection contre l'abus de coût) ; le contenu extrait —
   qu'il vienne d'Ollama ou de Claude — est traité comme non fiable (sorties structurées
@@ -426,6 +444,16 @@ L'extraction IA est testée avec des réponses enregistrées (fixtures), pas d'a
 ---
 
 ## 12. Journal des décisions et questions restantes
+
+**Résolu le 2026-11-21 — import assisté par clé d'API (F3b) :** certaines pages
+(ex. Radio-Canada) échappent à l'import par URL. Plutôt que de durcir encore
+l'extracteur serveur, l'utilisateur confie le lien à Claude Code, qui écrit la
+recette par une API à clé personnelle. **Exception assumée à F3** (« l'extraction
+n'écrit jamais directement en base ») : la recette est enregistrée sans brouillon,
+car c'est l'utilisateur lui-même qui pilote l'outil et en lit le compte rendu.
+**Pas de serveur MCP** : Claude Code dispose déjà d'un shell (curl) — une skill
+suffit. Un MCP distant (avec OAuth) ne se justifierait que pour importer depuis
+Claude.ai ou l'app mobile, sans shell ; il pourrait réutiliser les mêmes routes.
 
 **Résolu le 2026-11-15 — réécriture du backend en Rust :** l'API Nitro (TypeScript)
 est remplacée par un binaire Rust (axum + sqlx) qui sert aussi le front, désormais

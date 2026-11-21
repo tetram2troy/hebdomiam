@@ -25,7 +25,7 @@ La suite tourne contre un seul serveur — le binaire Rust (conteneur
 4. **Rate limiting (5/min/IP)** : une IP dédiée par fichier via
    `test.use({ extraHTTPHeaders: { 'x-forwarded-for': '203.0.113.X' } })`.
    Registre : .11-.13 recettes · .21 design · .31 auth · .41 planifier ·
-   .51 reglages · .52 securite-2fa · .53 courriel · .54 i18n · .61-.62 admin ·
+   .51 reglages · .52 securite-2fa · .53 courriel · .54 i18n · .55 cles-api · .61-.62 admin ·
    .63+ captures/diagnostics · .71 epicerie · .95 import · .98 cuisine.
    Prendre une adresse libre et compter les logins du fichier (max 5/min).
    Le helper partagé consomme sur son propre pool (198.51.x.y aléatoire) —
