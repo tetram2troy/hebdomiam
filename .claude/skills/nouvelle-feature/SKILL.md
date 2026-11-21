@@ -1,34 +1,66 @@
 ---
 name: nouvelle-feature
-description: Workflow séquentiel pour développer une fonctionnalité d'Hebdomiam — plan, code, tests, vérification visuelle, lint, revue de sécurité, revue de conformité aux règles de codage, doc, commits. Utiliser dès que Fabrice demande une nouvelle feature, une modification de comportement ou une correction non triviale.
+description: Workflow complet d'une fonctionnalité d'Hebdomiam, avec deux arrêts — qualification, conception (arrêt 1), développement sans interruption, tests, vérification visuelle, tests manuels (arrêt 2), relecture, livraison. Utiliser dès que Fabrice demande une nouvelle feature, une modification de comportement ou une correction non triviale.
+argument-hint: <description de la fonctionnalité ou du correctif>
 ---
 
 # Développer une fonctionnalité Hebdomiam
 
-Workflow séquentiel — chaque étape est un jalon, ne pas annoncer « fait » avant
-la fin de l'étape 7. Les règles de codage détaillées sont dans
+Workflow séquentiel qui enchaîne d'autres skills ; chaque étape s'applique **en entier**.
+Ne pas annoncer « fait » avant la fin de l'étape 7. Rappeler en une ligne l'étape en
+cours à chaque reprise. Les règles de codage détaillées sont dans
 [regles-de-codage.md](regles-de-codage.md) (même dossier).
 
-## 1. Plan
+```
+0 Qualifier → 1 Conception ⏸ → 2 Développement → 3 Tests → 4 Test visuel
+  → 5 Tests manuels ⏸ → 6 Relecture → 7 Livraison
+```
 
-- Lire la section pertinente de `PRD.md` (décisions §4, modèle §6, sécurité §8,
-  jalons §11). Si la demande contredit une décision structurante, **s'arrêter et
-  le signaler** avant d'implémenter.
-- Explorer l'existant : la fonctionnalité voisine la plus proche (page, route,
-  repo, schéma) est le modèle à suivre — ne pas inventer un nouveau pattern.
-- Produire un plan court : fichiers touchés, changement de schéma DB (oui/non),
-  routes/API, écrans, tests prévus (unit/intégration/e2e), risques de sécurité.
-  Demande ambiguë ou structurante → présenter le plan avant de coder ;
-  sinon l'énoncer en une phrase et avancer.
+## 0. Qualifier la demande
 
-## 2. Code
+| Demande | Livrable attendu |
+|---|---|
+| Fonctionnalité | code + tests de la pyramide (étape 3) + doc |
+| Correctif | test qui **échoue sans le correctif** (le vérifier : réintroduire le bug, voir le test rougir) + correctif |
+| « Vérifier que c'est réglé » | preuve par le code, `git log` et une passe manuelle jetable (capture, spec temporaire) — **aucun test ajouté** |
+| Fonction pure sans écran | tests unitaires + preuve de non-vacuité, pas d'e2e |
 
-Suivre [regles-de-codage.md](regles-de-codage.md). Rappel du strict minimum
-API : entrée validée (`ValidJson`/`ValidPath`/`ValidQuery`), accès DB dans un
-repo scopé `user_id` (`api/src/repo/`), action critique journalisée
-(`log_event`/`log_warn`), route sensible rate-limitée, erreurs = clés i18n,
-chaînes visibles dans `fr.json` **et** `en.json`, schéma modifié → nouvelle
-migration SQL dans `api/migrations/`.
+## 1. Conception
+
+- **Demande structurante** (schéma DB, sécurité, contrat JSON, clés d'API, décision du
+  PRD, plusieurs écrans) → appliquer la skill `conception`.
+  ⏸ **Arrêt 1** : attendre la validation du plan et les réponses aux questions bloquantes.
+- **Petite demande** : lire la section pertinente de `PRD.md`, trouver la fonctionnalité
+  voisine qui sert de modèle, énoncer le plan en une phrase et avancer.
+- Une demande qui contredit une décision du PRD (§4) s'arrête **toujours** pour la signaler.
+
+## 2. Développement
+
+Deux phases : **analyse** (questions permises), puis **exécution** (aucune question).
+
+**Analyse**
+- Confronter le plan au code actuel : écart, hypothèse fausse, cas non couvert ?
+- Lister les fichiers à créer ou modifier.
+- Poser **maintenant** toutes les questions restantes, numérotées, chacune avec une
+  hypothèse par défaut. Si la conception vient d'être validée, ne poser que les nouvelles.
+- Travailler sur la branche courante si elle porte ce sujet ; sinon demander avant d'en
+  créer ou d'en changer (dossier partagé avec d'autres sessions).
+
+**Exécution**
+- Ordre : migration → repo → routes et validation → `shared/types/` → front → i18n.
+- Suivre [regles-de-codage.md](regles-de-codage.md). Strict minimum API : entrée validée
+  (`ValidJson`/`ValidPath`/`ValidQuery`), accès DB scopé `user_id` dans `api/src/repo/`,
+  action critique journalisée, route sensible rate-limitée, erreurs = clés i18n, chaînes
+  dans `fr.json` **et** `en.json`, schéma modifié → nouvelle migration SQL.
+- Cargo uniquement par Docker (`npm run api:cargo -- <args>`) : aucun compilateur Rust
+  sur le poste.
+- Documentation des bibliothèques par `ctx7` plutôt que de mémoire.
+- Ambiguïté mineure → choisir l'option la plus cohérente avec le code existant et la
+  noter pour le récap. **Exceptions — s'arrêter et demander :**
+  - migration qui supprime ou transforme des données existantes ;
+  - action destructive ou irréversible (`reset --hard`, suppression d'un fichier que la
+    session n'a pas créé, force push), ou toute action sur le serveur du home lab ;
+  - découverte qui invalide la conception ou contredit le PRD.
 
 ## 3. Tests
 
@@ -40,6 +72,8 @@ migration SQL dans `api/migrations/`.
   données d'Alice → `null`, rien de modifié).
 - **E2E** (`e2e/`) : le parcours utilisateur réel. Lire la skill `e2e-stable`
   avant d'écrire ou modifier un spec.
+- Lancer les suites concernées et corriger jusqu'au vert (`npm test`, `npm run api:test`,
+  `npx playwright test <spec>`).
 
 ## 4. Test visuel (Playwright)
 
@@ -47,52 +81,34 @@ Tout changement d'interface passe par la skill `verifier-ui` : capture d'écran
 prise, **lue et inspectée** — un diff CSS qui compile ne prouve rien. Verrouiller
 les propriétés mesurables par une assertion `boundingBox()` dans le spec permanent.
 
-## 5. Lint, typecheck et suites complètes
+## 5. Tests manuels
 
-```powershell
-npm run lint
-npm run typecheck
-npm test
-npm run api:lint                # cargo fmt + clippy, dans Docker
-npm run api:test                # DB de dev démarrée
-npm run generate                # les e2e servent .output/public
-npm run test:e2e                # DATABASE_URL dans le shell ; port 3000 libre
+⏸ **Arrêt 2** : rendre la main à Fabrice, sans committer.
+
+```
+## Récap
+- Ce qui a été fait (puces)
+- Décisions prises sans demander (puces)
+- Tests : unitaires X ✅ · intégration/IDOR Y ✅ · e2e Z ✅ · non créés (raison)
+
+## À tester manuellement
+1. <écran / scénario> → résultat attendu
+2. ...
+
+## Captures
+- <chemins dans le scratchpad>
 ```
 
-Un échec e2e n'est pas forcément une régression : diagnostiquer avec la skill
-`e2e-stable` avant de retoucher l'app ou d'assouplir une assertion.
+Pour tester : `docker compose -f docker-compose.dev.yml up -d` (API :8080) puis le front
+(`npm run dev`, configuration `front` de `.claude/launch.json`) sur :3000. Attendre le
+« OK » de Fabrice ; s'il renvoie des retours, corriger puis revenir à cet arrêt.
 
-## 6. Revue de sécurité (PRD §8)
+## 6. Relecture
 
-Relire le diff avec cette grille — chaque « non » se corrige avant de continuer :
+Appliquer la skill `relecture` (suites complètes, revue par sous-agent, corrections, doc).
+Verdict bloquant → s'arrêter et présenter les points « à décider ».
 
-- [ ] Toute entrée (body, params, query, fichier) passe par un extracteur validé ?
-- [ ] Toute requête DB métier remonte à `userId` via la couche repo — et le
-      test IDOR le prouve ?
-- [ ] Les actions critiques sont journalisées **sans** secret, jeton, code TOTP,
-      mot de passe ni contenu utilisateur (PII minimale : userId, IP) ?
-- [ ] Route d'auth / coûteuse (IA, courriel) → `state.rate_limit` ?
-- [ ] Messages d'erreur non énumérants (pas de « ce compte existe ») ?
-- [ ] Fetch sortant → `SafeFetcher` (garde SSRF), jamais un client HTTP nu ?
-- [ ] Upload → type réel vérifié (magic bytes) + ré-encodage ?
-- [ ] Aucun secret en dur ; configuration par variables d'environnement ?
+## 7. Livraison
 
-## 7. Revue de conformité aux règles de codage
-
-Relire le diff contre [regles-de-codage.md](regles-de-codage.md) : nommage,
-structure des composants et des repos, tokens CSS (jamais de couleur en dur),
-i18n bilingue complet, `numeric` jamais `float`, clippy sans avertissement,
-`data-testid` sur les éléments testés, commentaires en
-français qui expliquent le *pourquoi*.
-
-## 8. Documentation
-
-Mettre à jour ce qui a changé : statut du `PRD.md`, `README.md`, conventions de
-`CLAUDE.md`, et les skills elles-mêmes si une leçon nouvelle a été apprise.
-La doc fait partie de la feature.
-
-## 9. Commits
-
-Commits conventionnels **en français**, découpés par sujet (`feat:`, `fix:`,
-`test:`, `docs:` séparés), corps expliquant le *pourquoi* et les choix de
-sécurité. Un bug trouvé en route = son propre commit `fix:` avec l'explication.
+Appliquer la skill `livraison` (commits en français découpés par sujet, push, PR) —
+chaque commit, push et PR avec l'accord de Fabrice.

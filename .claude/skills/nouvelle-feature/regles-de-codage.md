@@ -1,7 +1,7 @@
 # Règles de codage Hebdomiam
 
-Référentiel des étapes 2 (code) et 7 (revue de conformité) de la skill
-`nouvelle-feature`. Chaque règle vient d'une leçon du projet.
+Référentiel de l'étape 2 (développement) de la skill `nouvelle-feature` et de la
+revue de la skill `relecture`. Chaque règle vient d'une leçon du projet.
 
 ## API (Rust, `api/`)
 
