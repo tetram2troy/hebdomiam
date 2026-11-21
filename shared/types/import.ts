@@ -1,4 +1,4 @@
-import type { Aisle, Unit } from '../schemas/recipe'
+import type { Aisle, Unit } from '../catalog'
 
 /** Brouillon d'extraction (URL ou photo) — jamais écrit en base directement :
     il pré-remplit le formulaire de recette que l'utilisateur relit (PRD F3/F4). */

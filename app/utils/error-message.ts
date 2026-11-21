@@ -19,6 +19,8 @@ export const KNOWN_KEYS = new Set([
   'errors.invalidImage',
   'errors.invalidPassword',
   'errors.invalidCode',
+  'errors.quotaExceeded',
+  'errors.totpAlreadyEnabled',
   'errors.invalidToken',
   'errors.forbidden',
   'errors.registrationClosed',

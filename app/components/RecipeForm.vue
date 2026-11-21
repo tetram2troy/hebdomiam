@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { AISLES, UNITS, type Aisle, type Unit } from '#shared/schemas/recipe'
+import { AISLES, UNITS, type Aisle, type Unit } from '#shared/catalog'
 import type { ImportDraft } from '#shared/types/import'
 import type { RecipeDetail } from '#shared/types/recipe'
 
@@ -127,8 +127,8 @@ async function submit() {
   pending.value = true
   try {
     const recipe = props.mode === 'create'
-      ? await $fetch('/api/recipes', { method: 'POST', body: toPayload() })
-      : await $fetch(`/api/recipes/${props.recipe!.id}`, { method: 'PUT', body: toPayload() })
+      ? await $fetch<RecipeDetail>('/api/recipes', { method: 'POST', body: toPayload() })
+      : await $fetch<RecipeDetail>(`/api/recipes/${props.recipe!.id}`, { method: 'PUT', body: toPayload() })
     await navigateTo(localePath(`/recettes/${recipe.id}`))
   }
   catch (err) {

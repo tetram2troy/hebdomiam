@@ -5,12 +5,14 @@ description: Pièges connus de la suite Playwright d'Hebdomiam (hydratation Nuxt
 
 # Écrire et déboguer les e2e d'Hebdomiam
 
-La suite tourne à 2 workers contre un seul serveur (`node .output`), timeouts
+La suite tourne contre un seul serveur — le binaire Rust (conteneur
+`hebdomiam-e2e` en local, binaire natif `E2E_API_BIN` en CI), démarré par
+`e2e/global-setup.ts` — timeouts
 60 s/test et 10 s/assertion. Chaque piège ci-dessous a réellement causé un échec.
 
 ## Pièges à l'écriture
 
-1. **Hydratation Nuxt** : après tout `page.goto()` ou `page.reload()` suivi d'un
+1. **Rendu client (SPA)** : après tout `page.goto()` ou `page.reload()` suivi d'un
    `fill`/`click`, insérer `await page.waitForLoadState('networkidle')`.
    Un fill trop tôt est effacé par v-model à l'hydratation ; un clic trop tôt
    n'atteint pas le gestionnaire Vue. Les navigations client (clic sur NuxtLink)
@@ -36,18 +38,28 @@ La suite tourne à 2 workers contre un seul serveur (`node .output`), timeouts
 6. **Assertions de géométrie** : pour une exigence de mise en page (largeur,
    position), verrouiller par `boundingBox()` — c'est ce qui distingue « le code
    a changé » de « l'écran a changé ».
-7. Les jetons de courriel sont stockés hachés : pour tester un lien, **insérer un
+7. Les liens de courriel portent le jeton dans le **fragment** (`/reinitialiser#token=…`) :
+   un `page.goto` qui ne change que le fragment ne recharge pas le document —
+   passer par une autre page avant de rejouer un lien.
+   Les jetons de courriel sont stockés hachés : pour tester un lien, **insérer un
    jeton connu en DB** depuis le spec (pattern dans `e2e/courriel.spec.ts`).
 8. Les codes TOTP se génèrent avec `generateSync({ secret })` d'otplib, secret
    récupéré depuis l'écran d'activation (pattern dans `e2e/securite-2fa.spec.ts`).
+   **Anti-rejeu** : un code déjà accepté (activation comprise) est refusé — pour
+   la connexion suivante, attendre la fenêtre de 30 s suivante (`nextTotpCode`).
+   L'activation exige aussi le mot de passe (`totp-password`).
 9. **L'inscription publique est fermée** : tout compte de test naît par
    `registerFreshUser(page, name?)` de `e2e/helpers.ts` (API admin + invitation),
    jamais par la page /register. L'admin de la suite est seedé par
    `e2e/global-setup.ts` (upsert idempotent, DB directe). Un compte ainsi créé
    est **déjà vérifié** — pour tester le flux « courriel non vérifié », remettre
    l'état par UPDATE direct (pattern `markEmailUnverified` dans `courriel.spec.ts`).
-10. **Cookie de session Secure vs contexte API** : le build de prod émet
-    `nuxt-session` avec l'attribut Secure ; le jar d'`APIRequestContext` le
+   **Fin de suite** : les comptes de test sont supprimés (`e2e/cleanup.ts`, appelé
+   par l'arrêt de `global-setup.ts`). Un spec qui crée un compte sous une NOUVELLE
+   forme d'adresse doit ajouter son motif à `GENERATED_EMAIL_PATTERNS`, sinon il
+   s'accumule dans la base de dev.
+10. **Cookie de session Secure vs contexte API** : l'API émet
+    `__Host-hebdomiam-session` avec l'attribut Secure (obligatoire avec ce préfixe) ; le jar d'`APIRequestContext` le
     refuse sur http://127.0.0.1 (le navigateur, lui, l'accepte). Pour un appel
     API authentifié depuis un spec : `page.evaluate(fetch(...))` (cookies natifs
     du navigateur) ; côté helper : transporter le cookie explicitement
@@ -58,11 +70,16 @@ La suite tourne à 2 workers contre un seul serveur (`node .output`), timeouts
 
 ## Avant de lancer
 
-- Charger `.env` dans le shell (PowerShell) puis `npm run build` — les e2e
-  servent `.output`, pas les sources.
-- Port 3000 libre ? `Get-NetTCPConnection -LocalPort 3000 -State Listen` :
-  un `node .output` résiduel (smoke test, session précédente) serait réutilisé
-  par Playwright (`reuseExistingServer`) avec un **vieux build** — le tuer.
+- `DATABASE_URL` dans le shell (PowerShell : `$env:DATABASE_URL = ...`), DB de dev
+  démarrée, puis `npm run generate` — le serveur e2e sert `.output/public`, pas les
+  sources. Docker Desktop démarré (l'image `api-runtime` est reconstruite à chaque
+  exécution : jamais de vieux binaire).
+- Port 3000 libre ? `Get-NetTCPConnection -LocalPort 3000 -State Listen` (un
+  `npm run dev` oublié). Le conteneur `hebdomiam-e2e` résiduel d'une exécution
+  interrompue est supprimé automatiquement au lancement suivant.
+- Après un `page.goto()`, attendre un élément rendu avant de mesurer quoi que ce
+  soit de global (`document.fonts.ready`, styles calculés) : en SPA le HTML initial
+  est une coquille vide — vécu avec le test de typographie de `design.spec.ts`.
 
 ## Diagnostic d'un échec
 

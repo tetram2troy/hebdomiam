@@ -1,0 +1,10 @@
+# Avis RustSec ignorés — uniquement des paquets présents dans Cargo.lock mais
+# JAMAIS compilés : sqlx verrouille ses pilotes MySQL et SQLite même quand
+# seule la fonctionnalité « postgres » est activée (api/Cargo.toml).
+# Vérification : `cargo tree -i rsa` et `cargo tree -i libsqlite3-sys`
+# répondent « nothing to print ». À retirer si un de ces pilotes est activé.
+[advisories]
+ignore = [
+    "RUSTSEC-2023-0071", # rsa (pilote MySQL de sqlx, non compilé)
+    "RUSTSEC-2026-0459", # libsqlite3-sys (pilote SQLite de sqlx, non compilé)
+]

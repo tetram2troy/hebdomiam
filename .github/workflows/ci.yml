@@ -5,13 +5,17 @@ on:
     branches: [main]
   pull_request:
 
+# Jeton en lecture seule par défaut ; chaque job élargit ce dont il a besoin.
+permissions:
+  contents: read
+
 jobs:
-  quality:
-    name: Lint, typecheck et tests unitaires
+  front:
+    name: Front — lint, typecheck et tests unitaires
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: 24
           cache: npm
@@ -20,8 +24,8 @@ jobs:
       - run: npm run typecheck
       - run: npm test
 
-  e2e:
-    name: Tests E2E (Playwright)
+  api:
+    name: API Rust — fmt, clippy et tests (unitaires + intégration)
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -38,21 +42,62 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     env:
-      NUXT_DATABASE_URL: postgresql://hebdomiam:hebdomiam@localhost:5432/hebdomiam
-      NUXT_SESSION_PASSWORD: ci-session-password-at-least-32-characters!
+      TEST_DATABASE_URL: postgresql://hebdomiam:hebdomiam@localhost:5432/hebdomiam_test
+    defaults:
+      run:
+        working-directory: api
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      # Même version que l'image Docker (api/Dockerfile.dev, Dockerfile).
+      - run: rustup toolchain install 1.100 --profile minimal --component rustfmt,clippy && rustup default 1.100
+      # Action tierce épinglée par SHA (v2.9.3).
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          workspaces: api
+      - run: cargo fmt --check
+      - run: cargo clippy --all-targets --locked -- -D warnings
+      - run: cargo test --locked
+
+  e2e:
+    name: Tests E2E (Playwright contre le binaire Rust)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: hebdomiam
+          POSTGRES_PASSWORD: hebdomiam
+          POSTGRES_DB: hebdomiam
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U hebdomiam -d hebdomiam"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://hebdomiam:hebdomiam@localhost:5432/hebdomiam
+      SESSION_PASSWORD: ci-session-password-at-least-32-characters!
+      # Binaire natif : e2e/server.ts le lance directement (pas de Docker).
+      E2E_API_BIN: ${{ github.workspace }}/api/target/release/hebdomiam
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: 24
           cache: npm
+      - run: rustup toolchain install 1.100 --profile minimal && rustup default 1.100
+      # Action tierce épinglée par SHA (v2.9.3).
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          workspaces: api
+      - run: cargo build --release --locked
+        working-directory: api
       - run: npm ci
       - run: npx playwright install --with-deps chromium
-      - run: npm run db:migrate
-      - run: npm run test:integration
-      - run: npm run build
+      - run: npm run generate
       - run: npm run test:e2e
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         if: failure()
         with:
           name: playwright-report
@@ -63,9 +108,9 @@ jobs:
     name: Build de l'image Docker
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: docker/setup-buildx-action@v4
-      - uses: docker/build-push-action@v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
+      - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
         with:
           context: .
           target: runtime

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 const localePath = useLocalePath()
-const route = useRoute()
+const token = useLinkToken()
 
 const state = ref<'pending' | 'done' | 'failed'>('pending')
 
@@ -8,7 +8,7 @@ onMounted(async () => {
   try {
     await $fetch('/api/auth/verify/confirm', {
       method: 'POST',
-      body: { token: String(route.query.token ?? '') },
+      body: { token: token },
     })
     state.value = 'done'
   }

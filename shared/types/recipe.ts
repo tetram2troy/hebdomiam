@@ -1,4 +1,4 @@
-import type { Aisle, Unit } from '../schemas/recipe'
+import type { Aisle, Unit } from '../catalog'
 
 // Formes renvoyées par l'API recettes (couche server/utils/recipe-repo.ts).
 

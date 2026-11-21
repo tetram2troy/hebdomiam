@@ -1,4 +1,4 @@
-import type { Aisle, Unit } from '../schemas/recipe'
+import type { Aisle, Unit } from '../catalog'
 
 export interface GroceryItemSourceDto {
   recipeTitle: string

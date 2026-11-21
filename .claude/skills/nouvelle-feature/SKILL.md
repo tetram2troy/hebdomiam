@@ -24,16 +24,18 @@ la fin de l'étape 7. Les règles de codage détaillées sont dans
 ## 2. Code
 
 Suivre [regles-de-codage.md](regles-de-codage.md). Rappel du strict minimum
-serveur : entrée validée Zod (`shared/schemas/`), accès DB dans un repo scopé
-`userId`, action critique journalisée (`logEvent`/`logWarn`), route sensible
-rate-limitée, erreurs = clés i18n, chaînes visibles dans `fr.json` **et**
-`en.json`, schéma modifié → `npm run db:generate`.
+API : entrée validée (`ValidJson`/`ValidPath`/`ValidQuery`), accès DB dans un
+repo scopé `user_id` (`api/src/repo/`), action critique journalisée
+(`log_event`/`log_warn`), route sensible rate-limitée, erreurs = clés i18n,
+chaînes visibles dans `fr.json` **et** `en.json`, schéma modifié → nouvelle
+migration SQL dans `api/migrations/`.
 
 ## 3. Tests
 
-- **Unitaires** (`tests/unit/`) : logique pure, nouveaux schémas Zod (bornes,
-  normalisation, refus).
-- **Intégration** (`tests/integration/`) : les fonctions repo contre la vraie DB.
+- **Unitaires** : logique pure et validation des entrées (bornes, normalisation,
+  refus) — `#[cfg(test)]` dans le module Rust ; `tests/unit/` pour le front.
+- **Intégration** (`api/tests/`) : les fonctions repo contre la vraie DB
+  (`TestDb::new()` = base dédiée au test), et la frontière HTTP (`tests/http.rs`).
   **Toute nouvelle ressource a son test IDOR** (Bob ne lit/modifie pas les
   données d'Alice → `null`, rien de modifié).
 - **E2E** (`e2e/`) : le parcours utilisateur réel. Lire la skill `e2e-stable`
@@ -51,9 +53,10 @@ les propriétés mesurables par une assertion `boundingBox()` dans le spec perma
 npm run lint
 npm run typecheck
 npm test
-npm run test:integration        # DB de dev démarrée
-npm run build                   # les e2e servent .output
-npm run test:e2e                # .env chargé dans le shell ; port 3000 libre
+npm run api:lint                # cargo fmt + clippy, dans Docker
+npm run api:test                # DB de dev démarrée
+npm run generate                # les e2e servent .output/public
+npm run test:e2e                # DATABASE_URL dans le shell ; port 3000 libre
 ```
 
 Un échec e2e n'est pas forcément une régression : diagnostiquer avec la skill
@@ -63,14 +66,14 @@ Un échec e2e n'est pas forcément une régression : diagnostiquer avec la skill
 
 Relire le diff avec cette grille — chaque « non » se corrige avant de continuer :
 
-- [ ] Toute entrée (body, params, query, fichier) passe par un schéma Zod ?
+- [ ] Toute entrée (body, params, query, fichier) passe par un extracteur validé ?
 - [ ] Toute requête DB métier remonte à `userId` via la couche repo — et le
       test IDOR le prouve ?
 - [ ] Les actions critiques sont journalisées **sans** secret, jeton, code TOTP,
       mot de passe ni contenu utilisateur (PII minimale : userId, IP) ?
-- [ ] Route d'auth / coûteuse (IA, courriel) → `assertRateLimit` ?
+- [ ] Route d'auth / coûteuse (IA, courriel) → `state.rate_limit` ?
 - [ ] Messages d'erreur non énumérants (pas de « ce compte existe ») ?
-- [ ] Fetch sortant → garde SSRF (`fetchExternalPage`), jamais `fetch` nu ?
+- [ ] Fetch sortant → `SafeFetcher` (garde SSRF), jamais un client HTTP nu ?
 - [ ] Upload → type réel vérifié (magic bytes) + ré-encodage ?
 - [ ] Aucun secret en dur ; configuration par variables d'environnement ?
 
@@ -78,8 +81,8 @@ Relire le diff avec cette grille — chaque « non » se corrige avant de contin
 
 Relire le diff contre [regles-de-codage.md](regles-de-codage.md) : nommage,
 structure des composants et des repos, tokens CSS (jamais de couleur en dur),
-i18n bilingue complet, `decimal` jamais `float`, imports explicites entre
-`server/utils/*`, `data-testid` sur les éléments testés, commentaires en
+i18n bilingue complet, `numeric` jamais `float`, clippy sans avertissement,
+`data-testid` sur les éléments testés, commentaires en
 français qui expliquent le *pourquoi*.
 
 ## 8. Documentation

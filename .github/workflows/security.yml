@@ -7,6 +7,10 @@ on:
   schedule:
     - cron: '0 6 * * 1' # tous les lundis
 
+# Jeton en lecture seule par défaut ; chaque job élargit ce dont il a besoin.
+permissions:
+  contents: read
+
 jobs:
   codeql:
     name: Analyse CodeQL
@@ -15,33 +19,54 @@ jobs:
       security-events: write
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       # v3 dépréciée en décembre 2026 (annotation GitHub) — ne pas attendre la casse.
-      - uses: github/codeql-action/init@v4
+      - uses: github/codeql-action/init@33d7b85da1a04171e211befe2c739303b9a4c066 # v4
         with:
-          languages: javascript-typescript
-      - uses: github/codeql-action/analyze@v4
+          # Front (TypeScript/Vue) et API (Rust).
+          languages: javascript-typescript,rust
+          config-file: ./.github/codeql/codeql-config.yml
+      - uses: github/codeql-action/analyze@33d7b85da1a04171e211befe2c739303b9a4c066 # v4
 
   audit:
-    name: Audit des dépendances
+    name: Audit des dépendances npm
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: 24
           cache: npm
       - run: npm ci
       # Bloquant sur les vulnérabilités high+ des dépendances de production
+      # (le front est généré au build : aucune dépendance npm ne tourne en prod).
       - run: npm audit --omit=dev --audit-level=high
+
+  cargo-audit:
+    name: Audit des dépendances Rust (RustSec)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+      checks: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      # Action tierce épinglée par SHA (v2.0.0).
+      - uses: rustsec/audit-check@69366f33c96575abad1ee0dba8212993eecbe998 # v2.0.0
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          working-directory: api
+          # Paquets verrouillés mais jamais compilés (pilotes MySQL/SQLite de
+          # sqlx) — justification et vérification dans api/.cargo/audit.toml.
+          ignore: RUSTSEC-2023-0071,RUSTSEC-2026-0459
 
   trivy:
     name: Scan Trivy de l'image
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: docker/setup-buildx-action@v4
-      - uses: docker/build-push-action@v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
+      - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
         with:
           context: .
           target: runtime

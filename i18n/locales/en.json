@@ -370,6 +370,8 @@
     "invalidImage": "Unsupported image format (JPEG, PNG or WebP).",
     "invalidPassword": "Incorrect password.",
     "invalidCode": "Invalid or expired code.",
+    "quotaExceeded": "Limit reached: delete some items before adding more.",
+    "totpAlreadyEnabled": "Two-factor authentication is already on. Turn it off first to set it up again.",
     "invalidToken": "Invalid or expired link.",
     "planExists": "A plan already exists for this week.",
     "notEnoughRecipes": "Not enough recipes to run the rotation — add some recipes first.",

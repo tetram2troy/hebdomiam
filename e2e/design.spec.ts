@@ -36,6 +36,9 @@ test.describe('thème clair', () => {
 
   test('typographie : Bricolage Grotesque (titres) et Figtree (texte) chargées et actives', async ({ page }) => {
     await page.goto('/login')
+    // SPA : le texte n'existe qu'après le rendu client — sans lui, aucune
+    // police n'est encore demandée et fonts.ready se résout à vide.
+    await expect(page.locator('h1').first()).toBeVisible()
     await page.evaluate(() => document.fonts.ready)
 
     expect(await page.evaluate(() => document.fonts.check('700 24px "Bricolage Grotesque"'))).toBe(true)

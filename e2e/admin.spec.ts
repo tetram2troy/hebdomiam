@@ -61,7 +61,7 @@ test('cycle admin : invitation, activation, désactivation effective, suppressio
   await page.getByTestId('admin-create-submit').click()
   await expect(page.getByTestId('admin-invite')).toBeVisible()
   const inviteUrl = await page.getByTestId('admin-invite-url').inputValue()
-  expect(inviteUrl).toContain('/invitation?token=')
+  expect(inviteUrl).toContain('/invitation#token=')
 
   // Verrou visuel : le champ du lien s'étire réellement dans le panneau
   // (régression déjà vécue sur les champs URL — voir commit 8c0ce81).

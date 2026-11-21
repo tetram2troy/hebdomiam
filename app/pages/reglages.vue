@@ -88,6 +88,7 @@ async function changePassword() {
 // ── 2FA TOTP ────────────────────────────────────────────────────────────────
 const totpSetup = ref<{ secret: string, qrSvg: string } | null>(null)
 const totpCode = ref('')
+const totpPassword = ref('')
 const totpBackup = ref('')
 const showTotpDisable = ref(false)
 const totpDisablePassword = ref('')
@@ -107,11 +108,12 @@ async function confirmTotp() {
   try {
     const { backupCode } = await $fetch<{ backupCode: string }>('/api/2fa/activate', {
       method: 'POST',
-      body: { code: totpCode.value },
+      body: { password: totpPassword.value, code: totpCode.value },
     })
     totpBackup.value = backupCode
     totpSetup.value = null
     totpCode.value = ''
+    totpPassword.value = ''
     if (profile.value) profile.value = { ...profile.value, totpEnabled: true }
   }
   catch (err) {
@@ -300,6 +302,11 @@ async function deleteAccount() {
         <div class="qr" v-html="totpSetup.qrSvg" />
         <p class="meta secret" data-testid="totp-secret">{{ $t('settings.totpSecret', { secret: totpSetup.secret }) }}</p>
         <form @submit.prevent="confirmTotp">
+          <!-- Mot de passe exigé : une session volée ne peut pas enrôler son propre authenticateur. -->
+          <label>
+            {{ $t('auth.password') }}
+            <input v-model="totpPassword" type="password" autocomplete="current-password" required data-testid="totp-password">
+          </label>
           <label>
             {{ $t('auth.totpCode') }}
             <input v-model="totpCode" type="text" inputmode="numeric" autocomplete="one-time-code" required minlength="6" maxlength="16" class="name-input">

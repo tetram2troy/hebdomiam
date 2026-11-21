@@ -6,60 +6,72 @@ semaine. Voir [PRD.md](PRD.md) pour la vision complète et la feuille de route.
 
 ## Stack
 
-Nuxt (front + API Nitro) · TypeScript strict · PostgreSQL + Drizzle ORM · Zod ·
-nuxt-auth-utils (sessions scellées, Argon2id) · @nuxtjs/i18n (FR/EN) · nuxt-security ·
-Docker · GitHub Actions
+- **Front** : Nuxt 4 en SPA (`ssr: false`, `nuxt generate`) · Vue 3 · TypeScript strict ·
+  @nuxtjs/i18n (FR/EN)
+- **API** : Rust — axum · sqlx (PostgreSQL) · sessions scellées AES-256-GCM · Argon2id ·
+  TOTP · import schema.org / API Claude — un seul binaire qui sert aussi le front
+- Docker (image distroless non-root) · GitHub Actions
+
+**Aucun compilateur Rust n'est requis sur le poste** : cargo, rustfmt et clippy tournent
+dans l'image de dev `api/Dockerfile.dev` via Docker Compose.
 
 ## Développement
 
 ```bash
-cp .env.example .env            # ajuster au besoin
-docker compose -f docker-compose.dev.yml up -d   # PostgreSQL local
+cp .env.example .env                              # ajuster au besoin
+docker compose -f docker-compose.dev.yml up -d    # PostgreSQL + API Rust (:8080, rechargement à chaud)
 npm install
-npm run db:migrate              # applique les migrations
-npm run dev                     # http://localhost:3000
+npm run dev                                       # front sur http://localhost:3000 (relaie /api)
 ```
+
+Au premier lancement, la compilation de l'API prend quelques minutes (dépendances mises
+en cache dans les volumes `cargo-*`). Le service `api` applique les migrations puis
+redémarre à chaque modification de `api/` (`npm run api:logs` pour suivre).
 
 ## Commandes
 
 | Commande | Rôle |
 |---|---|
-| `npm run dev` | Serveur de développement |
-| `npm run build` | Build de production |
-| `npm run lint` / `npm run typecheck` | Qualité statique |
-| `npm test` | Tests unitaires (Vitest) |
-| `npm run test:integration` | Tests d'intégration (Vitest + DB éphémère `hebdomiam_test`) |
-| `npm run test:e2e` | Tests E2E (Playwright — nécessite la DB et un build) |
-| `npm run db:generate` | Génère une migration depuis `server/database/schema.ts` |
-| `npm run db:migrate` | Applique les migrations |
+| `npm run dev` | Front de développement (proxy `/api` → API Rust) |
+| `npm run generate` | Génère le front (SPA) dans `.output/public` |
+| `npm run lint` / `npm run typecheck` / `npm test` | Front : qualité statique et tests unitaires (Vitest) |
+| `npm run api:test` | API : tests unitaires + intégration (base éphémère par test) |
+| `npm run api:lint` / `npm run api:fmt` | API : `cargo fmt --check` + `clippy -D warnings` / formatage |
+| `npm run api:cargo -- <args>` | N'importe quelle commande cargo, dans Docker |
+| `npm run test:e2e` | E2E Playwright contre le binaire Rust (après `npm run generate`) |
+
+Nouvelle migration : ajouter un fichier SQL numéroté dans `api/migrations/` (embarqué
+dans le binaire, appliqué par `hebdomiam migrate`).
 
 ## Déploiement (home lab)
 
 L'intégration au serveur passe par **[deploy/serveur-perso/](deploy/serveur-perso/README.md)** :
 image GHCR taguée (workflow `release.yml` sur tag `v*`), blocs à coller dans le compose
-unique du serveur, migrations en job dédié (`node .output/server/migrate.mjs`),
-sauvegarde `pg_dump`. L'app est exposée sur `recettes.${DOMAIN}` avec la chaîne de
-middlewares standard et `rate-limit-auth@file` sur `/api/auth` ; la base vit sur un
-réseau `internal: true` sans accès Internet. Gabarit d'origine : `docs/HOSTING.md`.
+unique du serveur, migrations en job dédié (`migrate`), sauvegarde `pg_dump`. L'app est
+exposée sur `recettes.${DOMAIN}` avec la chaîne de middlewares standard et
+`rate-limit-auth@file` sur `/api/auth` ; la base vit sur un réseau `internal: true` sans
+accès Internet. Gabarit d'origine : `docs/HOSTING.md`.
 
 Banc d'essai local du même modèle (build sur place) :
 
 ```bash
-cp .env.example .env   # renseigner DOMAIN, POSTGRES_PASSWORD, NUXT_SESSION_PASSWORD
+cp .env.example .env   # renseigner DOMAIN, POSTGRES_PASSWORD, SESSION_PASSWORD
 docker compose up -d --build
 ```
 
 ## Structure
 
 ```
-app/               Pages, composants, utilitaires client
-server/api/        Routes API (Nitro)
-server/database/   Schéma Drizzle + migrations
-server/utils/      DB, mots de passe (Argon2id), rate limiting, 2FA, courriels,
-                   journalisation structurée (logger.ts)
-shared/schemas/    Schémas Zod partagés client/serveur
+app/               Front : pages, composants, composables (session), utilitaires
+shared/            Types et énumérations partagés avec l'API (contrat JSON)
 i18n/locales/      Traductions FR/EN
-tests/unit/        Tests unitaires
-tests/integration/ Tests d'intégration (DB réelle, IDOR)
+api/src/           API Rust
+  domain/          Logique métier pure (unités, agrégation, rotation)
+  repo/            Accès base — isolation multi-utilisateur garantie ici
+  routes/          Handlers HTTP (validation des entrées)
+  import/          schema.org, API Claude, fetch durci SSRF, ré-encodage photo
+api/migrations/    Migrations SQL (embarquées dans le binaire)
+api/tests/         Tests d'intégration (base réelle, IDOR, HTTP de bout en bout)
+tests/unit/        Tests unitaires front
 e2e/               Tests Playwright
 ```

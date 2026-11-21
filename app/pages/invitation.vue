@@ -2,7 +2,7 @@
 // Acceptation d'une invitation : l'invité choisit son mot de passe via le lien
 // reçu (même flux que la réinitialisation — pas de session posée, connexion ensuite).
 const localePath = useLocalePath()
-const route = useRoute()
+const token = useLinkToken()
 const { t } = useI18n()
 
 const password = ref('')
@@ -16,7 +16,7 @@ async function submit() {
   try {
     await $fetch('/api/auth/invitation', {
       method: 'POST',
-      body: { token: String(route.query.token ?? ''), password: password.value },
+      body: { token: token, password: password.value },
     })
     done.value = true
   }

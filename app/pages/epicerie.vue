@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { AISLES, UNITS, type Aisle, type Unit } from '#shared/schemas/recipe'
+import { AISLES, UNITS, type Aisle, type Unit } from '#shared/catalog'
 import type { GroceryItemDto, GroceryListDto } from '#shared/types/grocery'
 
 definePageMeta({ middleware: 'auth' })

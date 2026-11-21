@@ -1,6 +1,7 @@
 # Hebdomiam sur serveur-perso — procédure d'intégration
 
-Application de planification de repas (Nuxt/Nitro + PostgreSQL 16).
+Application de planification de repas (API Rust servant un front Nuxt SPA +
+PostgreSQL 16). Image distroless de ~50 Mo, ~3 Mo de RAM au repos.
 URL cible : **https://recettes.${DOMAIN}** — couverte par le DNS wildcard et le
 certificat wildcard existants, aucune action DNS.
 
@@ -23,12 +24,29 @@ de cache disque) — seule la base PostgreSQL a un volume.
   sudo mkdir -p /app-tetram/hebdomiam/db
   sudo chown -R 70:70 /app-tetram/hebdomiam/db
   ```
-- Conteneur app : uid `node` (1000), aucun volume, `read_only` possible
-  (validé au build — voir §« Empreinte mesurée »).
+- Conteneur app : uid `nonroot` (65532), image distroless sans shell, aucun
+  volume ; `read_only: true` + `tmpfs: /tmp` sont appliqués dans `service.yml`.
+- **Résolution de l'IP client au périmètre** : l'app lit `cf-connecting-ip`
+  (posé par Cloudflare) pour son rate limiting d'auth et ses logs de sécurité,
+  **uniquement quand l'appelant direct est dans `TRUSTED_PROXIES`** : l'adresse
+  de Traefik sur le réseau `proxy`, en /32 — lui donner une IP fixe
+  (`ipv4_address`) plutôt que d'ouvrir tout le sous-réseau, sinon un autre
+  conteneur du réseau pourrait appeler l'app directement en forgeant l'en-tête
+  (voir `env.example`). L'app ne voit
+  que Traefik : c'est à Traefik de ne pas relayer un `cf-connecting-ip` forgé
+  par un client qui n'arrive pas par Cloudflare (accès LAN/Tailscale) —
+  middleware `headers` qui vide l'en-tête sur les entrypoints non Cloudflare,
+  ou entrypoint dédié. À défaut, les verrous par compte de l'app (10 échecs de
+  connexion / 5 codes 2FA erronés par quart d'heure) bornent le brute-force.
+  Côté Traefik, vérifier que `forwardedHeaders.trustedIPs` couvre les plages
+  Cloudflare et que le `sourceCriterion` des middlewares `rate-limit*` repose
+  sur l'IP client réelle — sinon rate limit et CrowdSec comptent/bannissent
+  l'**IP edge Cloudflare**, partagée par tous les visiteurs (auto-DoS : trois
+  chargements à froid simultanés suffiraient à déclencher des 429).
 
 ## 2. Déploiement initial
 
-1. Coller les deux services de `service.yml` sous `services:` du compose du
+1. Coller les trois services de `service.yml` sous `services:` du compose du
    serveur, et le réseau sous `networks:` :
    ```yaml
      hebdomiam-internal:
@@ -36,10 +54,9 @@ de cache disque) — seule la base PostgreSQL a un volume.
    ```
 2. Reporter le bloc de `service.security.yml` dans l'override de ressources.
 3. Ajouter les lignes de `env.example` au `.env` du serveur (secrets générés).
-4. Démarrer la base, migrer, puis démarrer l'app :
+4. Démarrer l'app — le job `hebdomiam-migrate` s'exécute automatiquement entre
+   la base et l'app (`depends_on`), qui ne démarre jamais sur un schéma non migré :
    ```bash
-   docker compose up -d hebdomiam-db
-   docker compose run --rm hebdomiam node .output/server/migrate.mjs
    docker compose up -d hebdomiam
    ```
 
@@ -52,27 +69,54 @@ S'inscrire immédiatement après la mise en ligne.
 ```bash
 docker inspect --format '{{.State.Health.Status}}' hebdomiam    # healthy
 docker logs hebdomiam --tail 20                                  # JSON une ligne/événement
-curl -s https://recettes.${DOMAIN}/api/health                    # {"status":"ok"}
+curl -s https://recettes.${DOMAIN}/healthz                       # {"status":"ok"}
 ```
 
-Le healthcheck vérifie que la base répond (`SELECT 1`) : `503 db-unreachable`
-si la DB est en panne. Une variable requise manquante fait échouer le
-démarrage immédiatement avec un message `[config] …` explicite.
+Le healthcheck (`/healthz`, alias `/api/health`) vérifie que la base répond
+(`SELECT 1`) : `503 db-unreachable` si la DB est en panne. Une variable requise
+manquante (`DATABASE_URL`, `SESSION_PASSWORD`, `PUBLIC_BASE_URL`,
+`SMTP_HOST`, `TRUSTED_PROXIES` — les anciens noms `NUXT_*` restent acceptés) fait échouer le démarrage immédiatement avec un message
+`[config] …` explicite — `service.yml` les fournit toutes.
 
 ## 4. Mise à jour / rollback
 
 Tag immuable + migrations de schéma ⇒ **jamais de Watchtower** (label déjà posé).
 
 ```bash
-# Mise à jour : changer le tag dans le compose (ex. 0.2.0), puis
-docker compose pull hebdomiam
-docker compose run --rm hebdomiam node .output/server/migrate.mjs
-docker compose up -d hebdomiam
+# Mise à jour : changer le tag dans le compose (ex. 0.2.0) — sur les DEUX
+# services hebdomiam et hebdomiam-migrate — puis
+docker compose pull hebdomiam hebdomiam-migrate
+docker compose up -d hebdomiam    # migre puis redémarre l'app
 
-# Rollback applicatif : remettre le tag précédent puis up -d.
+# Rollback applicatif : remettre le tag précédent (les deux services) puis up -d.
 # ⚠ Les migrations ne sont pas réversibles automatiquement : si la version
 # fautive a migré le schéma, restaurer d'abord le dump (voir §5).
 ```
+
+### Passage de 0.1.x (Nuxt/Nitro) à 0.2.0 (API Rust)
+
+- **`.env` du serveur** : deux lignes à ajouter, `HEBDOMIAM_TRUSTED_PROXIES` et
+  `HEBDOMIAM_APP_DB_PASSWORD` (voir `env.example`) ; les autres variables
+  `HEBDOMIAM_*` sont inchangées.
+- **Rôle base de données** : l'app ne se connecte plus en propriétaire de la
+  base. Le job `hebdomiam-migrate` (seul à garder le rôle propriétaire) crée
+  le rôle `hebdomiam_app` — lecture et écriture des données, ni DDL ni
+  superutilisateur — avec `HEBDOMIAM_APP_DB_PASSWORD`.
+- **`APP_ENV`** : ne pas le définir (l'image pose `production`). Toute valeur
+  autre que `development` ou `test` est traitée comme la production, et les
+  drapeaux de test (`TRUST_XFF`, `IMPORT_ALLOW_PRIVATE`) y font échouer le
+  démarrage.
+- Reprendre le bloc `service.yml` : noms de variables d'environnement
+  (`DATABASE_URL`…), healthcheck (`/app/hebdomiam healthcheck` — plus de
+  `node` dans l'image), commande du job de migration (`migrate`), tag `0.2.0`.
+- **Migrations** : le job reprend l'historique Drizzle existant
+  (`drizzle.__drizzle_migrations`) sans rien rejouer — aucun changement de
+  schéma dans cette version. Faire tout de même un dump avant (§5).
+- **Sessions** : le format du cookie change (`hebdomiam-session`) — tout le
+  monde se reconnecte une fois. Les mots de passe et les secrets 2FA existants
+  restent valides (mêmes Argon2id et TOTP).
+- `service.security.yml` : limite inchangée (384M, marge pour l'import photo),
+  réservation abaissée à 32M.
 
 ## 5. Sauvegarde / restauration (bloc pour backup.sh)
 
@@ -97,38 +141,39 @@ global, mais seul le dump garantit une restauration cohérente.
 
 ## 6. Moniteur Uptime Kuma
 
-- URL : `https://recettes.${DOMAIN}/api/health`
+- URL : `https://recettes.${DOMAIN}/healthz`
 - Mot-clé attendu : `ok`
 - Intervalle : 60 s
 - Le moniteur tombe aussi si la base est en panne (503) — c'est voulu.
 
-## 7. En-têtes de sécurité — un écart CSP à traiter
+## 7. En-têtes de sécurité — la CSP appartient à l'app
 
-`secure-headers@file` applique `default-src 'self'` : or les **photos de
-recettes sont des URL externes** fournies par l'utilisateur (`<img src>` vers
-n'importe quel site de recettes). Avec la CSP par défaut, ces images seront
-bloquées silencieusement (visible seulement en console navigateur).
+Depuis la 0.2.0, **l'app pose elle-même sa politique de sécurité du contenu**
+(et `frame-ancestors`, `nosniff`, HSTS, `Referrer-Policy`…), calculée au
+démarrage : scripts de sa propre origine, plus les scripts inline de la
+coquille générée autorisés par leur empreinte SHA-256 ; `img-src 'self' https:
+data:` pour les photos de recettes (URL externes).
 
-Deux options côté infra, par ordre de préférence :
+Côté Traefik, **ne pas ajouter de CSP sur ce routeur** : deux CSP se cumulent
+(le navigateur applique l'intersection), et le `default-src 'self'` de
+`secure-headers@file` bloquerait les scripts inline légitimes et les photos.
+Utiliser pour `recettes.${DOMAIN}` un middleware d'en-têtes sans directive CSP
+Les autres en-têtes du middleware peuvent rester ; comme Traefik remplace ceux
+de l'app, vérifier que `Referrer-Policy` reste bien `no-referrer`.
 
-1. Essayer `secure-headers-media@file` (CSP plus permissive existante) sur le
-   routeur principal — vérifier qu'elle autorise bien `img-src https:`.
-2. Sinon, créer un middleware dédié `hebdomiam-headers` identique à
-   `secure-headers` avec pour seule différence :
-   `img-src 'self' https: data:`.
+Vérification après déploiement :
 
-Tout le reste est auto-hébergé (fontes en `/fonts/*.woff2`, aucun CDN, aucun
-`fetch` cross-origin côté navigateur, pas d'iframe, pas de service worker) —
-la CSP restrictive convient pour `script-src`, `style-src`, `connect-src`.
-
+```bash
+curl -sI https://recettes.${DOMAIN}/login | grep -i content-security-policy   # une seule ligne
+```
 ## 8. Choix validés (référence)
 
 | Sujet | Décision |
 |---|---|
 | Rate limit | `rate-limit@file` (100/min) suffit : ~35 requêtes au chargement à froid (53 chunks au total, jamais tous chargés d'un coup), puis cache navigateur. |
 | Geo-blocking | `geoblock-eu-na@file` conservé — décision PRD : en voyage hors EU/NA, accès via Tailscale/LAN. Aucun webhook entrant. |
-| Auth | Gérée par l'app (sessions scellées, Argon2id, 2FA TOTP) + routeur `rate-limit-auth@file` sur `/api/auth`. Pas de basic auth Traefik. Routes publiques : `/api/health`, `/api/auth/*` (invitation, reset — déjà rate-limitées). |
-| Corps de requête | Import photo ≤ 10 Mo par image (max 3) — loin du plafond Cloudflare (100 Mo). Pas de DNS non proxifié nécessaire. |
+| Auth | Gérée par l'app (sessions scellées, Argon2id, 2FA TOTP) + routeur `rate-limit-auth@file` sur `/api/auth`. Pas de basic auth Traefik. Routes publiques : `/healthz` (alias `/api/health`), `/api/auth/*` (invitation, reset — déjà rate-limitées). |
+| Corps de requête | Import photo ≤ 10 Mo par image (max 3) ; plafond applicatif 35 Mo par requête multipart, 2 Mo en JSON — loin du plafond Cloudflare (100 Mo). Pas de DNS non proxifié nécessaire. |
 | Timeouts | Extractions IA : réponse en 15-45 s typiquement, sous le readTimeout. À surveiller (voir §9). |
 | WebSocket / SSE | Aucun. |
 | Tâches planifiées | Aucune in-process. Sauvegarde = cron hôte existant (§5). |
@@ -143,6 +188,14 @@ la CSP restrictive convient pour `script-src`, `style-src`, `connect-src`.
 - **Première inscription** : la fenêtre « instance vierge » est ouverte entre
   `up -d` et ta première inscription — la faire immédiatement (le rate limit
   auth 5/min et le geoblock réduisent déjà l'exposition).
-- **CSP** : tant que l'écart §7 n'est pas traité, les photos de recettes
-  externes ne s'afficheront pas (placeholder illustré à la place — pas de
-  casse fonctionnelle).
+- **CSP** : si le routeur Traefik garde sa propre CSP en plus de celle de
+  l'app (§7), l'interface peut ne pas démarrer (scripts inline bloqués) et les
+  photos externes ne s'affichent pas.
+- **Liens par courriel** : le jeton est dans le fragment de l'URL (`#token=…`),
+  jamais envoyé au serveur — il n'apparaît pas dans les journaux d'accès.
+- **Quota IA** : 40 extractions facturées par compte et par jour, compteur en
+  mémoire (remis à zéro au redémarrage du conteneur).
+- **Drapeaux de test — jamais en production** : `IMPORT_ALLOW_PRIVATE`
+  (débranche la garde SSRF de l'import URL) et `TRUST_XFF` (fait confiance
+  à `X-Forwarded-For`, usurpable). Aucun des deux ne figure dans `service.yml` ;
+  ne jamais les y ajouter.

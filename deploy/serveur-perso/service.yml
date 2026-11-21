@@ -1,6 +1,6 @@
 # Hebdomiam — blocs à coller dans le docker-compose.yml du serveur.
 #
-# 1. Les deux services ci-dessous vont sous « services: » (indentation 2 espaces).
+# 1. Les trois services ci-dessous vont sous « services: » (indentation 2 espaces).
 # 2. Ajouter le réseau interne au bloc « networks: » de fin de fichier :
 #        hebdomiam-internal:
 #          internal: true
@@ -10,22 +10,33 @@
 
   hebdomiam:
     # Tag immuable, jamais « latest » (migrations de schéma → mises à jour
-    # supervisées, voir README). NB : le tag git « v0.1.0 » produit l'image
-    # « 0.1.0 » (metadata-action retire le v).
-    image: ghcr.io/tetram2troy/hebdomiam:0.1.1
+    # supervisées, voir README). NB : le tag git « v0.2.0 » produit l'image
+    # « 0.2.0 » (metadata-action retire le v).
+    image: ghcr.io/tetram2troy/hebdomiam:0.2.0
     container_name: hebdomiam
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
+    # Aucun état dans le conteneur : système de fichiers en lecture seule,
+    # /tmp en tmpfs (image distroless sans shell, binaire Rust non-root).
+    read_only: true
+    tmpfs:
+      - /tmp
     networks:
       - proxy                # Traefik + sortie Internet (API Claude, SMTP)
       - hebdomiam-internal   # base de données
     environment:
       - TZ=${TZ:-America/Toronto}
-      - NUXT_DATABASE_URL=postgresql://hebdomiam:${HEBDOMIAM_POSTGRES_PASSWORD}@hebdomiam-db:5432/hebdomiam
-      - NUXT_SESSION_PASSWORD=${HEBDOMIAM_SESSION_PASSWORD}
+      # Rôle applicatif à privilèges minimaux (créé par hebdomiam-migrate) :
+      # lecture/écriture des données, ni DDL ni superutilisateur.
+      - DATABASE_URL=postgresql://hebdomiam_app:${HEBDOMIAM_APP_DB_PASSWORD}@hebdomiam-db:5432/hebdomiam
+      - SESSION_PASSWORD=${HEBDOMIAM_SESSION_PASSWORD}
       # Base des liens dans les courriels (vérification, invitation, reset)
-      - NUXT_PUBLIC_BASE_URL=https://recettes.${DOMAIN}
+      - PUBLIC_BASE_URL=https://recettes.${DOMAIN}
+      # Seul Traefik peut fournir cf-connecting-ip : son adresse sur le réseau
+      # « proxy », en /32 (lui donner une IP fixe). Tout autre appelant — y
+      # compris un autre conteneur du réseau — est identifié par son IP socket.
+      - TRUSTED_PROXIES=${HEBDOMIAM_TRUSTED_PROXIES}
       # Relais SMTP partagé du serveur (Brevo) — variables existantes réutilisées
       - SMTP_HOST=${SMTP_HOST}
       - SMTP_PORT=${SMTP_PORT}
@@ -39,12 +50,16 @@
     depends_on:
       hebdomiam-db:
         condition: service_healthy
+      # L'app ne démarre jamais sur un schéma non migré.
+      hebdomiam-migrate:
+        condition: service_completed_successfully
     healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      # Sonde intégrée au binaire (image sans shell ni curl)
+      test: ["CMD", "/app/hebdomiam", "healthcheck"]
       interval: 30s
       timeout: 5s
       retries: 3
-      start_period: 20s
+      start_period: 10s
     labels:
       - "traefik.enable=true"
       # Routeur principal
@@ -63,6 +78,32 @@
       - "traefik.http.services.hebdomiam.loadbalancer.server.port=3000"
       - "traefik.docker.network=proxy"
       # Tag immuable + migrations de schéma : mises à jour manuelles (README)
+      - "com.centurylinklabs.watchtower.enable=false"
+
+  # Migrations en job dédié (jamais au boot de l'app) : relancé à chaque
+  # `docker compose up`, inoffensif quand le schéma est déjà à jour. Même image
+  # que l'app — penser à changer les DEUX tags lors d'une mise à jour.
+  hebdomiam-migrate:
+    image: ghcr.io/tetram2troy/hebdomiam:0.2.0
+    container_name: hebdomiam-migrate
+    command: ["migrate"]
+    restart: "no"
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
+    networks:
+      - hebdomiam-internal
+    environment:
+      # Seul ce job se connecte en propriétaire ; il crée/actualise le rôle
+      # hebdomiam_app avec ce mot de passe.
+      - DATABASE_URL=postgresql://hebdomiam:${HEBDOMIAM_POSTGRES_PASSWORD}@hebdomiam-db:5432/hebdomiam
+      - APP_DB_PASSWORD=${HEBDOMIAM_APP_DB_PASSWORD}
+    depends_on:
+      hebdomiam-db:
+        condition: service_healthy
+    labels:
       - "com.centurylinklabs.watchtower.enable=false"
 
   hebdomiam-db:

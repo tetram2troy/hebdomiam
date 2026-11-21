@@ -1,7 +1,25 @@
+// Front Hebdomiam : SPA générée (`nuxt generate` → .output/public), servie
+// en production par le binaire Rust de l'API (api/). Plus de serveur Node :
+// l'authentification, les en-têtes de sécurité et les limites de requête
+// vivent dans l'API (api/src/app.rs).
+const apiOrigin = process.env.API_ORIGIN ?? 'http://localhost:8080'
+
 export default defineNuxtConfig({
-  modules: ['@nuxt/eslint', '@nuxtjs/i18n', 'nuxt-auth-utils', 'nuxt-security'],
+  modules: ['@nuxt/eslint', '@nuxtjs/i18n'],
+
+  ssr: false,
 
   devtools: { enabled: true },
+
+  app: {
+    head: {
+      // Sans favicon déclaré, chaque navigateur demande /favicon.ico.
+      link: [{ rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' }],
+      // Thème appliqué avant la peinture — fichier externe (bloquant, minuscule)
+      // et non script inline : la CSP posée par l'API n'en autorise aucun.
+      script: [{ src: '/theme-init.js' }],
+    },
+  },
 
   css: [
     '~/assets/css/tokens.css',
@@ -15,12 +33,15 @@ export default defineNuxtConfig({
     strict: true,
   },
 
-  runtimeConfig: {
-    // Surchargé par NUXT_DATABASE_URL
-    databaseUrl: '',
-    session: {
-      maxAge: 60 * 60 * 24 * 7, // 7 jours
-      password: '', // surchargé par NUXT_SESSION_PASSWORD (min 32 caractères)
+  // Développement : `npm run dev` sert le front et relaie /api vers l'API Rust
+  // (service `api` de docker-compose.dev.yml). L'en-tête Host d'origine est
+  // conservé : les liens de courriels pointent vers le front (:3000).
+  $development: {
+    nitro: {
+      devProxy: {
+        '/api': { target: `${apiOrigin}/api`, changeOrigin: false },
+        '/healthz': { target: `${apiOrigin}/healthz`, changeOrigin: false },
+      },
     },
   },
 
@@ -31,19 +52,5 @@ export default defineNuxtConfig({
       { code: 'fr', language: 'fr-CA', name: 'Français', file: 'fr.json' },
       { code: 'en', language: 'en-CA', name: 'English', file: 'en.json' },
     ],
-  },
-
-  security: {
-    headers: {
-      // La CSP est la propriété du middleware Traefik secure-headers@file du home lab
-      // (PRD §8) — arbitrage à réévaluer au jalon M5.
-      contentSecurityPolicy: false,
-    },
-    // Pas de CORS : l'API n'est consommée que par le front même origine.
-    // Le défaut du module émettait Access-Control-Allow-Origin: *.
-    corsHandler: false,
-    // Rate limiting global désactivé : limiteur applicatif ciblé sur les routes d'auth
-    // (server/utils/rate-limit.ts) + rate-limit-auth@file côté Traefik.
-    rateLimiter: false,
   },
 })
