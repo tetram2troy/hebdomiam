@@ -16,7 +16,7 @@ path = "src/main.rs"
 axum = { version = "0.8", features = ["multipart"] }
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "signal", "net", "time", "sync"] }
 tower = "0.5"
-tower-http = { version = "0.6", features = ["fs", "set-header"] }
+tower-http = { version = "0.7", features = ["fs", "set-header"] }
 
 # Base de données — requêtes paramétrées à l'exécution (pas de macros :
 # la compilation n'a jamais besoin d'une base)
