@@ -198,6 +198,22 @@ input[type='checkbox'] {
   color: var(--md-sys-color-on-secondary-container);
 }
 
+/* Chips cliquables (<button class="chip">) : sans ces règles, `button:hover`
+   — plus spécifique que `.chip` — les peint en primaire, texte sombre sur vert.
+   Sur écran tactile le survol reste « collé » après le toucher : le défaut y
+   est visible à chaque filtre retiré. Calque d'état MD3 sur la couleur propre. */
+button.chip:hover {
+  background: color-mix(in srgb, var(--md-sys-color-on-secondary-container) calc(100% * var(--md-sys-state-hover-state-layer-opacity)), var(--md-sys-color-secondary-container));
+}
+
+button.chip-filter:hover {
+  background: color-mix(in srgb, var(--md-sys-color-on-surface) calc(100% * var(--md-sys-state-hover-state-layer-opacity)), transparent);
+}
+
+button.chip-filter[aria-pressed='true']:hover {
+  background: color-mix(in srgb, var(--md-sys-color-on-secondary-container) calc(100% * var(--md-sys-state-hover-state-layer-opacity)), var(--md-sys-color-secondary-container));
+}
+
 /* ---------------------------------------------------------------------------
    Cartes, squelettes, méta
    -------------------------------------------------------------------------- */
