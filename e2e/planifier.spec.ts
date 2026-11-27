@@ -146,3 +146,40 @@ test('garde-fous et rotation : collection trop petite, puis exclusion des cuisin
   await expect(page.getByTestId('suggestion-card').locator('.title').filter({ hasText: neverCooked }))
     .toHaveCount(1)
 })
+
+test.describe('mobile (375 px)', () => {
+  test.use({ viewport: { width: 375, height: 812 } })
+
+  test('une colonne : le panneau Remplacer arrive à l\'écran, le pied de page reste lisible', async ({ page }) => {
+    await registerFreshUser(page)
+    for (const title of ['Plat A', 'Plat B', 'Plat C', 'Plat D', 'Plat E']) {
+      await apiRecipe(page, title)
+    }
+    await page.goto('/planifier')
+    // Attendre l'hydratation : un clic trop tôt n'atteint pas le gestionnaire Vue.
+    await page.waitForLoadState('networkidle')
+    await page.getByTestId('propose').click()
+    await expect(page.getByTestId('suggestion-card')).toHaveCount(4)
+
+    // Fil d'étapes : une seule ligne (les trois libellés se repliaient sur
+    // deux), seul celui de l'étape en cours reste affiché.
+    const steps = page.getByTestId('plan-steps')
+    expect((await steps.boundingBox())!.height).toBeLessThanOrEqual(32)
+    await expect(steps.getByText('Suggestions')).toBeInViewport({ ratio: 1 })
+
+    // Pied de page : la phrase d'aide passe au-dessus du bouton (elle était
+    // écrasée dans une colonne de quelques dizaines de pixels à côté de lui).
+    const hint = await page.getByTestId('accept-all-hint').boundingBox()
+    const cta = await page.getByTestId('validate-week').boundingBox()
+    expect(hint!.width).toBeGreaterThan(200)
+    expect(hint!.y + hint!.height).toBeLessThanOrEqual(cta!.y)
+
+    // Le panneau naît sous les 4 cartes empilées : il doit être amené à l'écran…
+    await page.getByTestId('open-replace').first().click()
+    await expect(page.getByTestId('replace-panel')).toBeInViewport({ ratio: 0.5 })
+
+    // … et la fermeture ramène à la carte d'origine.
+    await page.getByRole('button', { name: '✕ Fermer' }).click()
+    await expect(page.getByTestId('suggestion-card').first()).toBeInViewport({ ratio: 0.5 })
+  })
+})

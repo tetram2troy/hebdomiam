@@ -48,6 +48,13 @@ revue de la skill `relecture`. Chaque règle vient d'une leçon du projet.
       l'administration) ; le middleware client n'est qu'un garde d'affichage,
       la vraie autorisation est côté serveur.
 - [ ] `data-testid` en kebab-case sur tout élément qu'un test cible.
+- [ ] Ordre visuel = ordre du DOM : pour remonter un élément (tag actif, action
+      contextuelle), réordonner dans le gabarit (`computed`), jamais par `order` CSS —
+      tabulation et lecteurs d'écran suivraient l'ancien ordre (design-system §9). Un
+      bouton qui se déplace ou disparaît au clic rend le focus à un voisin visible.
+- [ ] Chip cliquable = `<button class="chip">` : son survol est défini dans `base.css`
+      (sinon `button:hover`, plus spécifique, la peint en primaire) ; nom accessible =
+      libellé visible (pas d'`aria-label` qui le contredit).
 - [ ] Zone de texte pouvant recevoir un texte long (import, étape, nom) : directive
       `v-autogrow` (`app/plugins/autogrow.ts`) plutôt qu'un `rows` fixe — un texte
       importé doit se relire sans défiler dans un petit cadre.

@@ -33,7 +33,7 @@ async function logout() {
 
 <template>
   <div class="layout">
-    <header class="topnav">
+    <header class="topnav" :class="{ authed: loggedIn }">
       <NuxtLink :to="localePath('/')" class="brand">
         <svg class="brand-mark" width="26" height="26" viewBox="0 0 34 34" fill="none" aria-hidden="true">
           <rect x="2" y="2" width="30" height="30" rx="15" fill="var(--md-sys-color-primary)" />
@@ -69,6 +69,7 @@ async function logout() {
     <main class="main">
       <NuxtPage />
     </main>
+    <HbTabBar v-if="loggedIn" />
   </div>
 </template>
 
@@ -106,6 +107,17 @@ async function logout() {
 
 .topnav-end {
   margin-left: auto;
+}
+
+/* < 1024 px, connecté : la navigation passe dans la barre d'onglets basse
+   (HbTabBar) et la barre haute se réduit au wordmark — langue, déconnexion et
+   administration restent accessibles depuis Réglages. Déconnecté, la barre
+   haute garde langue et connexion : elles tiennent sur une ligne. */
+@media (max-width: 1023px) {
+  .topnav.authed .nav,
+  .topnav.authed .topnav-end {
+    display: none;
+  }
 }
 
 .nav-link {

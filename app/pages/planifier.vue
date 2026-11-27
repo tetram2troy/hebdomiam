@@ -142,11 +142,41 @@ async function loadOptions() {
   }
 }
 
-function openReplace(item: PlanRecipeDto) {
+// Le panneau vit sous la grille : en une colonne (mobile) il s'ouvre hors
+// écran. On l'amène donc à l'écran à l'ouverture, et on revient à la carte
+// concernée à la fermeture.
+const suggGrid = ref<HTMLElement | null>(null)
+const replacePanel = ref<HTMLElement | null>(null)
+let replacingPosition: number | null = null
+
+function scrollBehavior(): ScrollBehavior {
+  return window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'
+}
+
+async function openReplace(item: PlanRecipeDto) {
   replacing.value = item
+  replacingPosition = item.position
   replaceMode.value = 'search'
   replaceQuery.value = ''
   options.value = []
+  await nextTick()
+  const panel = replacePanel.value
+  if (!panel) return
+  const top = panel.getBoundingClientRect().top
+  if (top < 0 || top > window.innerHeight - 160) {
+    panel.scrollIntoView({ block: 'start', behavior: scrollBehavior() })
+  }
+}
+
+async function closeReplace() {
+  replacing.value = null
+  const position = replacingPosition
+  replacingPosition = null
+  if (position === null) return
+  await nextTick()
+  suggGrid.value
+    ?.querySelector(`[data-position="${position}"]`)
+    ?.scrollIntoView({ block: 'nearest', behavior: scrollBehavior() })
 }
 
 async function chooseReplacement(option: ReplacementOption) {
@@ -157,7 +187,7 @@ async function chooseReplacement(option: ReplacementOption) {
       method: 'POST',
       body: { recipeId: option.id },
     })
-    replacing.value = null
+    await closeReplace()
   }
   catch (err) {
     error.value = errorMessage(err, t)
@@ -177,12 +207,12 @@ function totalMinutes(item: PlanRecipeDto): number {
 
 <template>
   <div>
-    <nav class="steps" :aria-label="$t('plan.title')">
-      <span class="step" :class="{ on: phase === 'params' }"><i>1</i> {{ $t('plan.stepParams') }}</span>
+    <nav class="steps" :aria-label="$t('plan.title')" data-testid="plan-steps">
+      <span class="step" :class="{ on: phase === 'params' }"><i>1</i> <span class="step-label">{{ $t('plan.stepParams') }}</span></span>
       <span class="sep" aria-hidden="true" />
-      <span class="step" :class="{ on: phase === 'suggestions' }"><i>2</i> {{ $t('plan.stepSuggestions') }}</span>
+      <span class="step" :class="{ on: phase === 'suggestions' }"><i>2</i> <span class="step-label">{{ $t('plan.stepSuggestions') }}</span></span>
       <span class="sep" aria-hidden="true" />
-      <span class="step" :class="{ on: phase === 'done' }"><i>3</i> {{ $t('plan.stepValidation') }}</span>
+      <span class="step" :class="{ on: phase === 'done' }"><i>3</i> <span class="step-label">{{ $t('plan.stepValidation') }}</span></span>
     </nav>
 
     <p v-if="error" class="error" role="alert">{{ error }}</p>
@@ -232,10 +262,11 @@ function totalMinutes(item: PlanRecipeDto): number {
         <span class="meta">{{ $t('plan.portionsEach', { n: plan.recipes[0]?.targetServings ?? 0 }) }}</span>
       </div>
 
-      <div class="sugg-grid">
+      <div ref="suggGrid" class="sugg-grid">
         <article
           v-for="item in plan.recipes"
           :key="item.id"
+          :data-position="item.position"
           class="card sugg"
           :class="{ ok: item.status === 'accepted', busy: busyItemId === item.id }"
           data-testid="suggestion-card"
@@ -273,10 +304,10 @@ function totalMinutes(item: PlanRecipeDto): number {
       </div>
 
       <!-- Panneau remplacer -->
-      <div v-if="replacing" class="replace" role="dialog" :aria-label="$t('plan.replaceTitle', { title: replacing.recipe.title })" data-testid="replace-panel">
+      <div v-if="replacing" ref="replacePanel" class="replace" role="dialog" :aria-label="$t('plan.replaceTitle', { title: replacing.recipe.title })" data-testid="replace-panel">
         <div class="replace-head">
           <h2>{{ $t('plan.replaceTitle', { title: replacing.recipe.title }) }}</h2>
-          <button type="button" class="btn-text" @click="replacing = null">✕ {{ $t('plan.close') }}</button>
+          <button type="button" class="btn-text" @click="closeReplace">✕ {{ $t('plan.close') }}</button>
         </div>
         <div class="modes">
           <button type="button" class="chip chip-filter" :aria-pressed="replaceMode === 'search'" @click="replaceMode = 'search'">{{ $t('plan.modeSearch') }}</button>
@@ -309,7 +340,7 @@ function totalMinutes(item: PlanRecipeDto): number {
       </div>
 
       <div class="footer-bar">
-        <span class="meta grow">{{ $t('plan.acceptAllHint') }}</span>
+        <span class="meta grow" data-testid="accept-all-hint">{{ $t('plan.acceptAllHint') }}</span>
         <button type="button" class="big-cta" :disabled="validating" data-testid="validate-week" @click="validateWeek">
           {{ $t('plan.validateWeek') }}
         </button>
@@ -377,6 +408,24 @@ function totalMinutes(item: PlanRecipeDto): number {
 .sep {
   flex: 0 0 24px;
   border-top: 2px solid var(--md-sys-color-outline-variant);
+}
+
+/* Mobile : les trois libellés ne tiennent pas sur une ligne — seul celui de
+   l'étape en cours reste affiché (les autres restent lus par les lecteurs
+   d'écran). */
+@media (max-width: 480px) {
+  .steps {
+    flex-wrap: nowrap;
+  }
+
+  .step:not(.on) .step-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
 }
 
 .params {
@@ -545,6 +594,7 @@ function totalMinutes(item: PlanRecipeDto): number {
   margin-bottom: var(--hb-space-4);
   display: grid;
   gap: var(--hb-space-3);
+  scroll-margin-top: var(--hb-space-4);
 }
 
 .replace-head {
@@ -618,6 +668,12 @@ function totalMinutes(item: PlanRecipeDto): number {
 .footer-bar .big-cta {
   width: auto;
   flex: 1 1 280px;
+}
+
+/* Base non nulle : sur mobile la phrase passe au-dessus du bouton au lieu
+   d'être écrasée à côté (le `.grow` générique a une base de 0). */
+.footer-bar .grow {
+  flex: 1 1 220px;
 }
 
 .done {

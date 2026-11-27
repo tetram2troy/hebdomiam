@@ -132,3 +132,178 @@ test('un utilisateur ne voit pas les recettes d\'un autre (isolation)', async ({
   await expect(bobPage.getByText('Introuvable', { exact: false })).toBeVisible()
   await bob.close()
 })
+
+test.describe('mobile (375 px)', () => {
+  test.use({ viewport: { width: 375, height: 812 } })
+
+  test('liste et fiche : filtres sur une rangée, feuille « Tous les tags », ingrédients lisibles', async ({ page }) => {
+    await registerFreshUser(page)
+
+    // 19 tags sur 2 recettes : enroulés, ils repoussaient la première carte
+    // plusieurs écrans plus bas. « végé » est partagé → il arrive en tête.
+    const recipes = [
+      { title: 'Chili du dimanche', ingredient: 'patates douces moyennes, pelées et coupées en cubes', tags: ['végé', 'mijoté', 'réconfort', 'se congèle', 'hiver', 'haricots', 'tex-mex', 'économique', 'épicé', 'une casserole'] },
+      { title: 'Salade de quinoa', ingredient: 'quinoa', tags: ['végé', 'rapide', 'été', 'lunch', 'froid', 'sans cuisson', 'protéines', 'léger', 'citron', 'herbes'] },
+    ]
+    for (const recipe of recipes) {
+      const status = await page.evaluate(async (payload) => {
+        const res = await fetch('/api/recipes', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        })
+        return res.status
+      }, {
+        title: recipe.title,
+        tags: recipe.tags,
+        baseServings: 4,
+        ingredients: [{ quantity: 2, unit: 'unit', name: recipe.ingredient, aisle: 'produce' }],
+        steps: ['Tout mélanger.'],
+      })
+      expect(status).toBe(201)
+    }
+
+    await page.goto('/recettes')
+    await page.waitForLoadState('networkidle') // hydratation avant de cliquer
+    await expect(page.getByTestId('recipe-card')).toHaveCount(2)
+
+    // Une seule rangée, et la première recette est visible sans défiler.
+    const filters = page.getByRole('group', { name: 'Filtres' })
+    expect((await filters.boundingBox())!.height).toBeLessThanOrEqual(64)
+    expect((await page.getByTestId('recipe-card').first().boundingBox())!.y).toBeLessThan(420)
+    // La rangée défile dans son cadre : la page, elle, ne déborde pas.
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
+    expect(overflow).toBeLessThanOrEqual(0)
+
+    // Survol (qui reste « collé » après un toucher sur mobile) : la chip garde
+    // un fond quasi transparent — `button:hover` la peignait en vert primaire
+    // opaque, texte sombre dessus.
+    const firstChip = filters.getByRole('button', { name: 'végé' })
+    await firstChip.hover()
+    await expect.poll(async () => {
+      const background = await firstChip.evaluate(el => getComputedStyle(el).backgroundColor)
+      const alpha = /[/,]\s*([\d.]+)\)$/.exec(background)?.[1]
+      return background.startsWith('rgb(') ? 1 : Number(alpha ?? 1)
+    }).toBeLessThan(0.2)
+
+    // « Tous · 19 » ouvre la feuille : tous les tags, du plus utilisé au moins utilisé.
+    const allTags = page.getByTestId('all-tags')
+    await expect(allTags).toHaveText('Tous · 19')
+    await allTags.click()
+    const sheet = page.getByTestId('tag-sheet')
+    await expect(sheet).toBeVisible()
+    const options = sheet.getByTestId('tag-sheet-option')
+    await expect(options).toHaveCount(19)
+    await expect(options.first()).toHaveText('végé · 2')
+
+    // Recherche sans accent → le tag accentué. La feuille garde sa hauteur :
+    // tassée en bas d'écran, elle passerait sous le clavier du téléphone.
+    const sheetBefore = (await sheet.boundingBox())!
+    await sheet.getByTestId('tag-sheet-search').fill('epice')
+    await expect(options).toHaveCount(1)
+    expect((await sheet.boundingBox())!.height).toBe(sheetBefore.height)
+    expect((await options.first().boundingBox())!.y).toBeLessThan(400)
+    // Le choisir ferme la feuille.
+    await options.first().click()
+    await expect(sheet).toBeHidden()
+
+    // Le filtre s'applique et le tag actif est ramené en tête de rangée, à l'écran.
+    await expect(page.getByTestId('recipe-card')).toHaveCount(1)
+    const active = filters.getByRole('button', { name: 'épicé', pressed: true })
+    await expect(active).toBeInViewport({ ratio: 1 })
+
+    // « Tout effacer » reste à portée, juste après le tag actif.
+    const clear = filters.getByRole('button', { name: 'Tout effacer' })
+    await expect(clear).toBeInViewport({ ratio: 1 })
+
+    // L'ordre est celui du DOM, pas un réordonnancement CSS : la tabulation et
+    // les lecteurs d'écran suivent ce qu'on voit (« Tous », tag actif, effacer).
+    const rowButtons = filters.getByRole('button')
+    await expect(rowButtons.nth(0)).toHaveText('Tous · 19')
+    await expect(rowButtons.nth(1)).toHaveText('épicé ✓')
+    await expect(rowButtons.nth(2)).toHaveText('Tout effacer')
+
+    // Au clavier : désactiver le tag le renvoie à sa place — le focus ne se
+    // perd pas, il revient au premier bouton de la rangée.
+    await active.focus()
+    await page.keyboard.press('Enter')
+    await expect(page.getByTestId('recipe-card')).toHaveCount(2)
+    await expect(rowButtons.nth(0)).toBeFocused()
+
+    // Fiche recette en une colonne : le rayon passe sous le nom de l'ingrédient
+    // (à côté, il le repliait sur cinq ou six lignes), et le lien de retour
+    // est une vraie cible tactile.
+    await page.getByTestId('recipe-card').filter({ hasText: 'Chili du dimanche' }).click()
+    await expect(page.getByTestId('recipe-title')).toHaveText('Chili du dimanche')
+    const row = page.locator('.ingredients li').first()
+    const name = (await row.locator('.name').boundingBox())!
+    const aisle = (await row.locator('.aisle').boundingBox())!
+    expect(name.width).toBeGreaterThanOrEqual(180)
+    expect(aisle.y).toBeGreaterThanOrEqual(name.y + name.height - 1)
+    const back = (await page.getByRole('link', { name: '← Mes recettes' }).boundingBox())!
+    expect(back.height).toBeGreaterThanOrEqual(48)
+  })
+})
+
+test('desktop (1280 px) : filtres sur une rangée, « Tous les tags » en dialogue centré', async ({ page }) => {
+  await registerFreshUser(page)
+
+  // 30 tags sur 2 recettes : enroulés, ils occupaient trois rangées au-dessus
+  // de la grille. « végé » est partagé → il arrive en tête.
+  const recipes = [
+    { title: 'Chili du dimanche', tags: ['végé', 'mijoté', 'réconfort', 'se congèle', 'hiver', 'haricots', 'tex-mex', 'économique', 'épicé', 'une casserole', 'mijoteuse', 'boîte à lunch', 'légumineuses', 'sans gluten', 'restes', 'festif'] },
+    { title: 'Salade de quinoa', tags: ['végé', 'rapide', 'été', 'lunch', 'froid', 'sans cuisson', 'protéines', 'léger', 'citron', 'herbes', 'salade', 'pique-nique', 'accompagnement', 'croquant', 'vinaigrette'] },
+  ]
+  for (const recipe of recipes) {
+    const status = await page.evaluate(async (payload) => {
+      const res = await fetch('/api/recipes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      return res.status
+    }, {
+      ...recipe,
+      baseServings: 4,
+      ingredients: [{ quantity: 1, unit: 'unit', name: `base ${recipe.title}`, aisle: 'other' }],
+      steps: ['Tout mélanger.'],
+    })
+    expect(status).toBe(201)
+  }
+
+  await page.goto('/recettes')
+  await page.waitForLoadState('networkidle') // hydratation avant de cliquer
+  await expect(page.getByTestId('recipe-card')).toHaveCount(2)
+
+  // Une seule rangée, sans défilement horizontal de la page.
+  const filters = page.getByRole('group', { name: 'Filtres' })
+  expect((await filters.boundingBox())!.height).toBeLessThanOrEqual(64)
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
+  expect(overflow).toBeLessThanOrEqual(0)
+
+  // « Tous · 30 » ouvre un dialogue centré, pas une feuille collée en bas.
+  await expect(page.getByTestId('all-tags')).toHaveText('Tous · 30')
+  await page.getByTestId('all-tags').click()
+  const sheet = page.getByTestId('tag-sheet')
+  await expect(sheet).toBeVisible()
+  const box = (await sheet.boundingBox())!
+  expect(box.width).toBeLessThanOrEqual(560)
+  expect(Math.abs((box.x + box.width / 2) - 640)).toBeLessThanOrEqual(10) // marge : barre de défilement
+  expect(box.y).toBeGreaterThan(40)
+  expect(box.y + box.height).toBeLessThan(720 - 40)
+
+  // Un tag de fin de liste, hors de la rangée visible : choisi dans le
+  // dialogue, il filtre et remonte en tête de rangée.
+  await sheet.getByTestId('tag-sheet-search').fill('vinai')
+  await sheet.getByTestId('tag-sheet-option').click()
+  await expect(sheet).toBeHidden()
+  await expect(page.getByTestId('recipe-card')).toHaveCount(1)
+  await expect(filters.getByRole('button', { name: 'vinaigrette', pressed: true })).toBeInViewport({ ratio: 1 })
+
+  // Échap ferme sans rien changer.
+  await page.getByTestId('all-tags').click()
+  await expect(sheet).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(sheet).toBeHidden()
+  await expect(page.getByTestId('recipe-card')).toHaveCount(1)
+})

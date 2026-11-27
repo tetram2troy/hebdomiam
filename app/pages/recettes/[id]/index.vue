@@ -131,12 +131,16 @@ async function removeRecipe() {
 
 <style scoped>
 .back {
-  margin-bottom: var(--hb-space-4);
+  margin-bottom: var(--hb-space-1);
 }
 
 .back-link {
   color: var(--md-sys-color-on-surface-variant);
   text-decoration: none;
+  /* Cible tactile au minimum du design system (§9) sans changer l'aspect */
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--hb-touch-target);
 }
 
 .head {
@@ -264,6 +268,20 @@ async function removeRecipe() {
 
 .name {
   flex: 1;
+}
+
+/* Mobile : le rayon passe sous le nom, sinon il lui vole la largeur et un nom
+   un peu long se replie sur cinq ou six lignes. */
+@media (max-width: 600px) {
+  .ingredients li {
+    display: grid;
+    grid-template-columns: 96px minmax(0, 1fr);
+    gap: 0 var(--hb-space-3);
+  }
+
+  .aisle {
+    grid-column: 2;
+  }
 }
 
 .steps {
