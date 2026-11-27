@@ -2,7 +2,7 @@
 //! otplib (ancien backend) : les secrets déjà enrôlés restent valides.
 
 use data_encoding::BASE32_NOPAD;
-use hmac::{Hmac, Mac};
+use hmac::{Hmac, KeyInit, Mac};
 use sha1::Sha1;
 
 const STEP_SECONDS: u64 = 30;
