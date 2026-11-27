@@ -1,8 +1,8 @@
 //! Primitives cryptographiques partagées : Argon2id pour les mots de passe,
 //! SHA-256 pour les jetons stockés, aléa système.
 
-use argon2::password_hash::rand_core::OsRng;
-use argon2::password_hash::{PasswordHash, PasswordHasher, PasswordVerifier, SaltString};
+use argon2::password_hash::phc::PasswordHash;
+use argon2::password_hash::{PasswordHasher, PasswordVerifier};
 use argon2::{Algorithm, Argon2, Params, Version};
 use rand::RngCore;
 use sha2::{Digest, Sha256};
@@ -17,10 +17,11 @@ fn argon2() -> Argon2<'static> {
 
 /// Hache un mot de passe (calcul coûteux : hors du runtime async).
 pub async fn hash_password(password: String) -> String {
+    // Sel aléatoire tiré de l'aléa système par argon2 (fonctionnalité
+    // `getrandom`, active par défaut depuis la 0.6).
     tokio::task::spawn_blocking(move || {
-        let salt = SaltString::generate(&mut OsRng);
         argon2()
-            .hash_password(password.as_bytes(), &salt)
+            .hash_password(password.as_bytes())
             .expect("hachage Argon2")
             .to_string()
     })
@@ -96,6 +97,17 @@ mod tests {
             "$argon2id$v=19$m=19456,t=2,p=1$T0vKXBIdSTOlBdjeVTuWsQ$fSOv76RtSA3ctE3n5bHvrAVhbJCWIR9ZzEWvwxakTa8";
         assert!(verify_password(legacy.into(), "hebdomiam-test-123".into()).await);
         assert!(!verify_password(legacy.into(), "autre".into()).await);
+    }
+
+    #[test]
+    fn derivation_de_cle_valeur_connue() {
+        // Valeur figée : cette clé scelle les cookies de session (session.rs).
+        // Si une mise à jour d'argon2 la change, toutes les sessions sautent.
+        assert_eq!(
+            hex::encode(derive_key("secret-de-configuration", b"hebdomiam-session-v2")),
+            // Obtenue avec argon2 0.5.3.
+            "70301892d8062efe0bb175d2c2c1e3b74f36565c48326da3266429dae47b697c"
+        );
     }
 
     #[test]
