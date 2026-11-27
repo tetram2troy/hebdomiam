@@ -23,6 +23,11 @@ updates:
     schedule:
       interval: weekly
       day: monday
+    groups:
+      # init et analyze doivent rester à la même version : mises à jour dans
+      # deux PR séparées, chacune fait échouer l'analyse CodeQL (vécu : PR 40 et 41).
+      codeql-action:
+        patterns: ["github/codeql-action*"]
 
   - package-ecosystem: docker
     directory: /
