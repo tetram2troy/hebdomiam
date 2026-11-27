@@ -139,7 +139,14 @@ struct LoadedPlan {
     items: Vec<PlanItemRow>,
 }
 
-const PLAN_COLUMNS: &str = "id, week_start_date, people_count, dish_count, days_count, total_servings, status";
+/// Colonnes de `PlanRow`. Macro et non constante, pour composer les requêtes
+/// par `concat!` : elles restent des `&'static str` fixées à la compilation
+/// (voir `user_columns!` dans `users.rs`).
+macro_rules! plan_columns {
+    () => {
+        "id, week_start_date, people_count, dish_count, days_count, total_servings, status"
+    };
+}
 
 async fn load_items(db: &PgPool, plan_id: Uuid) -> Result<Vec<PlanItemRow>, sqlx::Error> {
     sqlx::query_as(
@@ -151,8 +158,10 @@ async fn load_items(db: &PgPool, plan_id: Uuid) -> Result<Vec<PlanItemRow>, sqlx
 }
 
 async fn find_plan(db: &PgPool, user_id: Uuid, plan_id: Uuid) -> Result<Option<LoadedPlan>, sqlx::Error> {
-    let plan: Option<PlanRow> = sqlx::query_as(&format!(
-        "SELECT {PLAN_COLUMNS} FROM meal_plans WHERE id = $1 AND user_id = $2"
+    let plan: Option<PlanRow> = sqlx::query_as(concat!(
+        "SELECT ",
+        plan_columns!(),
+        " FROM meal_plans WHERE id = $1 AND user_id = $2"
     ))
     .bind(plan_id)
     .bind(user_id)
@@ -172,8 +181,10 @@ async fn find_plan(db: &PgPool, user_id: Uuid, plan_id: Uuid) -> Result<Option<L
 /// simultanées (deux « Cuisinée ✓ », validation pendant un échange) se
 /// sérialisent au lieu de se croiser.
 async fn lock_plan(conn: &mut PgConnection, user_id: Uuid, plan_id: Uuid) -> Result<Option<LoadedPlan>, sqlx::Error> {
-    let plan: Option<PlanRow> = sqlx::query_as(&format!(
-        "SELECT {PLAN_COLUMNS} FROM meal_plans WHERE id = $1 AND user_id = $2 FOR UPDATE"
+    let plan: Option<PlanRow> = sqlx::query_as(concat!(
+        "SELECT ",
+        plan_columns!(),
+        " FROM meal_plans WHERE id = $1 AND user_id = $2 FOR UPDATE"
     ))
     .bind(plan_id)
     .bind(user_id)
@@ -190,8 +201,10 @@ async fn lock_plan(conn: &mut PgConnection, user_id: Uuid, plan_id: Uuid) -> Res
 }
 
 async fn find_plan_for_week(db: &PgPool, user_id: Uuid, week: NaiveDate) -> Result<Option<LoadedPlan>, sqlx::Error> {
-    let plan: Option<PlanRow> = sqlx::query_as(&format!(
-        "SELECT {PLAN_COLUMNS} FROM meal_plans WHERE user_id = $1 AND week_start_date = $2"
+    let plan: Option<PlanRow> = sqlx::query_as(concat!(
+        "SELECT ",
+        plan_columns!(),
+        " FROM meal_plans WHERE user_id = $1 AND week_start_date = $2"
     ))
     .bind(user_id)
     .bind(week)

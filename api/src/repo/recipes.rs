@@ -112,8 +112,14 @@ struct SummaryRow {
     freezable: bool,
 }
 
-const SUMMARY_COLUMNS: &str =
-    "r.id, r.title, r.image_url, r.base_servings, r.prep_minutes, r.cook_minutes, r.freezable";
+/// Colonnes de `SummaryRow`. Macro et non constante, pour composer les
+/// requêtes par `concat!` : elles restent des `&'static str` fixées à la
+/// compilation (voir `user_columns!` dans `users.rs`).
+macro_rules! summary_columns {
+    () => {
+        "r.id, r.title, r.image_url, r.base_servings, r.prep_minutes, r.cook_minutes, r.freezable"
+    };
+}
 
 /// Quantité décimale (numeric) → nombre JSON.
 pub fn decimal_to_f64(value: Decimal) -> f64 {
@@ -174,11 +180,14 @@ pub async fn summaries_by_ids(db: &PgPool, ids: &[Uuid]) -> Result<HashMap<Uuid,
     if ids.is_empty() {
         return Ok(HashMap::new());
     }
-    let rows: Vec<SummaryRow> =
-        sqlx::query_as(&format!("SELECT {SUMMARY_COLUMNS} FROM recipes r WHERE r.id = ANY($1)"))
-            .bind(ids)
-            .fetch_all(db)
-            .await?;
+    let rows: Vec<SummaryRow> = sqlx::query_as(concat!(
+        "SELECT ",
+        summary_columns!(),
+        " FROM recipes r WHERE r.id = ANY($1)"
+    ))
+    .bind(ids)
+    .fetch_all(db)
+    .await?;
     Ok(to_summaries(db, rows).await?.into_iter().map(|s| (s.id, s)).collect())
 }
 
@@ -187,8 +196,11 @@ fn escape_like(text: &str) -> String {
 }
 
 pub async fn list(db: &PgPool, user_id: Uuid, query: &RecipeListQuery) -> Result<Vec<RecipeSummary>, sqlx::Error> {
-    let mut sql: QueryBuilder<Postgres> =
-        QueryBuilder::new(format!("SELECT {SUMMARY_COLUMNS} FROM recipes r WHERE r.user_id = "));
+    let mut sql: QueryBuilder<Postgres> = QueryBuilder::new(concat!(
+        "SELECT ",
+        summary_columns!(),
+        " FROM recipes r WHERE r.user_id = "
+    ));
     sql.push_bind(user_id).push(" AND r.deleted_at IS NULL");
 
     if let Some(q) = &query.q {
@@ -347,11 +359,14 @@ pub async fn update(
     if updated.is_none() {
         return Ok(None);
     }
-    for table in ["recipe_steps", "recipe_ingredients", "recipe_tags"] {
-        sqlx::query(&format!("DELETE FROM {table} WHERE recipe_id = $1"))
-            .bind(recipe_id)
-            .execute(&mut *tx)
-            .await?;
+    // Trois requêtes littérales plutôt qu'un nom de table interpolé : le texte
+    // SQL reste fixé à la compilation.
+    for delete_children in [
+        "DELETE FROM recipe_steps WHERE recipe_id = $1",
+        "DELETE FROM recipe_ingredients WHERE recipe_id = $1",
+        "DELETE FROM recipe_tags WHERE recipe_id = $1",
+    ] {
+        sqlx::query(delete_children).bind(recipe_id).execute(&mut *tx).await?;
     }
     insert_children(&mut tx, user_id, recipe_id, input).await?;
     tx.commit().await?;

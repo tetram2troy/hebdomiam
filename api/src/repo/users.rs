@@ -48,19 +48,27 @@ impl UserRow {
     }
 }
 
-const USER_COLUMNS: &str = "id, email, password_hash, name, email_verified_at, role, disabled_at, locale, unit_system,
+/// Colonnes de `UserRow`. Macro et non constante : `concat!` n'accepte que des
+/// littéraux, et sqlx (≥ 0.9) n'exécute sans assertion qu'un `&'static str`.
+/// La requête reste ainsi une chaîne fixée à la compilation, où aucune donnée
+/// dynamique ne peut entrer — garanti par le compilateur, pas par une promesse.
+macro_rules! user_columns {
+    () => {
+        "id, email, password_hash, name, email_verified_at, role, disabled_at, locale, unit_system,
     default_dish_count, default_people_count, default_days_count, rotation_weeks,
-    totp_secret, totp_enabled_at, totp_backup_hash, totp_last_step, session_epoch, invite_pending, created_at";
+    totp_secret, totp_enabled_at, totp_backup_hash, totp_last_step, session_epoch, invite_pending, created_at"
+    };
+}
 
 pub async fn find_by_id(db: &PgPool, id: Uuid) -> Result<Option<UserRow>, sqlx::Error> {
-    sqlx::query_as(&format!("SELECT {USER_COLUMNS} FROM users WHERE id = $1"))
+    sqlx::query_as(concat!("SELECT ", user_columns!(), " FROM users WHERE id = $1"))
         .bind(id)
         .fetch_optional(db)
         .await
 }
 
 pub async fn find_by_email(db: &PgPool, email: &str) -> Result<Option<UserRow>, sqlx::Error> {
-    sqlx::query_as(&format!("SELECT {USER_COLUMNS} FROM users WHERE email = $1"))
+    sqlx::query_as(concat!("SELECT ", user_columns!(), " FROM users WHERE email = $1"))
         .bind(email)
         .fetch_optional(db)
         .await
