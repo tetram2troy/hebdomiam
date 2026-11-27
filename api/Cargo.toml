@@ -42,7 +42,7 @@ hmac = "0.12"
 hex = "0.4"
 base64 = "0.23"
 data-encoding = "2"
-qrcode = { version = "0.14", default-features = false, features = ["svg"] }
+qrcode = { version = "0.15", default-features = false, features = ["svg"] }
 
 # Sortant : import de recettes (garde SSRF), API Claude, courriels
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
