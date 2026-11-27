@@ -247,8 +247,17 @@ Rendu de référence : planche « Composants » du projet Claude Design.
 ### 8.7 Tags et filtres
 - Chip tag : `secondary-container`, `label-large`, pastille ; suppression ✕ en édition.
 - Chip filtre : contour 2 px, état sélectionné = `secondary-container` + coche.
-- Rangée horizontale défilante sur mobile (avec dégradé d'indication), enveloppée
-  sur desktop.
+- Rangée horizontale défilante (avec dégradé d'indication) ; bord à bord sur mobile.
+- Liste de recettes, à toutes les tailles : une seule rangée de filtres. Au-delà de
+  6 tags, elle commence par un bouton tonal « Tous · N » qui ouvre
+  `RecipeTagSheet` — tous les tags du plus utilisé au moins utilisé, leur nombre de
+  recettes et une recherche sans casse ni accents. Feuille basse sous 768 px,
+  dialogue centré au-delà. Le tag actif, puis « Tout effacer », remontent en tête
+  de rangée — dans le DOM, pas par `order` CSS (tabulation = ordre visuel, §9).
+  Le panneau garde une hauteur fixe pendant la recherche (une feuille
+  qui se tasse en bas d'écran finirait sous le clavier du téléphone).
+- Chip cliquable (`<button class="chip">`) : calque d'état MD3 sur sa propre
+  couleur au survol — jamais le fond primaire des boutons.
 
 ### 8.8 Toasts / snackbars
 - Fond `inverse-surface`, texte `inverse-on-surface`, coin `medium`, `level3` ;
@@ -261,11 +270,17 @@ Rendu de référence : planche « Composants » du projet Claude Design.
 - **Desktop (≥ 1024 px) :** barre haute — wordmark · Accueil · Recettes · Épicerie ·
   [Planifier ma semaine] (bouton rempli, seul élément coloré) · avatar → Réglages.
   Item actif : soulignement 3 px `primary`.
-- **Mobile :** barre d'onglets basse 4 destinations — Accueil, Recettes, Épicerie,
-  Réglages — icône + `label-medium`, item actif en `primary-container` (pastille).
-  Le CTA « Planifier » vit dans la page Accueil, pas dans la barre.
+- **Mobile et tablette (< 1024 px) :** barre d'onglets basse 4 destinations — Accueil,
+  Recettes, Épicerie, Réglages — icône + `label-medium`, item actif en
+  `primary-container` (pastille). Le CTA « Planifier » vit dans la page Accueil, pas
+  dans la barre. L'en-tête se réduit au wordmark : la bascule de langue, la
+  déconnexion et l'entrée « Administration » (admins) se trouvent dans Réglages.
+  Composant `HbTabBar` ; l'onglet actif suit la section (Planifier et Cuisine →
+  Accueil, Administration → Réglages). Déconnecté : pas de barre, l'en-tête garde
+  langue et connexion.
 - **Modes plein écran** (magasin, cuisine) : la barre s'efface ; en-tête minimal
-  avec ← retour et titre.
+  avec ← retour et titre. *Pas encore implémenté : la barre d'onglets reste visible
+  sur Épicerie et Cuisine.*
 
 ### 8.10 États vides
 - Illustration au trait (même langage que les placeholders) + titre `headline-small`

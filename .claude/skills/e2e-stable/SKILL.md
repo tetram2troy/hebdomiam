@@ -26,7 +26,7 @@ La suite tourne contre un seul serveur — le binaire Rust (conteneur
    `test.use({ extraHTTPHeaders: { 'x-forwarded-for': '203.0.113.X' } })`.
    Registre : .11-.13 recettes · .21 design · .31 auth · .41 planifier ·
    .51 reglages · .52 securite-2fa · .53 courriel · .54 i18n · .55 cles-api · .61-.62 admin ·
-   .63+ captures/diagnostics · .71 epicerie · .95 import · .98 cuisine.
+   .63+ captures/diagnostics · .71 epicerie · .81 navigation · .95 import · .98 cuisine.
    Prendre une adresse libre et compter les logins du fichier (max 5/min).
    Le helper partagé consomme sur son propre pool (198.51.x.y aléatoire) —
    jamais un compteur par module : il se réinitialise à chaque worker et les
@@ -92,6 +92,11 @@ La suite tourne contre un seul serveur — le binaire Rust (conteneur
    état l'écran était vraiment (alerte affichée ? champ rempli ? page attendue ?).
 2. Relancer le test **seul** : s'il passe isolément, chercher un problème de
    charge/timing ou d'état partagé, pas un bug d'app.
+   Plusieurs tests sans rapport qui dépassent tous les 60 s dans la même
+   exécution = poste chargé (Argon2 dans le conteneur, deux workers, API de dev
+   ou sous-agent qui tournent à côté) : `npx playwright test --last-failed
+   --workers=1`, puis la suite entière en `--workers=1` (~10 min) pour un
+   passage complet propre — vécu : 6 échecs à deux workers, 36/36 à un seul.
 3. `npx playwright test <spec> --trace on`, puis dépouiller
    `0-trace.network` (dézippé de trace.zip) : les requêtes réellement émises et
    leurs statuts. « Submit déclenché mais aucune requête » = exception dans le
