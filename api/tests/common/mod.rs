@@ -13,8 +13,8 @@ use hebdomiam::crypto::sha256_hex;
 use hebdomiam::domain::catalog::Role;
 use hebdomiam::migrate;
 use hebdomiam::repo::recipes::{self, IngredientInput, RecipeInput};
-use sqlx::PgPool;
 use sqlx::postgres::PgPoolOptions;
+use sqlx::{AssertSqlSafe, PgPool};
 use tokio::sync::{Mutex, OnceCell};
 use uuid::Uuid;
 
@@ -32,6 +32,14 @@ fn url_for(database: &str) -> String {
     let mut url = base_url();
     url.set_path(&format!("/{database}"));
     url.to_string()
+}
+
+/// `CREATE DATABASE` et `DROP DATABASE` n'acceptent pas de paramètre lié : le
+/// nom de base est interpolé dans le texte. Sûr ici — ces noms sont fabriqués
+/// par ce module (empreinte hexadécimale des migrations, pid, compteur, UUID),
+/// jamais lus d'une entrée.
+fn database_ddl(sql: String) -> AssertSqlSafe<String> {
+    AssertSqlSafe(sql)
 }
 
 async fn admin_pool() -> PgPool {
@@ -60,7 +68,7 @@ async fn template() -> &'static str {
                 .await
                 .unwrap();
             if !exists {
-                sqlx::raw_sql(&format!("CREATE DATABASE \"{name}\""))
+                sqlx::raw_sql(database_ddl(format!("CREATE DATABASE \"{name}\"")))
                     .execute(&admin)
                     .await
                     .unwrap();
@@ -99,10 +107,12 @@ impl TestDb {
         {
             let _guard = CREATE_LOCK.lock().await;
             let admin = admin_pool().await;
-            sqlx::raw_sql(&format!("CREATE DATABASE \"{name}\" TEMPLATE \"{template}\""))
-                .execute(&admin)
-                .await
-                .unwrap();
+            sqlx::raw_sql(database_ddl(format!(
+                "CREATE DATABASE \"{name}\" TEMPLATE \"{template}\""
+            )))
+            .execute(&admin)
+            .await
+            .unwrap();
             admin.close().await;
         }
         let pool = PgPoolOptions::new()
@@ -123,9 +133,12 @@ impl TestDb {
     pub async fn drop(self) {
         self.pool.close().await;
         let admin = admin_pool().await;
-        let _ = sqlx::raw_sql(&format!("DROP DATABASE IF EXISTS \"{}\" WITH (FORCE)", self.name))
-            .execute(&admin)
-            .await;
+        let _ = sqlx::raw_sql(database_ddl(format!(
+            "DROP DATABASE IF EXISTS \"{}\" WITH (FORCE)",
+            self.name
+        )))
+        .execute(&admin)
+        .await;
         admin.close().await;
     }
 }

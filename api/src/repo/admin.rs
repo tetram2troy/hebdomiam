@@ -32,7 +32,14 @@ pub struct AdminUserDto {
     pub created_at: DateTime<Utc>,
 }
 
-const DTO_COLUMNS: &str = "id, email, name, role, email_verified_at IS NOT NULL AS email_verified, disabled_at IS NOT NULL AS disabled, created_at";
+/// Colonnes de `AdminUserDto`. Macro et non constante, pour composer les
+/// requêtes par `concat!` : elles restent des `&'static str` fixées à la
+/// compilation (voir `user_columns!` dans `users.rs`).
+macro_rules! dto_columns {
+    () => {
+        "id, email, name, role, email_verified_at IS NOT NULL AS email_verified, disabled_at IS NOT NULL AS disabled, created_at"
+    };
+}
 
 /// Verrouille (FOR UPDATE) puis compte les admins comptés comme relève :
 /// rôle admin, non désactivés ET courriel vérifié. Un compte invité jamais
@@ -52,9 +59,13 @@ pub async fn lock_active_admins(conn: &mut PgConnection) -> Result<usize, sqlx::
 }
 
 pub async fn list_users(db: &PgPool) -> Result<Vec<AdminUserDto>, sqlx::Error> {
-    sqlx::query_as(&format!("SELECT {DTO_COLUMNS} FROM users ORDER BY created_at ASC"))
-        .fetch_all(db)
-        .await
+    sqlx::query_as(concat!(
+        "SELECT ",
+        dto_columns!(),
+        " FROM users ORDER BY created_at ASC"
+    ))
+    .fetch_all(db)
+    .await
 }
 
 pub enum CreateInvited {
@@ -68,9 +79,10 @@ pub async fn create_invited_user(db: &PgPool, email: &str, name: &str) -> Result
     let password_hash = hash_password(random_hex(32)).await;
     // Transaction : pas de compte sans jeton d'invitation.
     let mut tx = db.begin().await?;
-    let created: Option<AdminUserDto> = sqlx::query_as(&format!(
+    let created: Option<AdminUserDto> = sqlx::query_as(concat!(
         "INSERT INTO users (email, name, password_hash, invite_pending) VALUES ($1, $2, $3, true)
-         ON CONFLICT (email) DO NOTHING RETURNING {DTO_COLUMNS}"
+         ON CONFLICT (email) DO NOTHING RETURNING ",
+        dto_columns!()
     ))
     .bind(email)
     .bind(name)
@@ -199,8 +211,9 @@ pub async fn update_user(
         Some(false) => None,
         None => target.disabled_at,
     };
-    let row: Option<AdminUserDto> = sqlx::query_as(&format!(
-        "UPDATE users SET role = $2, disabled_at = $3 WHERE id = $1 RETURNING {DTO_COLUMNS}"
+    let row: Option<AdminUserDto> = sqlx::query_as(concat!(
+        "UPDATE users SET role = $2, disabled_at = $3 WHERE id = $1 RETURNING ",
+        dto_columns!()
     ))
     .bind(target_id)
     .bind(patch.role.unwrap_or(target.role))

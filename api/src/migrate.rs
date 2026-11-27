@@ -9,7 +9,7 @@
 
 use include_dir::{Dir, include_dir};
 use serde_json::json;
-use sqlx::{PgPool, Row};
+use sqlx::{AssertSqlSafe, PgPool, Row};
 
 use crate::crypto::sha256_hex;
 use crate::logger::{log_event, log_warn};
@@ -92,7 +92,12 @@ async fn run_locked(conn: &mut sqlx::PgConnection) -> Result<Vec<String>, sqlx::
             }
             None => {
                 let mut tx = sqlx::Connection::begin(&mut *conn).await?;
-                sqlx::raw_sql(&migration.sql).execute(&mut *tx).await?;
+                // Texte SQL sûr sans être `&'static str` : c'est le contenu d'un
+                // fichier de `api/migrations/`, embarqué dans le binaire à la
+                // compilation (`include_dir!`) — aucune entrée d'exécution.
+                sqlx::raw_sql(AssertSqlSafe(migration.sql.as_str()))
+                    .execute(&mut *tx)
+                    .await?;
                 sqlx::query("INSERT INTO hebdomiam_migrations (name, checksum) VALUES ($1, $2)")
                     .bind(&migration.name)
                     .bind(migration.checksum())
@@ -165,8 +170,12 @@ pub async fn ensure_app_role(pool: &PgPool, password: &str) -> Result<(), sqlx::
     .bind(password)
     .fetch_one(&mut *tx)
     .await?;
-    sqlx::raw_sql(&statements.0).execute(&mut *tx).await?;
-    sqlx::raw_sql(&statements.1).execute(&mut *tx).await?;
+    // Texte SQL sûr : c'est PostgreSQL qui vient de composer ces deux
+    // instructions par `format()`, le mot de passe échappé en littéral (%L) et
+    // le nom de la base en identifiant (%I). Rien n'est concaténé côté Rust, et
+    // le mot de passe vient de la configuration du déploiement, pas d'un client.
+    sqlx::raw_sql(AssertSqlSafe(statements.0)).execute(&mut *tx).await?;
+    sqlx::raw_sql(AssertSqlSafe(statements.1)).execute(&mut *tx).await?;
     sqlx::raw_sql(
         "GRANT USAGE ON SCHEMA public TO hebdomiam_app;
          GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO hebdomiam_app;
