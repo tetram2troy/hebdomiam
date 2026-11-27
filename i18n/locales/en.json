@@ -261,6 +261,7 @@
   "common": {
     "save": "Save",
     "cancel": "Cancel",
+    "close": "Close",
     "edit": "Edit",
     "delete": "Delete",
     "back": "Back",
@@ -293,6 +294,10 @@
     "searchPlaceholder": "Title or ingredient…",
     "filters": "Filters",
     "clearFilters": "Clear all",
+    "allTags": "All · {n}",
+    "allTagsTitle": "All tags",
+    "tagSearch": "Find a tag…",
+    "noTagMatch": "No matching tags.",
     "resultCount": "No matching recipes | {n} matching recipe | {n} matching recipes",
     "minutes": "{n} min",
     "servings": "{n} serving | {n} servings",

@@ -31,10 +31,57 @@ function toggleTag(name: string) {
   activeTag.value = activeTag.value === name ? undefined : name
 }
 
+// Les filtres tiennent sur une rangée défilante, à toutes les tailles d'écran.
+// Au-delà de quelques tags, un bouton « Tous » ouvre la liste complète
+// (RecipeTagSheet) — en dessous du seuil, la rangée suffit et le bouton ne
+// serait que du bruit.
+const ALL_TAGS_THRESHOLD = 6
+const tagSheet = ref<{ open: () => void } | null>(null)
+const filtersRow = ref<HTMLElement | null>(null)
+
+// Ordre de la rangée : le tag actif d'abord, puis « Tout effacer », puis les
+// autres tags. Il est porté par le DOM et non par un `order` CSS : tabulation
+// et lecteurs d'écran doivent suivre l'ordre visuel (design-system §9).
+type RowItem = { kind: 'tag', tag: TagSummary } | { kind: 'clear' }
+
+const filterRow = computed<RowItem[]>(() => {
+  const all = tags.value ?? []
+  const active = all.find(tag => tag.name === activeTag.value)
+  return [
+    ...(active ? [{ kind: 'tag' as const, tag: active }] : []),
+    ...(hasFilters.value ? [{ kind: 'clear' as const }] : []),
+    ...all.filter(tag => tag !== active).map(tag => ({ kind: 'tag' as const, tag })),
+  ]
+})
+
+// Le tag actif arrive en tête : on y ramène aussi le défilement, sinon un tag
+// choisi dans la liste complète resterait hors écran.
+watch(activeTag, () => {
+  filtersRow.value?.scrollTo({ left: 0 })
+})
+
 function clearFilters() {
   search.value = ''
   debouncedSearch.value = ''
   activeTag.value = undefined
+}
+
+// Depuis la rangée, le bouton activé change de place dans le DOM (ou
+// disparaît, pour « Tout effacer ») et perd le focus : on le rend au tag
+// devenu actif, sinon au premier bouton de la rangée — toujours à l'écran.
+async function refocusRow(selector: string) {
+  await nextTick()
+  filtersRow.value?.querySelector<HTMLElement>(selector)?.focus({ preventScroll: true })
+}
+
+async function toggleTagInRow(name: string) {
+  toggleTag(name)
+  await refocusRow(activeTag.value === name ? '[aria-pressed="true"]' : 'button')
+}
+
+async function clearFiltersInRow() {
+  clearFilters()
+  await refocusRow('button')
 }
 </script>
 
@@ -62,21 +109,33 @@ function clearFilters() {
       >
     </div>
 
-    <div v-if="tags?.length" class="filters" role="group" :aria-label="$t('recipes.filters')">
+    <div v-if="tags?.length" ref="filtersRow" class="filters" role="group" :aria-label="$t('recipes.filters')">
       <button
-        v-for="tag in tags"
-        :key="tag.name"
+        v-if="tags.length > ALL_TAGS_THRESHOLD"
         type="button"
-        class="chip-filter chip"
-        :aria-pressed="activeTag === tag.name"
-        @click="toggleTag(tag.name)"
+        class="chip all-tags"
+        aria-haspopup="dialog"
+        data-testid="all-tags"
+        @click="tagSheet?.open()"
       >
-        {{ tag.name }}<span v-if="activeTag === tag.name"> ✓</span>
+        {{ $t('recipes.allTags', { n: tags.length }) }}
       </button>
-      <button v-if="hasFilters" type="button" class="btn-text clear-btn" @click="clearFilters">
-        {{ $t('recipes.clearFilters') }}
-      </button>
+      <template v-for="item in filterRow" :key="item.kind === 'tag' ? `tag:${item.tag.name}` : 'clear'">
+        <button
+          v-if="item.kind === 'tag'"
+          type="button"
+          class="chip-filter chip"
+          :aria-pressed="activeTag === item.tag.name"
+          @click="toggleTagInRow(item.tag.name)"
+        >
+          {{ item.tag.name }}<span v-if="activeTag === item.tag.name"> ✓</span>
+        </button>
+        <button v-else type="button" class="btn-text clear-btn" @click="clearFiltersInRow">
+          {{ $t('recipes.clearFilters') }}
+        </button>
+      </template>
     </div>
+    <RecipeTagSheet v-if="tags?.length" ref="tagSheet" :tags="tags" :active="activeTag" @select="toggleTag" />
 
     <p v-if="recipes && hasFilters" class="meta result-count" aria-live="polite">
       {{ $t('recipes.resultCount', { n: recipes.length }, recipes.length) }}
@@ -143,17 +202,48 @@ function clearFilters() {
   max-width: 480px;
 }
 
+/* Une seule rangée défilante, à toutes les tailles d'écran, au lieu d'un mur
+   de tags avant la première recette (design-system §8.7). La liste complète
+   s'ouvre par le bouton « Tous · N ». */
 .filters {
   display: flex;
-  flex-wrap: wrap;
   gap: var(--hb-space-2);
   align-items: center;
-  margin-bottom: var(--hb-space-3);
+  overflow-x: auto;
+  scrollbar-width: none;
+  /* Le padding (compensé par une marge négative) laisse la place à l'anneau
+     de focus, que `overflow` rognerait ; à droite, celle du dégradé. */
+  margin: calc(-1 * var(--hb-space-1)) calc(-1 * var(--hb-space-1)) var(--hb-space-2);
+  padding: var(--hb-space-1) var(--hb-space-10) var(--hb-space-1) var(--hb-space-1);
+  /* Dégradé d'indication : le dernier tag visible s'estompe à droite. */
+  mask-image: linear-gradient(to right, #000 calc(100% - var(--hb-space-10)), transparent);
+}
+
+.filters::-webkit-scrollbar {
+  display: none;
+}
+
+.filters > * {
+  flex: none;
+  white-space: nowrap;
+}
+
+.all-tags {
+  cursor: pointer;
 }
 
 .clear-btn {
   min-height: 36px;
   padding: 4px 12px;
+}
+
+/* Mobile : bord à bord — la rangée déborde des marges de page pour défiler
+   jusqu'aux bords de l'écran. */
+@media (max-width: 767px) {
+  .filters {
+    margin-inline: calc(-1 * var(--hb-space-4));
+    padding-left: var(--hb-space-4);
+  }
 }
 
 .result-count {

@@ -261,6 +261,7 @@
   "common": {
     "save": "Enregistrer",
     "cancel": "Annuler",
+    "close": "Fermer",
     "edit": "Modifier",
     "delete": "Supprimer",
     "back": "Retour",
@@ -293,6 +294,10 @@
     "searchPlaceholder": "Titre ou ingrédient…",
     "filters": "Filtres",
     "clearFilters": "Tout effacer",
+    "allTags": "Tous · {n}",
+    "allTagsTitle": "Tous les tags",
+    "tagSearch": "Chercher un tag…",
+    "noTagMatch": "Aucun tag ne correspond.",
     "resultCount": "Aucune recette ne correspond | {n} recette correspond | {n} recettes correspondent",
     "minutes": "{n} min",
     "servings": "{n} portion | {n} portions",
