@@ -7,7 +7,12 @@ definePageMeta({ middleware: 'auth' })
 const localePath = useLocalePath()
 const switchLocalePath = useSwitchLocalePath()
 const { t, locale } = useI18n()
-const { clear } = useUserSession()
+const { user, clear } = useUserSession()
+
+// Affichage seulement (le rôle vient du cookie de session) : /api/admin/*
+// revérifie toujours le rôle en base. Sur mobile, c'est le seul chemin vers
+// l'administration — la barre d'onglets n'a que quatre destinations.
+const isAdmin = computed(() => user.value?.role === 'admin')
 const { theme, apply: applyTheme } = useTheme()
 
 const { data: profile } = await useFetch<ProfileDto>('/api/settings')
@@ -257,6 +262,15 @@ async function deleteAccount() {
             {{ $t('settings.resendVerify') }}
           </button>
         </template>
+      </div>
+    </section>
+
+    <!-- Administration (admins) -->
+    <section v-if="isAdmin" class="panel" data-testid="settings-admin">
+      <h2>{{ $t('nav.admin') }}</h2>
+      <div class="srow">
+        <span class="lab"><b>{{ $t('settings.adminLabel') }}</b><span class="hint">{{ $t('settings.adminHint') }}</span></span>
+        <NuxtLink :to="localePath('/admin')" class="btn btn-outline small" data-testid="settings-admin-link">{{ $t('settings.adminOpen') }}</NuxtLink>
       </div>
     </section>
 
